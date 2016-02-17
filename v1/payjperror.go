@@ -34,7 +34,10 @@ func parseResponseError(resp *http.Response, err error) ([]byte, error) {
 	payjpError := &PayJpError{}
 	err = json.Unmarshal(body, payjpError)
 	if err != nil {
-		return nil, err
+		// ignore JSON parsing error.
+		// Subscription JSON has same name property 'status' but it is string.
+		// it would be error, but it can be omitted.
+		return body, nil
 	}
 	if payjpError.Status != 0 {
 		return nil, payjpError

@@ -172,44 +172,33 @@ func (c customerService) GetCard(customerID, cardID string) (*CardResponse, erro
 	return parseCard(c.service, body, &CardResponse{}, customerID)
 }
 
-func (c customerService) UpdateCard(id, cardId string, card Card) (*CardResponse, error) {
+func (c customerService) UpdateCard(iD, cardID string, card Card) (*CardResponse, error) {
 	result := &CardResponse{
-		customerID: id,
+		customerID: iD,
 		service:    c.service,
 	}
-	return c.postCard(id, "/"+cardId, card, result)
+	return c.postCard(iD, "/"+cardID, card, result)
 }
 
-func (c customerService) DeleteCard(id, cardId string) error {
-	return c.service.delete("/customers/" + id + "/cards/" + cardId)
+func (c customerService) DeleteCard(ID, cardID string) error {
+	return c.service.delete("/customers/" + ID + "/cards/" + cardID)
 }
 
 func (c customerService) ListCard(id string) *customerCardListCaller {
 	return &customerCardListCaller{
 		service:    c.service,
-		customerId: id,
+		customerID: id,
 	}
 }
 
-func (c customerService) GetSubscription(customerId, cardId string) (*SubscriptionResponse, error) {
-	body, err := c.service.get("/customers/" + customerId + "/subscriptions/" + cardId)
-	if err != nil {
-		return nil, err
-	}
-	result := &SubscriptionResponse{
-		service: c.service,
-	}
-	err = json.Unmarshal(body, result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+func (c customerService) GetSubscription(customerID, subscriptionID string) (*SubscriptionResponse, error) {
+	return c.service.Subscription.Get(customerID, subscriptionID)
 }
 
-func (c customerService) ListSubscription(id string) *customerSubscriptionListCaller {
-	return &customerSubscriptionListCaller{
+func (c customerService) ListSubscription(ID string) *subscriptionListCaller {
+	return &subscriptionListCaller{
 		service:    c.service,
-		customerId: id,
+		customerID: ID,
 	}
 }
 
@@ -259,7 +248,7 @@ func (c *customerListCaller) Do() ([]*CustomerResponse, bool, error) {
 
 type customerCardListCaller struct {
 	service    *Service
-	customerId string
+	customerID string
 	limit      int
 	offset     int
 	since      int
@@ -287,56 +276,11 @@ func (c *customerCardListCaller) Until(until time.Time) *customerCardListCaller 
 }
 
 func (c *customerCardListCaller) Do() ([]*CardResponse, bool, error) {
-	body, err := c.service.queryList("/customers/"+c.customerId+"/cards", c.limit, c.offset, c.since, c.until)
+	body, err := c.service.queryList("/customers/"+c.customerID+"/cards", c.limit, c.offset, c.since, c.until)
 	if err != nil {
 		return nil, false, err
 	}
 	result := &CardList{}
-	err = json.Unmarshal(body, result)
-	if err != nil {
-		return nil, false, err
-	}
-	for _, customer := range result.Data {
-		customer.service = c.service
-	}
-	return result.Data, result.HasMore, nil
-}
-
-type customerSubscriptionListCaller struct {
-	service    *Service
-	customerId string
-	limit      int
-	offset     int
-	since      int
-	until      int
-}
-
-func (c *customerSubscriptionListCaller) Limit(limit int) *customerSubscriptionListCaller {
-	c.limit = limit
-	return c
-}
-
-func (c *customerSubscriptionListCaller) Offset(offset int) *customerSubscriptionListCaller {
-	c.offset = offset
-	return c
-}
-
-func (c *customerSubscriptionListCaller) Since(since time.Time) *customerSubscriptionListCaller {
-	c.since = int(since.Unix())
-	return c
-}
-
-func (c *customerSubscriptionListCaller) Until(until time.Time) *customerSubscriptionListCaller {
-	c.until = int(until.Unix())
-	return c
-}
-
-func (c *customerSubscriptionListCaller) Do() ([]*SubscriptionResponse, bool, error) {
-	body, err := c.service.queryList("/customers/"+c.customerId+"/subscriptions", c.limit, c.offset, c.since, c.until)
-	if err != nil {
-		return nil, false, err
-	}
-	result := &SubscriptionList{}
 	err = json.Unmarshal(body, result)
 	if err != nil {
 		return nil, false, err
@@ -395,7 +339,7 @@ func (c *CustomerResponse) GetSubscription(subscriptionID string) (*Subscription
 	return c.service.Customer.GetSubscription(c.ID, subscriptionID)
 }
 
-func (c *CustomerResponse) ListSubscription() *customerSubscriptionListCaller {
+func (c *CustomerResponse) ListSubscription() *subscriptionListCaller {
 	return c.service.Customer.ListSubscription(c.ID)
 }
 
