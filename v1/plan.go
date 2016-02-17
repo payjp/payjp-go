@@ -3,7 +3,6 @@ package payjp
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -76,23 +75,11 @@ func (p planService) Create(plan Plan) (*PlanResponse, error) {
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Add("Authorization", p.service.apiKey)
 
-	resp, err := p.service.Client.Do(request)
+	body, err := respToBody(p.service.Client.Do(request))
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	result := &PlanResponse{
-		service: p.service,
-	}
-	err = json.Unmarshal(body, result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return parsePlan(p.service, body, &PlanResponse{})
 }
 
 func (p planService) Get(id string) (*PlanResponse, error) {
@@ -100,12 +87,15 @@ func (p planService) Get(id string) (*PlanResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := &PlanResponse{}
-	err = json.Unmarshal(body, result)
+	return parsePlan(p.service, body, &PlanResponse{})
+}
+
+func parsePlan(service *Service, body []byte, result *PlanResponse) (*PlanResponse, error) {
+	err := json.Unmarshal(body, result)
 	if err != nil {
 		return nil, err
 	}
-	result.service = p.service
+	result.service = service
 	return result, nil
 }
 
@@ -127,14 +117,7 @@ func (p planService) Update(id, name string) (*PlanResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := &PlanResponse{
-		service: p.service,
-	}
-	err = json.Unmarshal(body, result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return parsePlan(p.service, body, &PlanResponse{})
 }
 
 func (p planService) Delete(id string) error {
