@@ -12,15 +12,43 @@ const (
 	EmptyString = "jkewqioklaifjklark;tijkzkjlzxmncxzmkjio`io190r9i0topfakjdaskljf"
 )
 
+type Config struct {
+	ApiBase string
+}
+
 type Service struct {
 	Client  *http.Client
 	apiKey  string
 	apiBase string
 
-	Customer *customerService
-	Account  *accountService
-	Token    *tokenService
-	Plan     *planService
+	Customer     *customerService
+	Plan         *planService
+	Subscription *subscriptionService
+	Account      *accountService
+	Token        *tokenService
+}
+
+func New(apiKey string, client *http.Client, config ...Config) *Service {
+	if client == nil {
+		client = &http.Client{}
+	}
+	service := &Service{
+		apiKey: "Basic " + base64.StdEncoding.EncodeToString([]byte(apiKey+":")),
+		Client: client,
+	}
+	if len(config) > 0 {
+		service.apiBase = config[0].ApiBase
+	} else {
+		service.apiBase = "https://api.pay.jp/v1"
+	}
+
+	service.Customer = newCustomerService(service)
+	service.Plan = newPlanService(service)
+	service.Subscription = newSubscriptionService(service)
+	service.Account = newAccountService(service)
+	service.Token = newTokenService(service)
+
+	return service
 }
 
 func (s Service) ApiBase() string {
@@ -84,30 +112,4 @@ func (s Service) queryList(resourcePath string, limit, offset, since, until int)
 	request.Header.Add("Authorization", s.apiKey)
 
 	return respToBody(s.Client.Do(request))
-}
-
-type Config struct {
-	ApiBase string
-}
-
-func New(apiKey string, client *http.Client, config ...Config) *Service {
-	if client == nil {
-		client = &http.Client{}
-	}
-	service := &Service{
-		apiKey: "Basic " + base64.StdEncoding.EncodeToString([]byte(apiKey+":")),
-		Client: client,
-	}
-	if len(config) > 0 {
-		service.apiBase = config[0].ApiBase
-	} else {
-		service.apiBase = "https://api.pay.jp/v1"
-	}
-
-	service.Customer = newCustomerService(service)
-	service.Account = newAccountService(service)
-	service.Token = newTokenService(service)
-	service.Plan = newPlanService(service)
-
-	return service
 }
