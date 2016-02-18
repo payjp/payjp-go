@@ -21,7 +21,7 @@ type Service struct {
 	Plan         *PlanService
 	Subscription *subscriptionService
 	Account      *accountService
-	Token        *tokenService
+	Token        *TokenService
 }
 
 func New(apiKey string, client *http.Client, config ...Config) *Service {

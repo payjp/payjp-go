@@ -36,14 +36,11 @@ var tokenResponseJSON = []byte(`
 `)
 
 func TestParseTokenResponseJSON(t *testing.T) {
-	token := &Token{}
+	token := &TokenResponse{}
 	err := json.Unmarshal(tokenResponseJSON, token)
 
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
-	}
-	if token.Object != "token" {
-		t.Errorf("parse error")
 	}
 	if token.ID != "tok_5ca06b51685e001723a2c3b4aeb4" {
 		t.Errorf("token.Id should be 'tok_5ca06b51685e001723a2c3b4aeb4', but '%s'", token.ID)

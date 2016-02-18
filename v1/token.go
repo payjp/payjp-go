@@ -3,23 +3,34 @@ package payjp
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 )
 
-type tokenService struct {
+type TokenService struct {
 	service *Service
 }
 
-func newTokenService(service *Service) *tokenService {
-	return &tokenService{
+func newTokenService(service *Service) *TokenService {
+	return &TokenService{
 		service: service,
 	}
 }
 
-func (t *tokenService) Create(card Card) (*Token, error) {
+func parseToken(data []byte, err error) (*TokenResponse, error) {
+	if err != nil {
+		return nil, err
+	}
+	result := &TokenResponse{}
+	err = json.Unmarshal(data, result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (t *TokenService) Create(card Card) (*TokenResponse, error) {
 	var errors []string
 	if card.Number == "" {
 		errors = append(errors, "Number is required")
@@ -43,51 +54,40 @@ func (t *tokenService) Create(card Card) (*Token, error) {
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Add("Authorization", t.service.apiKey)
 
-	resp, err := t.service.Client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	result := &Token{}
-	err = json.Unmarshal(body, result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return parseToken(respToBody(t.service.Client.Do(request)))
 }
 
-func (t *tokenService) Get(id string) (*Token, error) {
-	body, err := t.service.get("/tokens/" + id)
-	if err != nil {
-		return nil, err
-	}
-	result := &Token{}
-	err = json.Unmarshal(body, result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+func (t *TokenService) Get(id string) (*TokenResponse, error) {
+	return parseToken(t.service.get("/tokens/" + id))
 }
 
-type Token struct {
-	Card         CardResponse `json:"card"`
-	CreatedEpoch int          `json:"created"`
-	ID           string       `json:"id"`
-	LiveMode     bool         `json:"livemode"`
-	Object       string       `json:"object"`
-	Used         bool         `json:"used"`
+type TokenResponse struct {
+	Card      CardResponse
+	CreatedAt time.Time
+	ID        string
+	LiveMode  bool
+	Used      bool
+}
+
+type tokenResponseParser struct {
+	Card         json.RawMessage `json:"card"`
+	CreatedEpoch int             `json:"created"`
+	ID           string          `json:"id"`
+	LiveMode     bool            `json:"livemode"`
+	Object       string          `json:"object"`
+	Used         bool            `json:"used"`
 	CreatedAt    time.Time
 }
 
-type token Token
-
-func (t *Token) UnmarshalJSON(b []byte) error {
-	raw := token{}
+func (t *TokenResponse) UnmarshalJSON(b []byte) error {
+	raw := tokenResponseParser{}
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "token" {
-		*t = Token(raw)
+		json.Unmarshal(raw.Card, &t.Card)
 		t.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
+		t.ID = raw.ID
+		t.LiveMode = raw.LiveMode
+		t.Used = raw.Used
 		return nil
 	}
 	rawError := ErrorResponse{}
