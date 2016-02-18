@@ -19,17 +19,17 @@ type Plan struct {
 	BillingDay int
 }
 
-type planService struct {
+type PlanService struct {
 	service *Service
 }
 
-func newPlanService(service *Service) *planService {
-	return &planService{
+func newPlanService(service *Service) *PlanService {
+	return &PlanService{
 		service: service,
 	}
 }
 
-func (p planService) Create(plan Plan) (*PlanResponse, error) {
+func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
 	var errors []string
 	if plan.Amount < 50 || plan.Amount > 9999999 {
 		errors = append(errors, fmt.Sprintf("Plan.Amount should be between 50 and 9,999,999, but %d.", plan.Amount))
@@ -82,7 +82,7 @@ func (p planService) Create(plan Plan) (*PlanResponse, error) {
 	return parsePlan(p.service, body, &PlanResponse{})
 }
 
-func (p planService) Get(id string) (*PlanResponse, error) {
+func (p PlanService) Get(id string) (*PlanResponse, error) {
 	body, err := p.service.get("/plans/" + id)
 	if err != nil {
 		return nil, err
@@ -99,7 +99,7 @@ func parsePlan(service *Service, body []byte, result *PlanResponse) (*PlanRespon
 	return result, nil
 }
 
-func (p planService) update(id, name string) ([]byte, error) {
+func (p PlanService) update(id, name string) ([]byte, error) {
 	qb := newRequestBuilder()
 	qb.Add("name=%s", name)
 	request, err := http.NewRequest("POST", p.service.apiBase+"/plans/"+id, qb.Reader())
@@ -112,7 +112,7 @@ func (p planService) update(id, name string) ([]byte, error) {
 	return parseResponseError(p.service.Client.Do(request))
 }
 
-func (p planService) Update(id, name string) (*PlanResponse, error) {
+func (p PlanService) Update(id, name string) (*PlanResponse, error) {
 	body, err := p.update(id, name)
 	if err != nil {
 		return nil, err
@@ -120,11 +120,11 @@ func (p planService) Update(id, name string) (*PlanResponse, error) {
 	return parsePlan(p.service, body, &PlanResponse{})
 }
 
-func (p planService) Delete(id string) error {
+func (p PlanService) Delete(id string) error {
 	return p.service.delete("/plans/" + id)
 }
 
-func (p planService) List() *planListCaller {
+func (p PlanService) List() *planListCaller {
 	return &planListCaller{
 		service: p.service,
 	}
@@ -175,6 +175,19 @@ func (c *planListCaller) Do() ([]*PlanResponse, bool, error) {
 }
 
 type PlanResponse struct {
+	Amount     int
+	BillingDay int
+	Currency   string
+	ID         string
+	Interval   string
+	LiveMode   bool
+	Name       string
+	TrialDays  int
+	CreatedAt  time.Time
+	service    *Service
+}
+
+type planResponseParser struct {
 	Amount       int    `json:"amount"`
 	BillingDay   int    `json:"billing_day"`
 	CreatedEpoch int    `json:"created"`
@@ -185,8 +198,6 @@ type PlanResponse struct {
 	Name         string `json:"name"`
 	Object       string `json:"object"`
 	TrialDays    int    `json:"trial_days"`
-	CreatedAt    time.Time
-	service      *Service
 }
 
 func (p *PlanResponse) Update(name string) error {
@@ -201,14 +212,19 @@ func (p *PlanResponse) Delete() error {
 	return p.service.Plan.Delete(p.ID)
 }
 
-type planResponse PlanResponse
-
 func (p *PlanResponse) UnmarshalJSON(b []byte) error {
-	raw := planResponse{}
+	raw := planResponseParser{}
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "plan" {
-		*p = PlanResponse(raw)
+		p.Amount = raw.Amount
+		p.BillingDay = raw.BillingDay
 		p.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
+		p.Currency = raw.Currency
+		p.ID = raw.ID
+		p.Interval = raw.Interval
+		p.LiveMode = raw.LiveMode
+		p.Name = raw.Name
+		p.TrialDays = raw.TrialDays
 		return nil
 	}
 	rawError := ErrorResponse{}

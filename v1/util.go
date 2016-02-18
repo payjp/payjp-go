@@ -22,15 +22,15 @@ func newRequestBuilder() *requestBuilder {
 	}
 }
 
-func (qb *requestBuilder) Add(key, value string) {
+func (qb *requestBuilder) Add(key string, value interface{}) {
 	if qb.hasValue {
 		qb.buffer.WriteByte(qb.delimiter)
 	}
 	qb.hasValue = true
 	qb.buffer.WriteString(key)
 	qb.buffer.WriteByte('=')
-	if value != EmptyString {
-		qb.buffer.WriteString(url.QueryEscape(value))
+	if value != nil {
+		qb.buffer.WriteString(url.QueryEscape(value.(string)))
 	}
 }
 

@@ -8,10 +8,6 @@ import (
 	"strconv"
 )
 
-const (
-	EmptyString = "jkewqioklaifjklark;tijkzkjlzxmncxzmkjio`io190r9i0topfakjdaskljf"
-)
-
 type Config struct {
 	ApiBase string
 }
@@ -22,7 +18,7 @@ type Service struct {
 	apiBase string
 
 	Customer     *customerService
-	Plan         *planService
+	Plan         *PlanService
 	Subscription *subscriptionService
 	Account      *accountService
 	Token        *tokenService

@@ -60,11 +60,8 @@ func TestParsePlanResponseJSON(t *testing.T) {
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}
-	if plan.Object != "plan" {
-		t.Errorf("parse error")
-	}
-	if plan.CreatedEpoch != 1433127983 {
-		t.Errorf("plan.Created should be '1433127983', but '%d'", plan.CreatedEpoch)
+	if plan.CreatedAt.Unix() != 1433127983 {
+		t.Errorf("plan.Created should be '1433127983', but '%d'", plan.CreatedAt.Unix())
 	}
 }
 
