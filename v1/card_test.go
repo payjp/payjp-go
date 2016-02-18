@@ -83,9 +83,6 @@ func TestParseCardResponseJSON(t *testing.T) {
 	card := &CardResponse{}
 	json.Unmarshal(cardResponseJSON, card)
 
-	if card.Object != "card" {
-		t.Errorf("parse error")
-	}
 	if card.ID != "car_f7d9fa98594dc7c2e42bfcd641ff" {
 		t.Errorf("card.Id should be 'car_f7d9fa98594dc7c2e42bfcd641ff', but '%s'", card.ID)
 	}

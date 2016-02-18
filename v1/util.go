@@ -23,21 +23,36 @@ func newRequestBuilder() *requestBuilder {
 }
 
 func (qb *requestBuilder) Add(key string, value interface{}) {
+	if value == nil {
+		return
+	}
+	var valueString string
+	s, ok := value.(string)
+	if ok {
+		valueString = url.QueryEscape(s)
+	} else {
+		b, ok := value.(bool)
+		if ok {
+			if b {
+				valueString = "true"
+			} else {
+				valueString = "false"
+			}
+		} else {
+			valueString = strconv.Itoa(value.(int))
+		}
+	}
 	if qb.hasValue {
 		qb.buffer.WriteByte(qb.delimiter)
 	}
 	qb.hasValue = true
 	qb.buffer.WriteString(key)
 	qb.buffer.WriteByte('=')
-	if value != nil {
-		qb.buffer.WriteString(url.QueryEscape(value.(string)))
-	}
+	qb.buffer.WriteString(valueString)
 }
 
 func (qb *requestBuilder) AddCard(card Card) {
-	if card.Number != "" {
-		qb.Add("card[number]", card.Number)
-	}
+	qb.Add("card[number]", card.Number)
 	if card.ExpMonth != 0 {
 		qb.Add("card[exp_month]", strconv.Itoa(card.ExpMonth))
 	}
@@ -47,27 +62,13 @@ func (qb *requestBuilder) AddCard(card Card) {
 	if card.CVC != 0 {
 		qb.Add("card[cvc]", strconv.Itoa(card.CVC))
 	}
-	if card.AddressState != "" {
-		qb.Add("card[address_state]", card.AddressState)
-	}
-	if card.AddressCity != "" {
-		qb.Add("card[address_city]", card.AddressCity)
-	}
-	if card.AddressLine1 != "" {
-		qb.Add("card[address_line1]", card.AddressLine1)
-	}
-	if card.AddressLine2 != "" {
-		qb.Add("card[address_line2]", card.AddressLine2)
-	}
-	if card.AddressZip != "" {
-		qb.Add("card[address_zip]", card.AddressZip)
-	}
-	if card.Country != "" {
-		qb.Add("card[country]", card.Country)
-	}
-	if card.Name != "" {
-		qb.Add("card[name]", card.Name)
-	}
+	qb.Add("card[address_state]", card.AddressState)
+	qb.Add("card[address_city]", card.AddressCity)
+	qb.Add("card[address_line1]", card.AddressLine1)
+	qb.Add("card[address_line2]", card.AddressLine2)
+	qb.Add("card[address_zip]", card.AddressZip)
+	qb.Add("card[country]", card.Country)
+	qb.Add("card[name]", card.Name)
 }
 
 func (qb *requestBuilder) Reader() io.Reader {

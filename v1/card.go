@@ -6,17 +6,17 @@ import (
 )
 
 type Card struct {
-	Number       string
+	Number       interface{}
 	ExpMonth     int
 	ExpYear      int
 	CVC          int
-	AddressState string
-	AddressCity  string
-	AddressLine1 string
-	AddressLine2 string
-	AddressZip   string
-	Country      string
-	Name         string
+	AddressState interface{}
+	AddressCity  interface{}
+	AddressLine1 interface{}
+	AddressLine2 interface{}
+	AddressZip   interface{}
+	Country      interface{}
+	Name         interface{}
 }
 
 func parseCard(service *Service, body []byte, result *CardResponse, customerID string) (*CardResponse, error) {
@@ -30,6 +30,28 @@ func parseCard(service *Service, body []byte, result *CardResponse, customerID s
 }
 
 type CardResponse struct {
+	AddressCity     string
+	AddressLine1    string
+	AddressLine2    string
+	AddressState    string
+	AddressZip      string
+	AddressZipCheck string
+	Brand           string
+	Country         string
+	CreatedAt       time.Time
+	CvcCheck        string
+	ExpMonth        int
+	ExpYear         int
+	Fingerprint     string
+	ID              string
+	Last4           string
+	Name            string
+
+	customerID string
+	service    *Service
+}
+
+type cardResponseParser struct {
 	AddressCity     string `json:"address_city"`
 	AddressLine1    string `json:"address_line1"`
 	AddressLine2    string `json:"address_line2"`
@@ -47,10 +69,6 @@ type CardResponse struct {
 	Last4           string `json:"last4"`
 	Name            string `json:"name"`
 	Object          string `json:"object"`
-
-	CreatedAt  time.Time
-	customerID string
-	service    *Service
 }
 
 func (c *CardResponse) Update(card Card) error {
@@ -62,14 +80,26 @@ func (c *CardResponse) Delete() error {
 	return c.service.delete("/customers/" + c.customerID + "/cards/" + c.ID)
 }
 
-type cardResponse CardResponse
-
 func (c *CardResponse) UnmarshalJSON(b []byte) error {
-	raw := cardResponse{}
+	raw := cardResponseParser{}
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "card" {
-		*c = CardResponse(raw)
+		c.AddressCity = raw.AddressCity
+		c.AddressLine1 = raw.AddressLine1
+		c.AddressLine2 = raw.AddressLine2
+		c.AddressState = raw.AddressState
+		c.AddressZip = raw.AddressZip
+		c.AddressZipCheck = raw.AddressZipCheck
+		c.Brand = raw.Brand
+		c.Country = raw.Country
 		c.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
+		c.CvcCheck = raw.CvcCheck
+		c.ExpMonth = raw.ExpMonth
+		c.ExpYear = raw.ExpYear
+		c.Fingerprint = raw.Fingerprint
+		c.ID = raw.ID
+		c.Last4 = raw.Last4
+		c.Name = raw.Name
 		return nil
 	}
 	rawError := ErrorResponse{}
