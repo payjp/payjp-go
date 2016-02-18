@@ -83,9 +83,6 @@ func TestParseSubscriptionResponseJSON(t *testing.T) {
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}
-	if subscription.Object != "subscription" {
-		t.Errorf("parse error")
-	}
 	if subscription.ID != "sub_567a1e44562932ec1a7682d746e0" {
 		t.Errorf("subscription.ID should be 'sub_567a1e44562932ec1a7682d746e0', but '%s'", subscription.ID)
 	}
