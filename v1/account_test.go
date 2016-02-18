@@ -81,17 +81,17 @@ var accountResponseJSON = []byte(`
 `)
 
 func TestParseAccountResponseJSON(t *testing.T) {
-	account := &Account{}
+	account := &AccountResponse{}
 	err := json.Unmarshal(accountResponseJSON, account)
 
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}
-	if account.Object != "account" {
-		t.Errorf("parse error")
-	}
 	if account.ID != "acct_8a27db83a7bf11a0c12b0c2833f" {
 		t.Errorf("customer.ID should be 'acct_8a27db83a7bf11a0c12b0c2833f', but '%s'", account.ID)
+	}
+	if account.Merchant.DefaultCurrency != "jpy" {
+		t.Errorf("defaultCurrency should be 'jpy', but %s", account.Merchant.DefaultCurrency)
 	}
 }
 

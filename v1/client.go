@@ -20,7 +20,7 @@ type Service struct {
 	Customer     *customerService
 	Plan         *PlanService
 	Subscription *subscriptionService
-	Account      *accountService
+	Account      *AccountService
 	Token        *TokenService
 }
 
