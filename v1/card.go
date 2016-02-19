@@ -112,11 +112,11 @@ func (c *CardResponse) UnmarshalJSON(b []byte) error {
 }
 
 type CardList struct {
-	Count   int             `json:"count"`
-	Data    []*CardResponse `json:"data"`
-	HasMore bool            `json:"has_more"`
-	Object  string          `json:"object"`
-	URL     string          `json:"url"`
+	Count   int               `json:"count"`
+	Data    []json.RawMessage `json:"data"`
+	HasMore bool              `json:"has_more"`
+	Object  string            `json:"object"`
+	URL     string            `json:"url"`
 }
 
 type cardList CardList

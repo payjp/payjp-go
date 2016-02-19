@@ -298,11 +298,11 @@ func (s *SubscriptionResponse) UnmarshalJSON(b []byte) error {
 }
 
 type SubscriptionList struct {
-	Count   int                     `json:"count"`
-	Data    []*SubscriptionResponse `json:"data"`
-	HasMore bool                    `json:"has_more"`
-	Object  string                  `json:"object"`
-	URL     string                  `json:"url"`
+	Count   int               `json:"count"`
+	Data    []json.RawMessage `json:"data"`
+	HasMore bool              `json:"has_more"`
+	Object  string            `json:"object"`
+	URL     string            `json:"url"`
 }
 
 type subscriptionListCaller struct {
@@ -345,13 +345,16 @@ func (c *subscriptionListCaller) Do() ([]*SubscriptionResponse, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	result := &SubscriptionList{}
-	err = json.Unmarshal(body, result)
+	rawResult := &SubscriptionList{}
+	err = json.Unmarshal(body, rawResult)
 	if err != nil {
 		return nil, false, err
 	}
-	for _, customer := range result.Data {
-		customer.service = c.service
+	result := make([]*SubscriptionResponse, len(rawResult.Data))
+	for i, rawSubscription := range rawResult.Data {
+		subscription := &SubscriptionResponse{}
+		json.Unmarshal(rawSubscription, subscription)
+		result[i] = subscription
 	}
-	return result.Data, result.HasMore, nil
+	return result, rawResult.HasMore, nil
 }

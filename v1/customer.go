@@ -17,11 +17,11 @@ func newCustomerService(service *Service) *customerService {
 }
 
 type Customer struct {
-	Email       string
-	Description string
-	DefaultCard string
-	ID          string
-	CardToken   string
+	Email       interface{}
+	Description interface{}
+	DefaultCard interface{}
+	ID          interface{}
+	CardToken   interface{}
 	Card        Card
 }
 
@@ -31,7 +31,7 @@ func parseCustomer(service *Service, body []byte, result *CustomerResponse) (*Cu
 		return nil, err
 	}
 	result.service = service
-	for _, card := range result.Cards.Data {
+	for _, card := range result.Cards {
 		card.service = service
 		card.customerID = result.ID
 	}
@@ -235,15 +235,20 @@ func (c *customerListCaller) Do() ([]*CustomerResponse, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	result := &CustomerListResponse{}
-	err = json.Unmarshal(body, result)
+	temp := &CustomerListResponse{}
+	err = json.Unmarshal(body, temp)
 	if err != nil {
 		return nil, false, err
 	}
-	for _, customer := range result.Data {
+	result := make([]*CustomerResponse, len(temp.Data))
+
+	for i, raw := range temp.Data {
+		customer := &CustomerResponse{}
+		json.Unmarshal(raw, customer)
 		customer.service = c.service
+		result[i] = customer
 	}
-	return result.Data, result.HasMore, nil
+	return result, temp.HasMore, nil
 }
 
 type customerCardListCaller struct {
@@ -280,18 +285,34 @@ func (c *customerCardListCaller) Do() ([]*CardResponse, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	result := &CardList{}
-	err = json.Unmarshal(body, result)
+	rawResult := &CardList{}
+	err = json.Unmarshal(body, rawResult)
 	if err != nil {
 		return nil, false, err
 	}
-	for _, customer := range result.Data {
-		customer.service = c.service
+	result := make([]*CardResponse, len(rawResult.Data))
+	for i, rawCustomer := range rawResult.Data {
+		card := &CardResponse{}
+		json.Unmarshal(rawCustomer, card)
+		result[i] = card
 	}
-	return result.Data, result.HasMore, nil
+	return result, rawResult.HasMore, nil
 }
 
 type CustomerResponse struct {
+	Cards         []*CardResponse
+	CreatedAt     time.Time
+	DefaultCard   string
+	Description   string
+	Email         string
+	ID            string
+	LiveMode      bool
+	Subscriptions []*SubscriptionResponse
+
+	service *Service
+}
+
+type customerResponseParser struct {
 	Cards         CardList         `json:"cards"`
 	CreatedEpoch  int              `json:"created"`
 	DefaultCard   string           `json:"default_card"`
@@ -343,14 +364,28 @@ func (c *CustomerResponse) ListSubscription() *subscriptionListCaller {
 	return c.service.Customer.ListSubscription(c.ID)
 }
 
-type customer CustomerResponse
-
 func (c *CustomerResponse) UnmarshalJSON(b []byte) error {
-	raw := customer{}
+	raw := customerResponseParser{}
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "customer" {
-		*c = CustomerResponse(raw)
+		c.Cards = make([]*CardResponse, len(raw.Cards.Data))
+		for i, rawCard := range raw.Cards.Data {
+			card := &CardResponse{}
+			json.Unmarshal(rawCard, card)
+			c.Cards[i] = card
+		}
 		c.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
+		c.DefaultCard = raw.DefaultCard
+		c.Description = raw.Description
+		c.Email = raw.Email
+		c.ID = raw.ID
+		c.LiveMode = raw.LiveMode
+		c.Subscriptions = make([]*SubscriptionResponse, len(raw.Subscriptions.Data))
+		for i, rawSubscription := range raw.Subscriptions.Data {
+			subscription := &SubscriptionResponse{}
+			json.Unmarshal(rawSubscription, subscription)
+			c.Subscriptions[i] = subscription
+		}
 		return nil
 	}
 	rawError := ErrorResponse{}
@@ -363,11 +398,11 @@ func (c *CustomerResponse) UnmarshalJSON(b []byte) error {
 }
 
 type CustomerListResponse struct {
-	Count   int                 `json:"count"`
-	Data    []*CustomerResponse `json:"data"`
-	HasMore bool                `json:"has_more"`
-	Object  string              `json:"object"`
-	URL     string              `json:"url"`
+	Count   int               `json:"count"`
+	Data    []json.RawMessage `json:"data"`
+	HasMore bool              `json:"has_more"`
+	Object  string            `json:"object"`
+	URL     string            `json:"url"`
 }
 
 type customerList CustomerListResponse

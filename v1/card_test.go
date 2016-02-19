@@ -92,30 +92,6 @@ func TestParseCardResponseJSON(t *testing.T) {
 	}
 }
 
-func TestParseCardErrorResponseJSON(t *testing.T) {
-	card := &CardResponse{}
-	err := json.Unmarshal(cardErrorResponseJSON, card)
-	if err == nil {
-		t.Error("err should not be nil")
-	}
-}
-
-func TestParseCardListResponseJSON(t *testing.T) {
-	cardList := &CardList{}
-	err := json.Unmarshal(cardListResponseJSON, cardList)
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-	}
-	if cardList.Object != "list" {
-		t.Errorf("parse error")
-	}
-	if len(cardList.Data) != 1 {
-		t.Errorf("card list should have one card, but %d.", len(cardList.Data))
-	} else if cardList.Data[0].ID != "car_f7d9fa98594dc7c2e42bfcd641ff" {
-		t.Errorf("card.Id should be 'car_f7d9fa98594dc7c2e42bfcd641ff', but '%s'", cardList.Data[0].ID)
-	}
-}
-
 func TestCustomerAddCard(t *testing.T) {
 	mock, transport := NewMockClient(200, cardResponseJSON)
 	transport.AddResponse(200, cardResponseJSON)
@@ -238,7 +214,7 @@ func TestCustomerUpdateCard(t *testing.T) {
 		return
 	}
 	if card == nil {
-		t.Error("plan should not be nil")
+		t.Error("card should not be nil")
 	} else if card.Last4 != "4242" {
 		t.Errorf("parse error: card.Last4 should be 4242, but %s.", card.Last4)
 	}
@@ -253,7 +229,7 @@ func TestCustomerUpdateCard2(t *testing.T) {
 		t.Error("plan should not be nil")
 		return
 	}
-	err = customer.Cards.Data[0].Update(Card{
+	err = customer.Cards[0].Update(Card{
 		Number:   "4242424242424242",
 		ExpMonth: 2,
 		ExpYear:  2020,
@@ -266,6 +242,23 @@ func TestCustomerUpdateCard2(t *testing.T) {
 	}
 	if transport.Method != "POST" {
 		t.Errorf("Method should be POST, but %s", transport.Method)
+	}
+}
+
+func TestCustomerUpdateCardError(t *testing.T) {
+	mock, _ := NewMockClient(200, cardErrorResponseJSON)
+	service := New("api-key", mock)
+	card, err := service.Customer.UpdateCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff", Card{
+		Number:   "4242424242424242",
+		ExpMonth: 2,
+		ExpYear:  2020,
+	})
+	if err == nil {
+		t.Error("err should not be nil")
+		return
+	}
+	if card != nil {
+		t.Errorf("card should be nil, but %v", card)
 	}
 }
 
@@ -291,10 +284,10 @@ func TestCustomerDeleteCard2(t *testing.T) {
 	service := New("api-key", mock)
 	customer, err := service.Customer.Get("cus_121673955bd7aa144de5a8f6c262")
 	if customer == nil {
-		t.Error("plan should not be nil")
+		t.Error("card should not be nil")
 		return
 	}
-	err = customer.Cards.Data[0].Delete()
+	err = customer.Cards[0].Delete()
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}

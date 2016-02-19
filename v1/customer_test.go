@@ -135,9 +135,6 @@ func TestParseCustomerResponseJson(t *testing.T) {
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}
-	if customer.Object != "customer" {
-		t.Errorf("parse error")
-	}
 	if customer.ID != "cus_121673955bd7aa144de5a8f6c262" {
 		t.Errorf("customer.ID should be 'cus_121673955bd7aa144de5a8f6c262', but '%s'", customer.ID)
 	}
@@ -197,8 +194,8 @@ func TestCustomerGet(t *testing.T) {
 		t.Error("customer should not be nil")
 	} else if customer.Description != "test" {
 		t.Errorf("parse error: customer.Description should be 500, but %s.", customer.Description)
-	} else if len(customer.Cards.Data) != 1 {
-		t.Errorf("parse error: customer.Cards should have 1 card, but %d cards.", len(customer.Cards.Data))
+	} else if len(customer.Cards) != 1 {
+		t.Errorf("parse error: customer.Cards should have 1 card, but %d cards.", len(customer.Cards))
 	}
 }
 
