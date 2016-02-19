@@ -32,22 +32,22 @@ func newPlanService(service *Service) *PlanService {
 func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
 	var errors []string
 	if plan.Amount < 50 || plan.Amount > 9999999 {
-		errors = append(errors, fmt.Sprintf("Plan.Amount should be between 50 and 9,999,999, but %d.", plan.Amount))
+		errors = append(errors, fmt.Sprintf("Amount should be between 50 and 9,999,999, but %d.", plan.Amount))
 	}
 	if plan.Currency == "" {
 		plan.Currency = "jpy"
 	} else if plan.Currency != "jpy" {
 		// todo: if pay.jp supports other currency, fix this condition
-		errors = append(errors, fmt.Sprintf("payjp.Plan.Create() only supports 'jpy' as currency, but '%s'.", plan.Currency))
+		errors = append(errors, fmt.Sprintf("Only supports 'jpy' as currency, but '%s'.", plan.Currency))
 	}
 	if plan.Interval == "" {
 		plan.Interval = "month"
 	} else if plan.Interval != "month" {
 		// todo: if pay.jp supports other interval options, fix this condition
-		errors = append(errors, fmt.Sprintf("payjp.Plan.Create() only supports 'month' as interval, but '%s'.", plan.Interval))
+		errors = append(errors, fmt.Sprintf("Only supports 'month' as interval, but '%s'.", plan.Interval))
 	}
 	if plan.BillingDay < 0 || plan.BillingDay > 31 {
-		errors = append(errors, fmt.Sprintf("Plan.BillingDay should be between 1 and 31, but %d.", plan.BillingDay))
+		errors = append(errors, fmt.Sprintf("BillingDay should be between 1 and 31, but %d.", plan.BillingDay))
 	}
 	if len(errors) != 0 {
 		return nil, fmt.Errorf("payjp.Plan.Create() parameter error: %s", strings.Join(errors, ", "))
@@ -101,7 +101,7 @@ func parsePlan(service *Service, body []byte, result *PlanResponse) (*PlanRespon
 
 func (p PlanService) update(id, name string) ([]byte, error) {
 	qb := newRequestBuilder()
-	qb.Add("name=%s", name)
+	qb.Add("name", name)
 	request, err := http.NewRequest("POST", p.service.apiBase+"/plans/"+id, qb.Reader())
 	if err != nil {
 		return nil, err

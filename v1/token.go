@@ -30,7 +30,7 @@ func parseToken(data []byte, err error) (*TokenResponse, error) {
 	return result, nil
 }
 
-func (t *TokenService) Create(card Card) (*TokenResponse, error) {
+func (t TokenService) Create(card Card) (*TokenResponse, error) {
 	var errors []string
 	if card.Number == "" {
 		errors = append(errors, "Number is required")
@@ -57,7 +57,7 @@ func (t *TokenService) Create(card Card) (*TokenResponse, error) {
 	return parseToken(respToBody(t.service.Client.Do(request)))
 }
 
-func (t *TokenService) Get(id string) (*TokenResponse, error) {
+func (t TokenService) Get(id string) (*TokenResponse, error) {
 	return parseToken(t.service.get("/tokens/" + id))
 }
 
