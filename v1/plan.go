@@ -163,15 +163,19 @@ func (c *planListCaller) Do() ([]*PlanResponse, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	result := &PlanListResponse{}
-	err = json.Unmarshal(body, result)
+	raw := &listResponseParser{}
+	err = json.Unmarshal(body, raw)
 	if err != nil {
 		return nil, false, err
 	}
-	for _, plan := range result.Data {
+	result := make([]*PlanResponse, len(raw.Data))
+	for i, rawPlan := range raw.Data {
+		plan := &PlanResponse{}
+		json.Unmarshal(rawPlan, plan)
 		plan.service = c.service
+		result[i] = plan
 	}
-	return result.Data, result.HasMore, nil
+	return result, raw.HasMore, nil
 }
 
 type PlanResponse struct {
@@ -225,32 +229,6 @@ func (p *PlanResponse) UnmarshalJSON(b []byte) error {
 		p.LiveMode = raw.LiveMode
 		p.Name = raw.Name
 		p.TrialDays = raw.TrialDays
-		return nil
-	}
-	rawError := ErrorResponse{}
-	err = json.Unmarshal(b, &rawError)
-	if err == nil && rawError.Error.Status != 0 {
-		return &rawError.Error
-	}
-
-	return nil
-}
-
-type PlanListResponse struct {
-	Count   int             `json:"count"`
-	Data    []*PlanResponse `json:"data"`
-	HasMore bool            `json:"has_more"`
-	Object  string          `json:"object"`
-	URL     string          `json:"url"`
-}
-
-type planList PlanListResponse
-
-func (p *PlanListResponse) UnmarshalJSON(b []byte) error {
-	raw := planList{}
-	err := json.Unmarshal(b, &raw)
-	if err == nil && raw.Object == "list" {
-		*p = PlanListResponse(raw)
 		return nil
 	}
 	rawError := ErrorResponse{}

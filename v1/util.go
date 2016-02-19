@@ -2,6 +2,7 @@ package payjp
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -81,4 +82,30 @@ func respToBody(resp *http.Response, err error) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	return ioutil.ReadAll(resp.Body)
+}
+
+type listResponseParser struct {
+	Count   int               `json:"count"`
+	Data    []json.RawMessage `json:"data"`
+	HasMore bool              `json:"has_more"`
+	Object  string            `json:"object"`
+	URL     string            `json:"url"`
+}
+
+type listParser listResponseParser
+
+func (p *listResponseParser) UnmarshalJSON(b []byte) error {
+	raw := listParser{}
+	err := json.Unmarshal(b, &raw)
+	if err == nil && raw.Object == "list" {
+		*p = listResponseParser(raw)
+		return nil
+	}
+	rawError := ErrorResponse{}
+	err = json.Unmarshal(b, &rawError)
+	if err == nil && rawError.Error.Status != 0 {
+		return &rawError.Error
+	}
+
+	return nil
 }

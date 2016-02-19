@@ -17,7 +17,8 @@ type Service struct {
 	apiKey  string
 	apiBase string
 
-	Customer     *customerService
+	Charge       *ChargeService
+	Customer     *CustomerService
 	Plan         *PlanService
 	Subscription *SubscriptionService
 	Account      *AccountService
@@ -38,6 +39,7 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 		service.apiBase = "https://api.pay.jp/v1"
 	}
 
+	service.Charge = newChargeService(service)
 	service.Customer = newCustomerService(service)
 	service.Plan = newPlanService(service)
 	service.Subscription = newSubscriptionService(service)

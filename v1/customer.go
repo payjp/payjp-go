@@ -6,12 +6,12 @@ import (
 	"time"
 )
 
-type customerService struct {
+type CustomerService struct {
 	service *Service
 }
 
-func newCustomerService(service *Service) *customerService {
-	return &customerService{
+func newCustomerService(service *Service) *CustomerService {
+	return &CustomerService{
 		service: service,
 	}
 }
@@ -38,7 +38,7 @@ func parseCustomer(service *Service, body []byte, result *CustomerResponse) (*Cu
 	return result, nil
 }
 
-func (c customerService) Create(customer Customer) (*CustomerResponse, error) {
+func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
 	qb := newRequestBuilder()
 	if customer.Email != "" {
 		qb.Add("email", customer.Email)
@@ -72,7 +72,7 @@ func (c customerService) Create(customer Customer) (*CustomerResponse, error) {
 	return parseCustomer(c.service, body, &CustomerResponse{})
 }
 
-func (c customerService) Get(id string) (*CustomerResponse, error) {
+func (c CustomerService) Get(id string) (*CustomerResponse, error) {
 	body, err := c.service.get("/customers/" + id)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (c customerService) Get(id string) (*CustomerResponse, error) {
 	return parseCustomer(c.service, body, &CustomerResponse{})
 }
 
-func (c customerService) Update(id string, customer Customer) (*CustomerResponse, error) {
+func (c CustomerService) Update(id string, customer Customer) (*CustomerResponse, error) {
 	body, err := c.update(id, customer)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (c customerService) Update(id string, customer Customer) (*CustomerResponse
 	return parseCustomer(c.service, body, &CustomerResponse{})
 }
 
-func (c customerService) update(id string, customer Customer) ([]byte, error) {
+func (c CustomerService) update(id string, customer Customer) ([]byte, error) {
 	qb := newRequestBuilder()
 	if customer.Email != "" {
 		qb.Add("email", customer.Email)
@@ -114,17 +114,17 @@ func (c customerService) update(id string, customer Customer) ([]byte, error) {
 	return parseResponseError(c.service.Client.Do(request))
 }
 
-func (c customerService) Delete(id string) error {
+func (c CustomerService) Delete(id string) error {
 	return c.service.delete("/customers/" + id)
 }
 
-func (c customerService) List() *customerListCaller {
+func (c CustomerService) List() *customerListCaller {
 	return &customerListCaller{
 		service: c.service,
 	}
 }
 
-func (c customerService) AddCardToken(customerID, token string) (*CardResponse, error) {
+func (c CustomerService) AddCardToken(customerID, token string) (*CardResponse, error) {
 	qb := newRequestBuilder()
 	qb.Add("card", token)
 
@@ -142,7 +142,7 @@ func (c customerService) AddCardToken(customerID, token string) (*CardResponse, 
 	return parseCard(c.service, body, &CardResponse{}, customerID)
 }
 
-func (c customerService) postCard(customerID, resourcePath string, card Card, result *CardResponse) (*CardResponse, error) {
+func (c CustomerService) postCard(customerID, resourcePath string, card Card, result *CardResponse) (*CardResponse, error) {
 	qb := newRequestBuilder()
 	qb.AddCard(card)
 
@@ -160,11 +160,11 @@ func (c customerService) postCard(customerID, resourcePath string, card Card, re
 	return parseCard(c.service, body, result, customerID)
 }
 
-func (c customerService) AddCard(id string, card Card) (*CardResponse, error) {
+func (c CustomerService) AddCard(id string, card Card) (*CardResponse, error) {
 	return c.postCard(id, "", card, &CardResponse{})
 }
 
-func (c customerService) GetCard(customerID, cardID string) (*CardResponse, error) {
+func (c CustomerService) GetCard(customerID, cardID string) (*CardResponse, error) {
 	body, err := c.service.get("/customers/" + customerID + "/cards/" + cardID)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func (c customerService) GetCard(customerID, cardID string) (*CardResponse, erro
 	return parseCard(c.service, body, &CardResponse{}, customerID)
 }
 
-func (c customerService) UpdateCard(iD, cardID string, card Card) (*CardResponse, error) {
+func (c CustomerService) UpdateCard(iD, cardID string, card Card) (*CardResponse, error) {
 	result := &CardResponse{
 		customerID: iD,
 		service:    c.service,
@@ -180,22 +180,22 @@ func (c customerService) UpdateCard(iD, cardID string, card Card) (*CardResponse
 	return c.postCard(iD, "/"+cardID, card, result)
 }
 
-func (c customerService) DeleteCard(ID, cardID string) error {
+func (c CustomerService) DeleteCard(ID, cardID string) error {
 	return c.service.delete("/customers/" + ID + "/cards/" + cardID)
 }
 
-func (c customerService) ListCard(id string) *customerCardListCaller {
+func (c CustomerService) ListCard(id string) *customerCardListCaller {
 	return &customerCardListCaller{
 		service:    c.service,
 		customerID: id,
 	}
 }
 
-func (c customerService) GetSubscription(customerID, subscriptionID string) (*SubscriptionResponse, error) {
+func (c CustomerService) GetSubscription(customerID, subscriptionID string) (*SubscriptionResponse, error) {
 	return c.service.Subscription.Get(customerID, subscriptionID)
 }
 
-func (c customerService) ListSubscription(ID string) *subscriptionListCaller {
+func (c CustomerService) ListSubscription(ID string) *subscriptionListCaller {
 	return &subscriptionListCaller{
 		service:    c.service,
 		customerID: ID,
@@ -235,20 +235,20 @@ func (c *customerListCaller) Do() ([]*CustomerResponse, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	temp := &CustomerListResponse{}
-	err = json.Unmarshal(body, temp)
+	raw := &listResponseParser{}
+	err = json.Unmarshal(body, raw)
 	if err != nil {
 		return nil, false, err
 	}
-	result := make([]*CustomerResponse, len(temp.Data))
+	result := make([]*CustomerResponse, len(raw.Data))
 
-	for i, raw := range temp.Data {
+	for i, raw := range raw.Data {
 		customer := &CustomerResponse{}
 		json.Unmarshal(raw, customer)
 		customer.service = c.service
 		result[i] = customer
 	}
-	return result, temp.HasMore, nil
+	return result, raw.HasMore, nil
 }
 
 type customerCardListCaller struct {
@@ -285,18 +285,18 @@ func (c *customerCardListCaller) Do() ([]*CardResponse, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	rawResult := &CardList{}
-	err = json.Unmarshal(body, rawResult)
+	raw := &listResponseParser{}
+	err = json.Unmarshal(body, raw)
 	if err != nil {
 		return nil, false, err
 	}
-	result := make([]*CardResponse, len(rawResult.Data))
-	for i, rawCustomer := range rawResult.Data {
+	result := make([]*CardResponse, len(raw.Data))
+	for i, rawCustomer := range raw.Data {
 		card := &CardResponse{}
 		json.Unmarshal(rawCustomer, card)
 		result[i] = card
 	}
-	return result, rawResult.HasMore, nil
+	return result, raw.HasMore, nil
 }
 
 type CustomerResponse struct {
@@ -313,15 +313,15 @@ type CustomerResponse struct {
 }
 
 type customerResponseParser struct {
-	Cards         CardList         `json:"cards"`
-	CreatedEpoch  int              `json:"created"`
-	DefaultCard   string           `json:"default_card"`
-	Description   string           `json:"description"`
-	Email         string           `json:"email"`
-	ID            string           `json:"id"`
-	LiveMode      bool             `json:"livemode"`
-	Object        string           `json:"object"`
-	Subscriptions SubscriptionList `json:"subscriptions"`
+	Cards         listResponseParser `json:"cards"`
+	CreatedEpoch  int                `json:"created"`
+	DefaultCard   string             `json:"default_card"`
+	Description   string             `json:"description"`
+	Email         string             `json:"email"`
+	ID            string             `json:"id"`
+	LiveMode      bool               `json:"livemode"`
+	Object        string             `json:"object"`
+	Subscriptions listResponseParser `json:"subscriptions"`
 
 	CreatedAt time.Time
 
@@ -386,32 +386,6 @@ func (c *CustomerResponse) UnmarshalJSON(b []byte) error {
 			json.Unmarshal(rawSubscription, subscription)
 			c.Subscriptions[i] = subscription
 		}
-		return nil
-	}
-	rawError := ErrorResponse{}
-	err = json.Unmarshal(b, &rawError)
-	if err == nil && rawError.Error.Status != 0 {
-		return &rawError.Error
-	}
-
-	return nil
-}
-
-type CustomerListResponse struct {
-	Count   int               `json:"count"`
-	Data    []json.RawMessage `json:"data"`
-	HasMore bool              `json:"has_more"`
-	Object  string            `json:"object"`
-	URL     string            `json:"url"`
-}
-
-type customerList CustomerListResponse
-
-func (p *CustomerListResponse) UnmarshalJSON(b []byte) error {
-	raw := customerList{}
-	err := json.Unmarshal(b, &raw)
-	if err == nil && raw.Object == "list" {
-		*p = CustomerListResponse(raw)
 		return nil
 	}
 	rawError := ErrorResponse{}

@@ -19,6 +19,16 @@ type Card struct {
 	Name         interface{}
 }
 
+func (c Card) Valid() bool {
+	_, ok := c.Number.(string)
+	return ok && c.ExpYear > 0 && c.ExpMonth > 0
+}
+
+func (c Card) Empty() bool {
+	_, ok := c.Number.(string)
+	return !ok && c.ExpYear == 0 && c.ExpMonth == 0
+}
+
 func parseCard(service *Service, body []byte, result *CardResponse, customerID string) (*CardResponse, error) {
 	err := json.Unmarshal(body, result)
 	if err != nil {
@@ -100,32 +110,6 @@ func (c *CardResponse) UnmarshalJSON(b []byte) error {
 		c.ID = raw.ID
 		c.Last4 = raw.Last4
 		c.Name = raw.Name
-		return nil
-	}
-	rawError := ErrorResponse{}
-	err = json.Unmarshal(b, &rawError)
-	if err == nil && rawError.Error.Status != 0 {
-		return &rawError.Error
-	}
-
-	return nil
-}
-
-type CardList struct {
-	Count   int               `json:"count"`
-	Data    []json.RawMessage `json:"data"`
-	HasMore bool              `json:"has_more"`
-	Object  string            `json:"object"`
-	URL     string            `json:"url"`
-}
-
-type cardList CardList
-
-func (c *CardList) UnmarshalJSON(b []byte) error {
-	raw := cardList{}
-	err := json.Unmarshal(b, &raw)
-	if err == nil && raw.Object == "list" {
-		*c = CardList(raw)
 		return nil
 	}
 	rawError := ErrorResponse{}

@@ -6,17 +6,17 @@ import (
 )
 
 type Transfer struct {
-	Amount         int        `json:"amount"`
-	CarriedBalance int        `json:"carried_balance"`
-	Charges        ChargeList `json:"charges"`
-	CreatedEpoch   int        `json:"created"`
-	Currency       string     `json:"currency"`
-	Description    string     `json:"description"`
-	ID             string     `json:"id"`
-	LiveMode       bool       `json:"livemode"`
-	Object         string     `json:"object"`
-	ScheduledDate  string     `json:"scheduled_date"`
-	Status         string     `json:"status"`
+	Amount         int                `json:"amount"`
+	CarriedBalance int                `json:"carried_balance"`
+	Charges        listResponseParser `json:"charges"`
+	CreatedEpoch   int                `json:"created"`
+	Currency       string             `json:"currency"`
+	Description    string             `json:"description"`
+	ID             string             `json:"id"`
+	LiveMode       bool               `json:"livemode"`
+	Object         string             `json:"object"`
+	ScheduledDate  string             `json:"scheduled_date"`
+	Status         string             `json:"status"`
 	Summary        struct {
 		ChargeCount  int `json:"charge_count"`
 		ChargeFee    int `json:"charge_fee"`
