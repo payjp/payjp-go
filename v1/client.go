@@ -23,6 +23,7 @@ type Service struct {
 	Subscription *SubscriptionService
 	Account      *AccountService
 	Token        *TokenService
+	Transfer     *TransferService
 }
 
 func New(apiKey string, client *http.Client, config ...Config) *Service {
@@ -45,6 +46,7 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 	service.Subscription = newSubscriptionService(service)
 	service.Account = newAccountService(service)
 	service.Token = newTokenService(service)
+	service.Transfer = newTransferService(service)
 
 	return service
 }
@@ -74,7 +76,7 @@ func (s Service) delete(resourceUrl string) error {
 	return err
 }
 
-func (s Service) queryList(resourcePath string, limit, offset, since, until int) ([]byte, error) {
+func (s Service) queryList(resourcePath string, limit, offset, since, until int, callbacks ...func(*url.Values) bool) ([]byte, error) {
 	if limit < 0 || limit > 100 {
 		return nil, fmt.Errorf("List().Limit() should be between 1 and 100, but %d.", limit)
 	}
@@ -96,6 +98,12 @@ func (s Service) queryList(resourcePath string, limit, offset, since, until int)
 	if until != 0 {
 		values.Add("until", strconv.Itoa(until))
 		hasParam = true
+	}
+	// add extra parameters
+	for _, callback := range callbacks {
+		if callback(&values) {
+			hasParam = true
+		}
 	}
 	var requestUrl string
 	if hasParam {
