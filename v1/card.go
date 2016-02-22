@@ -126,7 +126,7 @@ func (c *CardResponse) UnmarshalJSON(b []byte) error {
 		c.Name = raw.Name
 		return nil
 	}
-	rawError := ErrorResponse{}
+	rawError := errorResponse{}
 	err = json.Unmarshal(b, &rawError)
 	if err == nil && rawError.Error.Status != 0 {
 		return &rawError.Error

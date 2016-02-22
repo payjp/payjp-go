@@ -129,7 +129,7 @@ func (a *AccountResponse) UnmarshalJSON(b []byte) error {
 		m.URL = rm.URL
 		return nil
 	}
-	rawError := ErrorResponse{}
+	rawError := errorResponse{}
 	err = json.Unmarshal(b, &rawError)
 	if err == nil && rawError.Error.Status != 0 {
 		return &rawError.Error

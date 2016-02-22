@@ -231,7 +231,7 @@ func TestChargeUpdate2(t *testing.T) {
 func TestChargeRefund(t *testing.T) {
 	mock, transport := NewMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
-	_, err := service.Charge.Refund("ch_fa990a4c10672a93053a774730b0a")
+	_, err := service.Charge.Refund("ch_fa990a4c10672a93053a774730b0a", "reason")
 	if transport.URL != "https://api.pay.jp/v1/charges/ch_fa990a4c10672a93053a774730b0a/refund" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}
@@ -251,7 +251,7 @@ func TestChargeRefund2(t *testing.T) {
 		t.Error("plan should not be nil")
 		return
 	}
-	err = plan.Refund()
+	err = plan.Refund("reason")
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}

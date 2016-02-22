@@ -27,7 +27,7 @@ func (e *Event) UnmarshalJSON(b []byte) error {
 		e.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
 		return nil
 	}
-	rawError := ErrorResponse{}
+	rawError := errorResponse{}
 	err = json.Unmarshal(b, &rawError)
 	if err == nil && rawError.Error.Status != 0 {
 		return &rawError.Error

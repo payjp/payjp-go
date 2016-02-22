@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
 
+// ChargeService 都度の支払いや定期購入の引き落としのときに生成される、支払い情報を取り扱います。
 type ChargeService struct {
 	service *Service
 }
@@ -18,16 +20,21 @@ func newChargeService(service *Service) *ChargeService {
 	}
 }
 
+// Charge 構造体はCharge.Createのパラメータを設定するのに使用します
 type Charge struct {
-	Currency    string
-	CustomerID  string
-	Card        Card
-	CardToken   string
-	Capture     bool
-	Description string
-	ExpireDays  int
+	Currency    string      // 必須: 3文字のISOコード(現状 “jpy” のみサポート)
+	CustomerID  string      // 顧客ID (CardかCustomerのどちらかは必須パラメータ)
+	Card        Card        // カードオブジェクト(cardかcustomerのどちらかは必須)
+	CardToken   string      // トークンID (CardかCustomerのどちらかは必須パラメータ)
+	Capture     bool        // 支払い処理を確定するかどうか (falseの場合、カードの認証と支払い額の確保のみ行う)
+	Description string      // 	概要
+	ExpireDays  interface{} // デフォルトで7日となっており、1日~60日の間で設定が可能
 }
 
+// Create はトークンID、カードを保有している顧客ID、カードオブジェクトのいずれかのパラメーターを指定して支払いを作成します。
+// テスト用のキーでは、本番用の決済ネットワークへは接続されず、実際の請求が行われることもありません。 本番用のキーでは、決済ネットワークで処理が行われ、実際の請求が行われます。
+//
+// 支払いを確定せずに、カードの認証と支払い額のみ確保する場合は、 Capture に false を指定してください。 このとき ExpireDays を指定することで、認証の期間を定めることができます。 ExpireDays はデフォルトで7日となっており、1日~60日の間で設定が可能です。
 func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error) {
 	var errorMessages []string
 	if amount < 50 || amount > 9999999 {
@@ -55,6 +62,10 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 	} else if charge.Currency != "jpy" {
 		// todo: if pay.jp supports other currency, fix this condition
 		errorMessages = append(errorMessages, fmt.Sprintf("Only supports 'jpy' as currency, but '%s'.", charge.Currency))
+	}
+	expireDays, ok := charge.ExpireDays.(int)
+	if ok && (expireDays < -1 || expireDays > 60) {
+		errorMessages = append(errorMessages, fmt.Sprintf("ExpireDays should be between 1 and 60, but %d.", expireDays))
 	}
 	if len(errorMessages) > 0 {
 		return nil, fmt.Errorf("Charge.Create() parameter error: %s", strings.Join(errorMessages, ", "))
@@ -84,6 +95,7 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 
 }
 
+// Get は生成された支払い情報を取得します。
 func (c ChargeService) Get(chargeID string) (*ChargeResponse, error) {
 	body, err := c.service.get("/charges/" + chargeID)
 	if err != nil {
@@ -105,6 +117,7 @@ func (c ChargeService) update(chargeID, description string) ([]byte, error) {
 	return parseResponseError(c.service.Client.Do(request))
 }
 
+// Update は支払い情報のDescriptionを更新します。
 func (c ChargeService) Update(chargeID, description string) (*ChargeResponse, error) {
 	body, err := c.update(chargeID, description)
 	if err != nil {
@@ -113,8 +126,13 @@ func (c ChargeService) Update(chargeID, description string) (*ChargeResponse, er
 	return parseCharge(c.service, body, &ChargeResponse{})
 }
 
-func (c ChargeService) refund(id string) ([]byte, error) {
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+id+"/refund", nil)
+func (c ChargeService) refund(id string, reason string, amount []int) ([]byte, error) {
+	qb := newRequestBuilder()
+	if len(amount) > 0 {
+		qb.Add("amount", amount[0])
+	}
+	qb.Add("refund_reason", reason)
+	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+id+"/refund", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -123,16 +141,23 @@ func (c ChargeService) refund(id string) ([]byte, error) {
 	return parseResponseError(c.service.Client.Do(request))
 }
 
-func (c ChargeService) Refund(chargeID string) (*ChargeResponse, error) {
-	body, err := c.refund(chargeID)
+// Refund は支払い済みとなった処理を返金します。
+// Amount省略時は全額返金、指定時に金額の部分返金を行うことができます。
+// ただし部分返金を最初に行った場合、2度目の返金は全額返金しか行うことができないため、ご注意ください。
+func (c ChargeService) Refund(chargeID, reason string, amount ...int) (*ChargeResponse, error) {
+	body, err := c.refund(chargeID, reason, amount)
 	if err != nil {
 		return nil, err
 	}
 	return parseCharge(c.service, body, &ChargeResponse{})
 }
 
-func (c ChargeService) capture(chargeID string) ([]byte, error) {
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID+"/capture", nil)
+func (c ChargeService) capture(chargeID string, amount ...int) ([]byte, error) {
+	qb := newRequestBuilder()
+	if len(amount) > 0 {
+		qb.Add("amount", amount[0])
+	}
+	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID+"/capture", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +166,13 @@ func (c ChargeService) capture(chargeID string) ([]byte, error) {
 	return parseResponseError(c.service.Client.Do(request))
 }
 
+// Capture は認証状態となった処理待ちの支払い処理を確定させます。具体的には Captured="false" となった支払いが該当します。
+//
+// amount をセットすることで、支払い生成時の金額と異なる金額の支払い処理を行うことができます。 ただし amount は、支払い生成時の金額よりも少額である必要があるためご注意ください。
+//
+// amount をセットした場合、AmountRefunded に認証時の amount との差額が入ります。
+//
+// 例えば、認証時に amount=500 で作成し、 amount=400 で支払い確定を行った場合、 AmountRefunded=100 となり、確定金額が400円に変更された状態で支払いが確定されます。
 func (c ChargeService) Capture(chargeID string) (*ChargeResponse, error) {
 	body, err := c.capture(chargeID)
 	if err != nil {
@@ -149,42 +181,79 @@ func (c ChargeService) Capture(chargeID string) (*ChargeResponse, error) {
 	return parseCharge(c.service, body, &ChargeResponse{})
 }
 
-func (c ChargeService) List() *chargeListCaller {
-	return &chargeListCaller{
+// List は生成した支払い情報のリストを取得します。リストは、直近で生成された順番に取得されます。
+func (c ChargeService) List() *ChargeListCaller {
+	return &ChargeListCaller{
 		service: c.service,
 	}
 }
 
-type chargeListCaller struct {
-	service *Service
-	limit   int
-	offset  int
-	since   int
-	until   int
+// ChargeListCaller はリスト取得に使用する構造体です。
+//
+// Fluentインタフェースを提供しており、最後にDoを呼ぶことでリストが取得できます:
+//
+//     pay := payjp.New("api-key", nil)
+//     charges, err := pay.Charge.List().Limit(50).Offset(150).Do()
+type ChargeListCaller struct {
+	service        *Service
+	limit          int
+	offset         int
+	since          int
+	until          int
+	customerID     string
+	subscriptionID string
 }
 
-func (c *chargeListCaller) Limit(limit int) *chargeListCaller {
+// Limit はリストの要素数の最大値を設定します(1-100)
+func (c *ChargeListCaller) Limit(limit int) *ChargeListCaller {
 	c.limit = limit
 	return c
 }
 
-func (c *chargeListCaller) Offset(offset int) *chargeListCaller {
+// Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
+func (c *ChargeListCaller) Offset(offset int) *ChargeListCaller {
 	c.offset = offset
 	return c
 }
 
-func (c *chargeListCaller) Since(since time.Time) *chargeListCaller {
+// Since はここに指定したタイムスタンプ以降に作成されたデータを取得します
+func (c *ChargeListCaller) Since(since time.Time) *ChargeListCaller {
 	c.since = int(since.Unix())
 	return c
 }
 
-func (c *chargeListCaller) Until(until time.Time) *chargeListCaller {
+// Until はここに指定したタイムスタンプ以前に作成されたデータを取得します
+func (c *ChargeListCaller) Until(until time.Time) *ChargeListCaller {
 	c.until = int(until.Unix())
 	return c
 }
 
-func (c *chargeListCaller) Do() ([]*ChargeResponse, bool, error) {
-	body, err := c.service.queryList("/charges", c.limit, c.offset, c.since, c.until)
+// CustomerID を指定すると、指定した顧客の支払いのみを取得します
+func (c *ChargeListCaller) CustomerID(id string) *ChargeListCaller {
+	c.customerID = id
+	return c
+}
+
+// SubscriptionID を指定すると、指定した定期購読の支払いのみを取得します
+func (c *ChargeListCaller) SubscriptionID(id string) *ChargeListCaller {
+	c.subscriptionID = id
+	return c
+}
+
+// Do は指定されたクエリーを元に支払いのリストを配列で取得します。
+func (c *ChargeListCaller) Do() ([]*ChargeResponse, bool, error) {
+	body, err := c.service.queryList("/charges", c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
+		result := false
+		if c.customerID != "" {
+			values.Add("customer", c.customerID)
+			result = true
+		}
+		if c.subscriptionID != "" {
+			values.Add("subscription", c.subscriptionID)
+			result = true
+		}
+		return result
+	})
 	if err != nil {
 		return nil, false, err
 	}
@@ -212,29 +281,31 @@ func parseCharge(service *Service, data []byte, result *ChargeResponse) (*Charge
 	return result, nil
 }
 
+// ChargeResponse はCharge.Getなどで返される、支払いに関する情報を持った構造体です
 type ChargeResponse struct {
-	Amount         int
-	AmountRefunded int
-	Captured       bool
-	CapturedAt     time.Time
-	Card           CardResponse
-	CreatedAt      time.Time
-	Currency       string
-	Customer       string
-	Description    string
-	ExpiredAt      time.Time
-	FailureCode    int
-	FailureMessage string
-	ID             string
-	LiveMode       bool
-	Paid           bool
-	RefundReason   string
-	Refunded       bool
-	Subscription   string
+	ID             string       // ch_で始まる一意なオブジェクトを示す文字列
+	LiveMode       bool         // 本番環境かどうか
+	CreatedAt      time.Time    // この支払い作成時のタイムスタンプ
+	Amount         int          // 支払額
+	Currency       string       // 3文字のISOコード(現状 “jpy” のみサポート)
+	Paid           bool         // 認証処理が成功しているかどうか。
+	ExpiredAt      time.Time    // 認証状態が自動的に失効される日時のタイムスタンプ
+	Captured       bool         // 支払い処理を確定しているかどうか
+	CapturedAt     time.Time    // 支払い処理確定時のタイムスタンプ
+	Card           CardResponse // 支払いされたクレジットカードの情報
+	CustomerID     string       // 顧客ID
+	Description    string       // 概要
+	FailureCode    string       // 失敗した支払いのエラーコード
+	FailureMessage string       // 失敗した支払いの説明
+	Refunded       bool         // 返金済みかどうか
+	AmountRefunded int          // この支払いに対しての返金額
+	RefundReason   string       // 返金理由
+	SubscriptionID string       // sub_から始まる定期課金のID
 
 	service *Service
 }
 
+// Update は支払い情報のDescriptionを更新します
 func (c *ChargeResponse) Update(description string) error {
 	body, err := c.service.Charge.update(c.ID, description)
 	if err != nil {
@@ -244,8 +315,12 @@ func (c *ChargeResponse) Update(description string) error {
 	return err
 }
 
-func (c *ChargeResponse) Refund() error {
-	body, err := c.service.Charge.refund(c.ID)
+// Refund 支払い済みとなった処理を返金します。
+// 全額返金、及び amount を指定することで金額の部分返金を行うことができます。ただし部分返金を最初に行った場合、2度目の返金は全額返金しか行うことができないため、ご注意ください。
+func (c *ChargeResponse) Refund(reason string, amount ...int) error {
+	var body []byte
+	var err error
+	body, err = c.service.Charge.refund(c.ID, reason, amount)
 	if err != nil {
 		return err
 	}
@@ -253,6 +328,13 @@ func (c *ChargeResponse) Refund() error {
 	return err
 }
 
+// Capture は認証状態となった処理待ちの支払い処理を確定させます。具体的には Captured="false" となった支払いが該当します。
+//
+// amount をセットすることで、支払い生成時の金額と異なる金額の支払い処理を行うことができます。 ただし amount は、支払い生成時の金額よりも少額である必要があるためご注意ください。
+//
+// amount をセットした場合、AmountRefunded に認証時の amount との差額が入ります。
+//
+// 例えば、認証時に amount=500 で作成し、 amount=400 で支払い確定を行った場合、 AmountRefunded=100 となり、確定金額が400円に変更された状態で支払いが確定されます。
 func (c *ChargeResponse) Capture() error {
 	body, err := c.service.Charge.capture(c.ID)
 	if err != nil {
@@ -273,7 +355,7 @@ type chargeResponseParser struct {
 	Customer       string          `json:"customer"`
 	Description    string          `json:"description"`
 	ExpiredEpoch   int             `json:"expired_at"`
-	FailureCode    int             `json:"failure_code"`
+	FailureCode    string          `json:"failure_code"`
 	FailureMessage string          `json:"failure_message"`
 	ID             string          `json:"id"`
 	LiveMode       bool            `json:"livemode"`
@@ -284,6 +366,7 @@ type chargeResponseParser struct {
 	Subscription   string          `json:"subscription"`
 }
 
+// UnmarshalJSON はJSONパース用の内部APIです。
 func (c *ChargeResponse) UnmarshalJSON(b []byte) error {
 	raw := chargeResponseParser{}
 	err := json.Unmarshal(b, &raw)
@@ -295,7 +378,7 @@ func (c *ChargeResponse) UnmarshalJSON(b []byte) error {
 		json.Unmarshal(raw.Card, &c.Card)
 		c.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
 		c.Currency = raw.Currency
-		c.Customer = raw.Customer
+		c.CustomerID = raw.Customer
 		c.Description = raw.Description
 		c.ExpiredAt = time.Unix(int64(raw.ExpiredEpoch), 0)
 		c.FailureCode = raw.FailureCode
@@ -305,10 +388,10 @@ func (c *ChargeResponse) UnmarshalJSON(b []byte) error {
 		c.Paid = raw.Paid
 		c.RefundReason = raw.RefundReason
 		c.Refunded = raw.Refunded
-		c.Subscription = raw.Subscription
+		c.SubscriptionID = raw.Subscription
 		return nil
 	}
-	rawError := ErrorResponse{}
+	rawError := errorResponse{}
 	err = json.Unmarshal(b, &rawError)
 	if err == nil && rawError.Error.Status != 0 {
 		return &rawError.Error

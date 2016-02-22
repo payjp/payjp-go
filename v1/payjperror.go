@@ -6,7 +6,8 @@ import (
 	"net/http"
 )
 
-type PayJpError struct {
+// Error はPAY.JP固有のエラーを表す構造体です
+type Error struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 	Param   string `json:"param"`
@@ -14,16 +15,15 @@ type PayJpError struct {
 	Type    string `json:"type"`
 }
 
-type ErrorResponse struct {
-	Error PayJpError `json:"error"`
-}
-
-func (ce PayJpError) Error() string {
+func (ce Error) Error() string {
 	if ce.Param != "" {
 		return fmt.Sprintf("%d: Type: %s Code: %s Message: %s, Param: %s", ce.Status, ce.Type, ce.Code, ce.Message, ce.Param)
-	} else {
-		return fmt.Sprintf("%d: Type: %s Code: %s Message: %s", ce.Status, ce.Type, ce.Code, ce.Message)
 	}
+	return fmt.Sprintf("%d: Type: %s Code: %s Message: %s", ce.Status, ce.Type, ce.Code, ce.Message)
+}
+
+type errorResponse struct {
+	Error Error `json:"error"`
 }
 
 func parseResponseError(resp *http.Response, err error) ([]byte, error) {
@@ -31,7 +31,7 @@ func parseResponseError(resp *http.Response, err error) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	payjpError := &PayJpError{}
+	payjpError := &Error{}
 	err = json.Unmarshal(body, payjpError)
 	if err != nil {
 		// ignore JSON parsing error.

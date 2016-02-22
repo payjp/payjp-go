@@ -288,7 +288,7 @@ func (s *SubscriptionResponse) UnmarshalJSON(b []byte) error {
 		s.TrialStartAt = time.Unix(int64(raw.TrialStartEpoch), 0)
 		return nil
 	}
-	rawError := ErrorResponse{}
+	rawError := errorResponse{}
 	err = json.Unmarshal(b, &rawError)
 	if err == nil && rawError.Error.Status != 0 {
 		return &rawError.Error

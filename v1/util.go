@@ -101,7 +101,7 @@ func (p *listResponseParser) UnmarshalJSON(b []byte) error {
 		*p = listResponseParser(raw)
 		return nil
 	}
-	rawError := ErrorResponse{}
+	rawError := errorResponse{}
 	err = json.Unmarshal(b, &rawError)
 	if err == nil && rawError.Error.Status != 0 {
 		return &rawError.Error

@@ -112,7 +112,7 @@ func (t *TokenResponse) UnmarshalJSON(b []byte) error {
 		t.Used = raw.Used
 		return nil
 	}
-	rawError := ErrorResponse{}
+	rawError := errorResponse{}
 	err = json.Unmarshal(b, &rawError)
 	if err == nil && rawError.Error.Status != 0 {
 		return &rawError.Error

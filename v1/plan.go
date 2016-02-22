@@ -231,7 +231,7 @@ func (p *PlanResponse) UnmarshalJSON(b []byte) error {
 		p.TrialDays = raw.TrialDays
 		return nil
 	}
-	rawError := ErrorResponse{}
+	rawError := errorResponse{}
 	err = json.Unmarshal(b, &rawError)
 	if err == nil && rawError.Error.Status != 0 {
 		return &rawError.Error
