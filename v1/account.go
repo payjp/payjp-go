@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+// AccountService はあなたのアカウント情報を返します。
+//
+// 事業者用のMerchantアカウント、購入者用のCustomerアカウントの2種類のアカウント情報を含んでいます。
 type AccountService struct {
 	service *Service
 }
@@ -15,6 +18,7 @@ func newAccountService(service *Service) *AccountService {
 	return &AccountService{service}
 }
 
+// Get はあなたのアカウント情報を取得します。
 func (t *AccountService) Get() (*AccountResponse, error) {
 	request, err := http.NewRequest("GET", t.service.apiBase+"/accounts", nil)
 	if err != nil {
@@ -36,31 +40,33 @@ func (t *AccountService) Get() (*AccountResponse, error) {
 	return result, nil
 }
 
+// AccountResponse はAccount.Get()メソッドが返す構造体です
 type AccountResponse struct {
-	CreatedAt time.Time
-	Customer  json.RawMessage
-	Email     string
-	ID        string
+	ID        string           // acct_で始まる一意なオブジェクトを示す文字列
+	Email     string           // メールアドレス
+	CreatedAt time.Time        // このアカウント作成時のタイムスタンプ
+	Customer  CustomerResponse // カスタマーアカウントの詳細情報(現状準備中のため"null"になっております)
 	Merchant  struct {
-		BankEnabled         bool
-		BrandsAccepted      []string
-		BusinessType        interface{}
-		ChargeType          interface{}
-		ContactPhone        string
-		Country             string
-		CreatedAt           time.Time
-		CurrenciesSupported []string
-		DefaultCurrency     string
-		DetailsSubmitted    bool
-		ID                  string
-		LiveModeActivatedAt time.Time
-		LiveModeEnabled     bool
-		ProductDetail       string
-		ProductName         string
-		ProductType         interface{}
-		SitePublished       bool
-		URL                 string
-	}
+		ID                  string      // acct_mch_で始まる一意なオブジェクトを示す文字列
+		BankEnabled         bool        // 入金先銀行口座情報が設定済みかどうか
+		BrandsAccepted      []string    // 本番環境で利用可能なカードブランドのリスト
+		CurrenciesSupported []string    // 対応通貨のリスト
+		DefaultCurrency     string      // 3文字のISOコード(現状 “jpy” のみサポート)
+		BusinessType        interface{} // 業務形態
+		ContactPhone        string      // 電話番号
+		Country             string      // 所在国
+		ChargeType          interface{} // 支払い方法種別のリスト
+		ProductDetail       string      // 販売商品の詳細
+		ProductName         string      // 販売商品名
+		ProductType         interface{} // 販売商品の種類リスト
+		DetailsSubmitted    bool        // 本番環境申請情報が提出済みかどうか
+		LiveModeEnabled     bool        // 本番環境が有効かどうか
+		LiveModeActivatedAt time.Time   // 本番環境が許可された日時のタイムスタンプ
+		SitePublished       bool        // 申請対象のサイトがオープン済みかどうか
+
+		URL       string    // 申請対象サイトのURL
+		CreatedAt time.Time // 作成時のタイムスタンプ
+	} // マーチャントアカウントの詳細情報
 }
 
 type accountResponseParser struct {
@@ -92,6 +98,7 @@ type accountResponseParser struct {
 	Object string `json:"object"`
 }
 
+// UnmarshalJSON はJSONパース用の内部APIです。
 func (a *AccountResponse) UnmarshalJSON(b []byte) error {
 	raw := accountResponseParser{}
 	err := json.Unmarshal(b, &raw)

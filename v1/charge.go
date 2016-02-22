@@ -40,7 +40,7 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 	if charge.CardToken != "" {
 		counter++
 	}
-	if charge.Card.Valid() {
+	if charge.Card.valid() {
 		counter++
 	}
 	switch counter {

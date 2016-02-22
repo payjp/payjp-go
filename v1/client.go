@@ -8,24 +8,34 @@ import (
 	"strconv"
 )
 
+// Config 構造体はNewに渡すパラメータを設定するのに使用します。
 type Config struct {
-	ApiBase string
+	APIBase string // APIのエンドポイントのURL(省略時は'https://api.pay.jp/v1')
 }
 
+// Service 構造体はPAY.JPのすべてのAPIの起点となる構造体です。
+// New()を使ってインスタンスを生成します。
 type Service struct {
 	Client  *http.Client
 	apiKey  string
 	apiBase string
 
-	Charge       *ChargeService
-	Customer     *CustomerService
-	Plan         *PlanService
-	Subscription *SubscriptionService
-	Account      *AccountService
-	Token        *TokenService
-	Transfer     *TransferService
+	Charge       *ChargeService       // 支払いに関するAPI
+	Customer     *CustomerService     // 顧客情報に関するAPI
+	Plan         *PlanService         // プランに関するAPI
+	Subscription *SubscriptionService // 定期課金に関するAPI
+	Token        *TokenService        // トークンに関するAPI
+	Transfer     *TransferService     // 入金に関するAPI
+	Account      *AccountService      // アカウント情報に関するAPI
 }
 
+// New はPAY.JPのAPIを初期化する関数です。
+//
+// apiKeyはPAY.JPのウェブサイトで作成したキーを指定します。
+//
+// clientは特別な設定をしたhttp.Clientを使用する場合に渡します。nilを指定するとデフォルトのもhttp.Clientを指定します。
+//
+// configは追加の設定が必要な場合に渡します。現状で設定できるのはAPIのエントリーポイントのURLのみです。省略できます。
 func New(apiKey string, client *http.Client, config ...Config) *Service {
 	if client == nil {
 		client = &http.Client{}
@@ -35,7 +45,7 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 		Client: client,
 	}
 	if len(config) > 0 {
-		service.apiBase = config[0].ApiBase
+		service.apiBase = config[0].APIBase
 	} else {
 		service.apiBase = "https://api.pay.jp/v1"
 	}
@@ -51,12 +61,13 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 	return service
 }
 
-func (s Service) ApiBase() string {
+// APIBase はPAY.JPのエントリーポイントの基底部分のURLを返します。
+func (s Service) APIBase() string {
 	return s.apiBase
 }
 
-func (s Service) get(resourceUrl string) ([]byte, error) {
-	request, err := http.NewRequest("GET", s.apiBase+resourceUrl, nil)
+func (s Service) get(resourceURL string) ([]byte, error) {
+	request, err := http.NewRequest("GET", s.apiBase+resourceURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +76,8 @@ func (s Service) get(resourceUrl string) ([]byte, error) {
 	return respToBody(s.Client.Do(request))
 }
 
-func (s Service) delete(resourceUrl string) error {
-	request, err := http.NewRequest("DELETE", s.apiBase+resourceUrl, nil)
+func (s Service) delete(resourceURL string) error {
+	request, err := http.NewRequest("DELETE", s.apiBase+resourceURL, nil)
 	if err != nil {
 		return err
 	}
@@ -105,13 +116,13 @@ func (s Service) queryList(resourcePath string, limit, offset, since, until int,
 			hasParam = true
 		}
 	}
-	var requestUrl string
+	var requestURL string
 	if hasParam {
-		requestUrl = s.apiBase + resourcePath + "?" + values.Encode()
+		requestURL = s.apiBase + resourcePath + "?" + values.Encode()
 	} else {
-		requestUrl = s.apiBase + resourcePath
+		requestURL = s.apiBase + resourcePath
 	}
-	request, err := http.NewRequest("GET", requestUrl, nil)
+	request, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
 		return nil, err
 	}

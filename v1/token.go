@@ -85,7 +85,7 @@ func (t TokenService) Get(id string) (*TokenResponse, error) {
 type TokenResponse struct {
 	Card      CardResponse // クレジットカードの情報
 	CreatedAt time.Time    // このトークン作成時間
-	ID        string       // トークンID
+	ID        string       // tok_で始まる一意なオブジェクトを示す文字列
 	LiveMode  bool         // 本番環境かどうか
 	Used      bool         // トークンが使用済みかどうか
 }
