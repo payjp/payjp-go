@@ -1,6 +1,6 @@
 // PAY.JP For Golang
 
-// PAY.JP is a REST based payment API. It supports paying in each case and
+// Package payjp contains REST based payment API for PAY.JP. It supports paying in each case and
 // subscription paying, customer management and more.
 //
 // PAY.JPは、RESTをベースに構成された決済APIです。都度の支払い、定期的な支払い、
