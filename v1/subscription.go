@@ -152,8 +152,8 @@ func (s SubscriptionService) Delete(subscriptionID string) error {
 	return err
 }
 
-func (s SubscriptionService) List() *subscriptionListCaller {
-	return &subscriptionListCaller{
+func (s SubscriptionService) List() *SubscriptionListCaller {
+	return &SubscriptionListCaller{
 		service: s.service,
 	}
 }
@@ -297,7 +297,7 @@ func (s *SubscriptionResponse) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type subscriptionListCaller struct {
+type SubscriptionListCaller struct {
 	service    *Service
 	customerID string
 	limit      int
@@ -306,27 +306,27 @@ type subscriptionListCaller struct {
 	until      int
 }
 
-func (c *subscriptionListCaller) Limit(limit int) *subscriptionListCaller {
+func (c *SubscriptionListCaller) Limit(limit int) *SubscriptionListCaller {
 	c.limit = limit
 	return c
 }
 
-func (c *subscriptionListCaller) Offset(offset int) *subscriptionListCaller {
+func (c *SubscriptionListCaller) Offset(offset int) *SubscriptionListCaller {
 	c.offset = offset
 	return c
 }
 
-func (c *subscriptionListCaller) Since(since time.Time) *subscriptionListCaller {
+func (c *SubscriptionListCaller) Since(since time.Time) *SubscriptionListCaller {
 	c.since = int(since.Unix())
 	return c
 }
 
-func (c *subscriptionListCaller) Until(until time.Time) *subscriptionListCaller {
+func (c *SubscriptionListCaller) Until(until time.Time) *SubscriptionListCaller {
 	c.until = int(until.Unix())
 	return c
 }
 
-func (c *subscriptionListCaller) Do() ([]*SubscriptionResponse, bool, error) {
+func (c *SubscriptionListCaller) Do() ([]*SubscriptionResponse, bool, error) {
 	var url string
 	if c.customerID == "" {
 		url = "/subscriptions"
