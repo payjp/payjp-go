@@ -10,6 +10,41 @@ import (
 	"time"
 )
 
+// SubscriptionStatus は定期購読のステータスを表すEnumです。
+type SubscriptionStatus int
+
+const (
+	noSubscriptionStatus SubscriptionStatus = iota
+	// SubscriptionActive はアクティブ状態を表す定数
+	SubscriptionActive
+	// SubscriptionTrial はトライアル状態を表す定数
+	SubscriptionTrial
+	// SubscriptionCanceled はキャンセル状態を表す定数
+	SubscriptionCanceled
+	// SubscriptionPaused は停止状態を表す定数
+	SubscriptionPaused
+)
+
+func (s SubscriptionStatus) status() interface{} {
+	switch s {
+	case SubscriptionActive:
+		return "active"
+	case SubscriptionTrial:
+		return "trial"
+	case SubscriptionCanceled:
+		return "canceled"
+	case SubscriptionPaused:
+		return "paused"
+	}
+	return nil
+}
+
+// SubscriptionService は月単位で定期的な支払い処理を行うサービスです。顧客IDとプランIDを指定して生成します。
+//
+// stauts=SubscriptionTrial の場合は支払いは行われず、status=SubscriptionActive の場合のみ支払いが行われます。
+//
+// 支払い処理は、はじめに定期課金を生成した瞬間に行われ、そこを基準にして定期的な支払いが行われていきます。
+// 定期課金は、顧客に複数紐付けるができ、生成した定期課金は停止・再開・キャンセル・削除することができます。
 type SubscriptionService struct {
 	service *Service
 }
@@ -20,13 +55,20 @@ func newSubscriptionService(service *Service) *SubscriptionService {
 	}
 }
 
+// Subscription はSubscribeやUpdateの引数を設定するのに使用する構造体です。
 type Subscription struct {
-	TrialEndAt time.Time
-	SkipTrial  interface{} // bool
-	PlanID     interface{} // string
-	Prorate    interface{} // bool
+	TrialEndAt time.Time   // トライアルの終了時期
+	SkipTrial  interface{} // トライアルをしない(bool)
+	PlanID     interface{} // プランID(string)
+	Prorate    interface{} // 日割り課金をするかどうか(bool)
 }
 
+// Subscribe は顧客IDとプランIDを指定して、定期課金を開始することができます。
+// TrialEndを指定することで、プラン情報を上書きするトライアル設定も可能です。
+// 最初の支払いは定期課金作成時に実行されます。
+// 支払い実行日(BillingDay)が指定されているプランの場合は日割り設定(Prorate)を有効化しない限り、
+// 作成時よりもあとの支払い実行日に最初の課金が行われます。またトライアル設定がある場合は、
+// トライアル終了時に支払い処理が行われ、そこを基準にして定期課金が開始されます。
 func (s SubscriptionService) Subscribe(customerID string, subscription Subscription) (*SubscriptionResponse, error) {
 	var errors []string
 	planID, ok := subscription.PlanID.(string)
@@ -64,6 +106,7 @@ func (s SubscriptionService) Subscribe(customerID string, subscription Subscript
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
+// Get は生成した特定の定期課金情報を取得します。
 func (s SubscriptionService) Get(customerID, subscriptionID string) (*SubscriptionResponse, error) {
 	body, err := s.service.get("/customers/" + customerID + "/subscriptions/" + subscriptionID)
 	if err != nil {
@@ -95,6 +138,15 @@ func (s SubscriptionService) update(subscriptionID string, subscription Subscrip
 	return parseResponseError(s.service.Client.Do(request))
 }
 
+// Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
+//
+// トライアル期間を更新する場合、トライアル期間終了時に支払い処理が行われ、
+// そこを基準としてプランに沿った周期で定期課金が再開されます。
+// このトライアル期間を利用すれば、定期課金の開始日を任意の日にずらすこともできます。
+// また SkipTrial=true とする事により、トライアル期間中の定期課金を即時開始できます。
+//
+// プランを変更する場合は、 PlanID に新しいプランのIDを指定してください。
+// 同時に Prorate=true とする事により、 日割り課金を有効化できます。
 func (s SubscriptionService) Update(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
 	body, err := s.update(subscriptionID, subscription)
 	if err != nil {
@@ -103,6 +155,9 @@ func (s SubscriptionService) Update(subscriptionID string, subscription Subscrip
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
+// Pause は引き落としの失敗やカードが不正である、また定期課金を停止したい場合はこのリクエストで定期購入を停止させます。
+//
+// 定期課金を停止させると、再開されるまで引き落とし処理は一切行われません。
 func (s SubscriptionService) Pause(subscriptionID string) (*SubscriptionResponse, error) {
 	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/pause", nil)
 	if err != nil {
@@ -116,8 +171,28 @@ func (s SubscriptionService) Pause(subscriptionID string) (*SubscriptionResponse
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
-func (s SubscriptionService) Resume(subscriptionID string) (*SubscriptionResponse, error) {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/resume", nil)
+// Resume は停止もしくはキャンセル状態の定期課金を再開させます。
+// トライアル日数が残っていて再開日がトライアル終了日時より前の場合、
+// トライアル状態で定期課金が再開されます。
+//
+// TrialEndを指定することで、トライアル終了日を任意の日時に再指定する事ができます。
+//
+// 支払いの失敗が原因で停止状態にある定期課金の再開時は未払い分の支払いを行います。
+//
+// 未払い分の支払いに失敗すると、定期課金は再開されません。 この場合は、有効なカードを顧客のデフォルトカードにセットしてから、
+// 再度定期課金の再開を行ってください。
+//
+// またProrate を指定することで、日割り課金を有効化することができます。 日割り課金が有効な場合は、
+// 再開日より課金日までの日数分で課金額を日割りします。
+func (s SubscriptionService) Resume(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
+	var defaultTime time.Time
+	qb := newRequestBuilder()
+	if subscription.TrialEndAt != defaultTime {
+		qb.Add("trial_end", strconv.Itoa(int(subscription.TrialEndAt.Unix())))
+	}
+	qb.Add("prorate", subscription.Prorate)
+
+	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/resume", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -129,6 +204,11 @@ func (s SubscriptionService) Resume(subscriptionID string) (*SubscriptionRespons
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
+// Cancel は定期課金をキャンセルし、現在の周期の終了日をもって定期課金を終了させます。
+//
+// 終了日以前であれば、定期課金の再開リクエスト(Resume)を行うことで、
+// キャンセルを取り消すことができます。終了日をむかえた定期課金は、
+// 自動的に削除されますのでご注意ください。
 func (s SubscriptionService) Cancel(subscriptionID string) (*SubscriptionResponse, error) {
 	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/cancel", nil)
 	if err != nil {
@@ -142,6 +222,8 @@ func (s SubscriptionService) Cancel(subscriptionID string) (*SubscriptionRespons
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
+// Delete は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
+// 再び戻すことができません。
 func (s SubscriptionService) Delete(subscriptionID string) error {
 	request, err := http.NewRequest("DELETE", s.service.apiBase+"/subscriptions/"+subscriptionID, nil)
 	if err != nil {
@@ -152,6 +234,7 @@ func (s SubscriptionService) Delete(subscriptionID string) error {
 	return err
 }
 
+// List は顧客の定期課金リストを取得します。リストは、直近で生成された順番に取得されます。
 func (s SubscriptionService) List() *SubscriptionListCaller {
 	return &SubscriptionListCaller{
 		service: s.service,
@@ -167,22 +250,24 @@ func parseSubscription(service *Service, body []byte, result *SubscriptionRespon
 	return result, nil
 }
 
+// SubscriptionResponse はSubscriptionService.GetやSubscriptionService.Listで返される
+// 定期購読情報持つ構造体です。
 type SubscriptionResponse struct {
-	CanceledAt           time.Time
-	CreatedAt            time.Time
-	CurrentPeriodEndAt   time.Time
-	CurrentPeriodStartAt time.Time
-	Customer             string
-	ID                   string
-	LiveMode             bool
-	PausedAt             time.Time
-	Plan                 Plan
-	Prorate              bool
-	ResumedAt            time.Time
-	Start                int
-	Status               string
-	TrialEndAt           time.Time
-	TrialStartAt         time.Time
+	ID                   string             // sub_で始まる一意なオブジェクトを示す文字列
+	LiveMode             bool               // 本番環境かどうか
+	CreatedAt            time.Time          // この定期課金作成時のタイムスタンプ
+	StartAt              time.Time          // この定期課金開始時のタイムスタンプ
+	CustomerID           string             // この定期課金を購読している顧客のID
+	Plan                 Plan               // この定期課金のプラン情報
+	Status               SubscriptionStatus // この定期課金の現在の状態
+	Prorate              bool               // 日割り課金が有効かどうか
+	CurrentPeriodStartAt time.Time          // 現在の購読期間開始時のタイムスタンプ
+	CurrentPeriodEndAt   time.Time          // 現在の購読期間終了時のタイムスタンプ
+	TrialStartAt         time.Time          // トライアル期間開始時のタイムスタンプ
+	TrialEndAt           time.Time          // 	トライアル期間終了時のタイムスタンプ
+	PausedAt             time.Time          // 定期課金が停止状態になった時のタイムスタンプ
+	CanceledAt           time.Time          // 定期課金がキャンセル状態になった時のタイムスタンプ
+	ResumedAt            time.Time          // 停止またはキャンセル状態の定期課金が有効状態になった時のタイムスタンプ
 
 	service *Service
 }
@@ -200,12 +285,13 @@ type subscriptionResponseParser struct {
 	Plan                    json.RawMessage `json:"plan"`
 	Prorate                 bool            `json:"prorate"`
 	ResumedEpoch            int             `json:"resumed_at"`
-	Start                   int             `json:"start"`
+	StartEpoch              int             `json:"start"`
 	Status                  string          `json:"status"`
 	TrialEndEpoch           int             `json:"trial_end"`
 	TrialStartEpoch         int             `json:"trial_start"`
 }
 
+// Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
 func (s *SubscriptionResponse) Update(subscription Subscription) error {
 	body, err := s.service.Subscription.update(s.ID, subscription)
 	if err != nil {
@@ -215,6 +301,7 @@ func (s *SubscriptionResponse) Update(subscription Subscription) error {
 	return err
 }
 
+// Pause は引き落としの失敗やカードが不正である、また定期課金を停止したい場合はこのリクエストで定期購入を停止させます。
 func (s *SubscriptionResponse) Pause() error {
 	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/pause", nil)
 	if err != nil {
@@ -229,8 +316,16 @@ func (s *SubscriptionResponse) Pause() error {
 	return err
 }
 
-func (s *SubscriptionResponse) Resume() error {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/resume", nil)
+// Resume は停止もしくはキャンセル状態の定期課金を再開させます。
+func (s *SubscriptionResponse) Resume(subscription Subscription) error {
+	var defaultTime time.Time
+	qb := newRequestBuilder()
+	if subscription.TrialEndAt != defaultTime {
+		qb.Add("trial_end", strconv.Itoa(int(subscription.TrialEndAt.Unix())))
+	}
+	qb.Add("prorate", subscription.Prorate)
+
+	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/resume", qb.Reader())
 	if err != nil {
 		return err
 	}
@@ -243,6 +338,7 @@ func (s *SubscriptionResponse) Resume() error {
 	return err
 }
 
+// Cancel は定期課金をキャンセルし、現在の周期の終了日をもって定期課金を終了させます。
 func (s *SubscriptionResponse) Cancel() error {
 	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/cancel", nil)
 	if err != nil {
@@ -257,6 +353,8 @@ func (s *SubscriptionResponse) Cancel() error {
 	return err
 }
 
+// Delete は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
+// 再び戻すことができません。
 func (s *SubscriptionResponse) Delete() error {
 	request, err := http.NewRequest("DELETE", s.service.apiBase+"/subscriptions/"+s.ID, nil)
 	if err != nil {
@@ -267,6 +365,7 @@ func (s *SubscriptionResponse) Delete() error {
 	return err
 }
 
+// UnmarshalJSON はJSONパース用の内部APIです。
 func (s *SubscriptionResponse) UnmarshalJSON(b []byte) error {
 	raw := subscriptionResponseParser{}
 	err := json.Unmarshal(b, &raw)
@@ -275,15 +374,24 @@ func (s *SubscriptionResponse) UnmarshalJSON(b []byte) error {
 		s.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
 		s.CurrentPeriodEndAt = time.Unix(int64(raw.CurrentPeriodEndEpoch), 0)
 		s.CurrentPeriodStartAt = time.Unix(int64(raw.CurrentPeriodStartEpoch), 0)
-		s.Customer = raw.Customer
+		s.CustomerID = raw.Customer
 		s.ID = raw.ID
 		s.LiveMode = raw.LiveMode
 		s.PausedAt = time.Unix(int64(raw.PausedEpoch), 0)
 		json.Unmarshal(raw.Plan, &s.Plan)
 		s.Prorate = raw.Prorate
 		s.ResumedAt = time.Unix(int64(raw.ResumedEpoch), 0)
-		s.Start = raw.Start
-		s.Status = raw.Status
+		s.StartAt = time.Unix(int64(raw.StartEpoch), 0)
+		switch raw.Status {
+		case "active":
+			s.Status = SubscriptionActive
+		case "trial":
+			s.Status = SubscriptionTrial
+		case "canceled":
+			s.Status = SubscriptionCanceled
+		case "paused":
+			s.Status = SubscriptionPaused
+		}
 		s.TrialEndAt = time.Unix(int64(raw.TrialEndEpoch), 0)
 		s.TrialStartAt = time.Unix(int64(raw.TrialStartEpoch), 0)
 		return nil
@@ -297,6 +405,7 @@ func (s *SubscriptionResponse) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// SubscriptionListCaller はリスト取得に使用する構造体です。
 type SubscriptionListCaller struct {
 	service    *Service
 	customerID string
@@ -304,28 +413,40 @@ type SubscriptionListCaller struct {
 	offset     int
 	since      int
 	until      int
+	planID     string
 }
 
+// Limit はリストの要素数の最大値を設定します(1-100)
 func (c *SubscriptionListCaller) Limit(limit int) *SubscriptionListCaller {
 	c.limit = limit
 	return c
 }
 
+// Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
 func (c *SubscriptionListCaller) Offset(offset int) *SubscriptionListCaller {
 	c.offset = offset
 	return c
 }
 
+// Since はここに指定したタイムスタンプ以降に作成されたデータを取得します
 func (c *SubscriptionListCaller) Since(since time.Time) *SubscriptionListCaller {
 	c.since = int(since.Unix())
 	return c
 }
 
+// Until はここに指定したタイムスタンプ以前に作成されたデータを取得します
 func (c *SubscriptionListCaller) Until(until time.Time) *SubscriptionListCaller {
 	c.until = int(until.Unix())
 	return c
 }
 
+// PlanID はプランIDで結果を絞ります
+func (c *SubscriptionListCaller) PlanID(planID string) *SubscriptionListCaller {
+	c.planID = planID
+	return c
+}
+
+// Do は指定されたクエリーを元に顧客のリストを配列で取得します。
 func (c *SubscriptionListCaller) Do() ([]*SubscriptionResponse, bool, error) {
 	var url string
 	if c.customerID == "" {

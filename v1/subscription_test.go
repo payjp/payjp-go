@@ -227,7 +227,7 @@ func TestSubscriptionPause(t *testing.T) {
 func TestSubscriptionResume(t *testing.T) {
 	mock, transport := NewMockClient(200, subscriptionResponseJSON)
 	service := New("api-key", mock)
-	subscription, err := service.Subscription.Resume("sub_567a1e44562932ec1a7682d746e0")
+	subscription, err := service.Subscription.Resume("sub_567a1e44562932ec1a7682d746e0", Subscription{})
 	if transport.URL != "https://api.pay.jp/v1/subscriptions/sub_567a1e44562932ec1a7682d746e0/resume" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}

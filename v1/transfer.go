@@ -9,26 +9,25 @@ import (
 type TransferStatus int
 
 const (
-	NoStatus TransferStatus = iota
-	Pending
-	Paid
-	Failed
-	Canceled
+	noTransferStatus TransferStatus = iota
+	TransferPending
+	TransferPaid
+	TransferFailed
+	TransferCanceled
 )
 
-func (t TransferStatus) String() string {
-	result := "unknown"
+func (t TransferStatus) status() interface{} {
 	switch t {
-	case Pending:
-		result = "pending"
-	case Paid:
-		result = "paid"
-	case Failed:
-		result = "failed"
-	case Canceled:
-		result = "canceled"
+	case TransferPending:
+		return "pending"
+	case TransferPaid:
+		return "paid"
+	case TransferFailed:
+		return "failed"
+	case TransferCanceled:
+		return "canceled"
 	}
-	return result
+	return nil
 }
 
 type TransferService struct {
@@ -57,7 +56,7 @@ func (t TransferService) Get(transferID string) (*TransferResponse, error) {
 
 func (t TransferService) List() *transferListCaller {
 	return &transferListCaller{
-		status:  NoStatus,
+		status:  noTransferStatus,
 		service: t.service,
 	}
 }
@@ -98,8 +97,8 @@ func (c *transferListCaller) Status(status TransferStatus) *transferListCaller {
 
 func (c *transferListCaller) Do() ([]*TransferResponse, bool, error) {
 	body, err := c.service.queryList("/transfers", c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
-		if c.status != NoStatus {
-			values.Add("status", c.status.String())
+		if c.status != noTransferStatus {
+			values.Add("status", c.status.status().(string))
 			return true
 		}
 		return false
