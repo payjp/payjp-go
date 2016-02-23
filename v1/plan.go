@@ -178,7 +178,7 @@ func (c *PlanListCaller) Until(until time.Time) *PlanListCaller {
 	return c
 }
 
-// Do は指定されたクエリーを元に支払いのリストを配列で取得します。
+// Do は指定されたクエリーを元にプランのリストを配列で取得します。
 func (c *PlanListCaller) Do() ([]*PlanResponse, bool, error) {
 	body, err := c.service.queryList("/plans", c.limit, c.offset, c.since, c.until)
 	if err != nil {

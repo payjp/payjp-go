@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var transferResponseJSON []byte = []byte(`
+var transferResponseJSON = []byte(`
 {
   "amount": 1000,
   "carried_balance": null,
