@@ -83,14 +83,14 @@ func (e EventService) Get(id string) (*EventResponse, error) {
 	return result, nil
 }
 
-// List は生成したプランのリストを取得します。リストは、直近で生成された順番に取得されます。
+// List はイベントリストを取得します。リストは、直近で生成された順番に取得されます。
 func (e EventService) List() *EventListCaller {
 	return &EventListCaller{
 		service: e.service,
 	}
 }
 
-// EventListCaller はプランのリスト取得に使用する構造体です。
+// EventListCaller はイベントのリスト取得に使用する構造体です。
 type EventListCaller struct {
 	service    *Service
 	limit      int
@@ -144,7 +144,7 @@ func (e *EventListCaller) Until(until time.Time) *EventListCaller {
 	return e
 }
 
-// Do は指定されたクエリーを元にプランのリストを配列で取得します。
+// Do は指定されたクエリーを元にイベントのリストを配列で取得します。
 func (e *EventListCaller) Do() ([]*EventResponse, bool, error) {
 	body, err := e.service.queryList("/events", e.limit, e.offset, e.since, e.until, func(values *url.Values) bool {
 		hasParam := false

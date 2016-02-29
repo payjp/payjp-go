@@ -22,12 +22,13 @@ func newCustomerService(service *Service) *CustomerService {
 
 // Customer は顧客の登録や更新時に使用する構造体です
 type Customer struct {
-	Email       interface{} // メールアドレス
-	Description interface{} // 概要
-	ID          interface{} // 一意の顧客ID
-	CardToken   interface{} // トークンID
-	DefaultCard interface{} // デフォルトカード
-	Card        Card        // カード
+	Email       interface{}       // メールアドレス
+	Description interface{}       // 概要
+	ID          interface{}       // 一意の顧客ID
+	CardToken   interface{}       // トークンID
+	DefaultCard interface{}       // デフォルトカード
+	Card        Card              // カード
+	Metadata    map[string]string // メタデータ
 }
 
 func parseCustomer(service *Service, body []byte, result *CustomerResponse) (*CustomerResponse, error) {
@@ -66,6 +67,7 @@ func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
 	} else {
 		qb.AddCard(customer.Card)
 	}
+	qb.AddMetadata(customer.Metadata)
 
 	request, err := http.NewRequest("POST", c.service.apiBase+"/customers", qb.Reader())
 	if err != nil {
@@ -117,6 +119,7 @@ func (c CustomerService) update(id string, customer Customer) ([]byte, error) {
 	} else {
 		qb.AddCard(customer.Card)
 	}
+	qb.AddMetadata(customer.Metadata)
 	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+id, qb.Reader())
 	if err != nil {
 		return nil, err
@@ -354,6 +357,7 @@ type CustomerResponse struct {
 	Email         string                  // メールアドレス
 	Description   string                  // 概要
 	Subscriptions []*SubscriptionResponse // この顧客が購読している定期課金のリスト
+	Metadata      map[string]string       // メタデータ
 
 	service *Service
 }
@@ -368,10 +372,7 @@ type customerResponseParser struct {
 	LiveMode      bool               `json:"livemode"`
 	Object        string             `json:"object"`
 	Subscriptions listResponseParser `json:"subscriptions"`
-
-	CreatedAt time.Time
-
-	service *Service
+	Metadata      map[string]string  `json:"metadata"`
 }
 
 // Update は生成した顧客情報を更新したり、新たなカードを顧客に追加することができます。
@@ -453,6 +454,7 @@ func (c *CustomerResponse) UnmarshalJSON(b []byte) error {
 			json.Unmarshal(rawSubscription, subscription)
 			c.Subscriptions[i] = subscription
 		}
+		c.Metadata = raw.Metadata
 		return nil
 	}
 	rawError := errorResponse{}

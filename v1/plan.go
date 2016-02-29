@@ -26,13 +26,14 @@ func newPlanService(service *Service) *PlanService {
 
 // Plan はプランの作成時に使用する構造体です。
 type Plan struct {
-	Amount     int    // 必須: 金額。50~9,999,999の整数
-	Currency   string // 3文字のISOコード(現状 “jpy” のみサポート)
-	Interval   string // month のみ指定可能
-	ID         string // プランID
-	Name       string // プランの名前
-	TrialDays  int    // トライアル日数
-	BillingDay int    // 支払いの実行日(1〜31)
+	Amount     int               // 必須: 金額。50~9,999,999の整数
+	Currency   string            // 3文字のISOコード(現状 “jpy” のみサポート)
+	Interval   string            // month のみ指定可能
+	ID         string            // プランID
+	Name       string            // プランの名前
+	TrialDays  int               // トライアル日数
+	BillingDay int               // 支払いの実行日(1〜31)
+	Metadata   map[string]string // メタデータ
 }
 
 // Create は金額や通貨などを指定して定期購入に利用するプランを生成します。
@@ -79,6 +80,7 @@ func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
 	if plan.BillingDay != 0 {
 		qb.Add("billing_day", strconv.Itoa(plan.BillingDay))
 	}
+	qb.AddMetadata(plan.Metadata)
 	request, err := http.NewRequest("POST", p.service.apiBase+"/plans", qb.Reader())
 	if err != nil {
 		return nil, err
@@ -201,30 +203,32 @@ func (c *PlanListCaller) Do() ([]*PlanResponse, bool, error) {
 
 // PlanResponse はPlanService.はPlanService.Listで返されるプランを表す構造体です
 type PlanResponse struct {
-	ID         string    // 一意なオブジェクトを示す文字列
-	LiveMode   bool      // 本番環境かどうか
-	CreatedAt  time.Time // このプラン作成時のタイムスタンプ
-	Amount     int       // プラン金額
-	Currency   string    // 3文字のISOコード(現状 “jpy” のみサポート)
-	Interval   string    // 課金周期(現状"month"のみサポート)
-	Name       string    // プラン名
-	TrialDays  int       // トライアル日数
-	BillingDay int       // 課金日(1-31)
+	ID         string            // 一意なオブジェクトを示す文字列
+	LiveMode   bool              // 本番環境かどうか
+	CreatedAt  time.Time         // このプラン作成時のタイムスタンプ
+	Amount     int               // プラン金額
+	Currency   string            // 3文字のISOコード(現状 “jpy” のみサポート)
+	Interval   string            // 課金周期(現状"month"のみサポート)
+	Name       string            // プラン名
+	TrialDays  int               // トライアル日数
+	BillingDay int               // 課金日(1-31)
+	Metadata   map[string]string // メタデータ
 
 	service *Service
 }
 
 type planResponseParser struct {
-	Amount       int    `json:"amount"`
-	BillingDay   int    `json:"billing_day"`
-	CreatedEpoch int    `json:"created"`
-	Currency     string `json:"currency"`
-	ID           string `json:"id"`
-	Interval     string `json:"interval"`
-	LiveMode     bool   `json:"livemode"`
-	Name         string `json:"name"`
-	Object       string `json:"object"`
-	TrialDays    int    `json:"trial_days"`
+	Amount       int               `json:"amount"`
+	BillingDay   int               `json:"billing_day"`
+	CreatedEpoch int               `json:"created"`
+	Currency     string            `json:"currency"`
+	ID           string            `json:"id"`
+	Interval     string            `json:"interval"`
+	LiveMode     bool              `json:"livemode"`
+	Name         string            `json:"name"`
+	Object       string            `json:"object"`
+	TrialDays    int               `json:"trial_days"`
+	Metadata     map[string]string `json:"metadata"`
 }
 
 // Update はプラン情報を更新します。
@@ -255,6 +259,7 @@ func (p *PlanResponse) UnmarshalJSON(b []byte) error {
 		p.LiveMode = raw.LiveMode
 		p.Name = raw.Name
 		p.TrialDays = raw.TrialDays
+		p.Metadata = raw.Metadata
 		return nil
 	}
 	rawError := errorResponse{}

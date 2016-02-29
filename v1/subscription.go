@@ -57,10 +57,11 @@ func newSubscriptionService(service *Service) *SubscriptionService {
 
 // Subscription はSubscribeやUpdateの引数を設定するのに使用する構造体です。
 type Subscription struct {
-	TrialEndAt time.Time   // トライアルの終了時期
-	SkipTrial  interface{} // トライアルをしない(bool)
-	PlanID     interface{} // プランID(string)
-	Prorate    interface{} // 日割り課金をするかどうか(bool)
+	TrialEndAt time.Time         // トライアルの終了時期
+	SkipTrial  interface{}       // トライアルをしない(bool)
+	PlanID     interface{}       // プランID(string)
+	Prorate    interface{}       // 日割り課金をするかどうか(bool)
+	Metadata   map[string]string // メタデータ
 }
 
 // Subscribe は顧客IDとプランIDを指定して、定期課金を開始することができます。
@@ -92,6 +93,7 @@ func (s SubscriptionService) Subscribe(customerID string, subscription Subscript
 		qb.Add("trial_end", "now")
 	}
 	qb.Add("prorate", subscription.Prorate)
+	qb.AddMetadata(subscription.Metadata)
 	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions", qb.Reader())
 	if err != nil {
 		return nil, err
@@ -268,27 +270,29 @@ type SubscriptionResponse struct {
 	PausedAt             time.Time          // 定期課金が停止状態になった時のタイムスタンプ
 	CanceledAt           time.Time          // 定期課金がキャンセル状態になった時のタイムスタンプ
 	ResumedAt            time.Time          // 停止またはキャンセル状態の定期課金が有効状態になった時のタイムスタンプ
+	Metadata             map[string]string  // メタデータ
 
 	service *Service
 }
 
 type subscriptionResponseParser struct {
-	CanceledEpoch           int             `json:"canceled_at"`
-	CreatedEpoch            int             `json:"created"`
-	CurrentPeriodEndEpoch   int             `json:"current_period_end"`
-	CurrentPeriodStartEpoch int             `json:"current_period_start"`
-	Customer                string          `json:"customer"`
-	ID                      string          `json:"id"`
-	LiveMode                bool            `json:"livemode"`
-	Object                  string          `json:"object"`
-	PausedEpoch             int             `json:"paused_at"`
-	Plan                    json.RawMessage `json:"plan"`
-	Prorate                 bool            `json:"prorate"`
-	ResumedEpoch            int             `json:"resumed_at"`
-	StartEpoch              int             `json:"start"`
-	Status                  string          `json:"status"`
-	TrialEndEpoch           int             `json:"trial_end"`
-	TrialStartEpoch         int             `json:"trial_start"`
+	CanceledEpoch           int               `json:"canceled_at"`
+	CreatedEpoch            int               `json:"created"`
+	CurrentPeriodEndEpoch   int               `json:"current_period_end"`
+	CurrentPeriodStartEpoch int               `json:"current_period_start"`
+	Customer                string            `json:"customer"`
+	ID                      string            `json:"id"`
+	LiveMode                bool              `json:"livemode"`
+	Object                  string            `json:"object"`
+	PausedEpoch             int               `json:"paused_at"`
+	Plan                    json.RawMessage   `json:"plan"`
+	Prorate                 bool              `json:"prorate"`
+	ResumedEpoch            int               `json:"resumed_at"`
+	StartEpoch              int               `json:"start"`
+	Status                  string            `json:"status"`
+	TrialEndEpoch           int               `json:"trial_end"`
+	TrialStartEpoch         int               `json:"trial_start"`
+	Metadata                map[string]string `json:"metadata"`
 }
 
 // Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
@@ -394,6 +398,7 @@ func (s *SubscriptionResponse) UnmarshalJSON(b []byte) error {
 		}
 		s.TrialEndAt = time.Unix(int64(raw.TrialEndEpoch), 0)
 		s.TrialStartAt = time.Unix(int64(raw.TrialStartEpoch), 0)
+		s.Metadata = raw.Metadata
 		return nil
 	}
 	rawError := errorResponse{}

@@ -22,13 +22,14 @@ func newChargeService(service *Service) *ChargeService {
 
 // Charge 構造体はCharge.Createのパラメータを設定するのに使用します
 type Charge struct {
-	Currency    string      // 必須: 3文字のISOコード(現状 “jpy” のみサポート)
-	CustomerID  string      // 顧客ID (CardかCustomerのどちらかは必須パラメータ)
-	Card        Card        // カードオブジェクト(cardかcustomerのどちらかは必須)
-	CardToken   string      // トークンID (CardかCustomerのどちらかは必須パラメータ)
-	Capture     bool        // 支払い処理を確定するかどうか (falseの場合、カードの認証と支払い額の確保のみ行う)
-	Description string      // 	概要
-	ExpireDays  interface{} // デフォルトで7日となっており、1日~60日の間で設定が可能
+	Currency    string            // 必須: 3文字のISOコード(現状 “jpy” のみサポート)
+	CustomerID  string            // 顧客ID (CardかCustomerのどちらかは必須パラメータ)
+	Card        Card              // カードオブジェクト(cardかcustomerのどちらかは必須)
+	CardToken   string            // トークンID (CardかCustomerのどちらかは必須パラメータ)
+	Capture     bool              // 支払い処理を確定するかどうか (falseの場合、カードの認証と支払い額の確保のみ行う)
+	Description string            // 	概要
+	ExpireDays  interface{}       // デフォルトで7日となっており、1日~60日の間で設定が可能
+	Metadata    map[string]string // メタデータ
 }
 
 // Create はトークンID、カードを保有している顧客ID、カードオブジェクトのいずれかのパラメーターを指定して支払いを作成します。
@@ -79,6 +80,7 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 	qb.Add("description", charge.Description)
 	qb.Add("capture", charge.Capture)
 	qb.Add("expiry_days", charge.ExpireDays)
+	qb.AddMetadata(charge.Metadata)
 
 	request, err := http.NewRequest("POST", c.service.apiBase+"/charges", qb.Reader())
 	if err != nil {
@@ -104,9 +106,10 @@ func (c ChargeService) Get(chargeID string) (*ChargeResponse, error) {
 	return parseCharge(c.service, body, &ChargeResponse{})
 }
 
-func (c ChargeService) update(chargeID, description string) ([]byte, error) {
+func (c ChargeService) update(chargeID, description string, metadata map[string]string) ([]byte, error) {
 	qb := newRequestBuilder()
 	qb.Add("name", description)
+	qb.AddMetadata(metadata)
 	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID, qb.Reader())
 	if err != nil {
 		return nil, err
@@ -118,8 +121,16 @@ func (c ChargeService) update(chargeID, description string) ([]byte, error) {
 }
 
 // Update は支払い情報のDescriptionを更新します。
-func (c ChargeService) Update(chargeID, description string) (*ChargeResponse, error) {
-	body, err := c.update(chargeID, description)
+func (c ChargeService) Update(chargeID, description string, metadata ...map[string]string) (*ChargeResponse, error) {
+	var md map[string]string
+	switch len(metadata) {
+	case 0:
+	case 1:
+		md = metadata[0]
+	default:
+		return nil, fmt.Errorf("Update can accept zero or one metadata map, but %d are passed", len(metadata))
+	}
+	body, err := c.update(chargeID, description, md)
 	if err != nil {
 		return nil, err
 	}
@@ -283,31 +294,40 @@ func parseCharge(service *Service, data []byte, result *ChargeResponse) (*Charge
 
 // ChargeResponse はCharge.Getなどで返される、支払いに関する情報を持った構造体です
 type ChargeResponse struct {
-	ID             string       // ch_で始まる一意なオブジェクトを示す文字列
-	LiveMode       bool         // 本番環境かどうか
-	CreatedAt      time.Time    // この支払い作成時のタイムスタンプ
-	Amount         int          // 支払額
-	Currency       string       // 3文字のISOコード(現状 “jpy” のみサポート)
-	Paid           bool         // 認証処理が成功しているかどうか。
-	ExpiredAt      time.Time    // 認証状態が自動的に失効される日時のタイムスタンプ
-	Captured       bool         // 支払い処理を確定しているかどうか
-	CapturedAt     time.Time    // 支払い処理確定時のタイムスタンプ
-	Card           CardResponse // 支払いされたクレジットカードの情報
-	CustomerID     string       // 顧客ID
-	Description    string       // 概要
-	FailureCode    string       // 失敗した支払いのエラーコード
-	FailureMessage string       // 失敗した支払いの説明
-	Refunded       bool         // 返金済みかどうか
-	AmountRefunded int          // この支払いに対しての返金額
-	RefundReason   string       // 返金理由
-	SubscriptionID string       // sub_から始まる定期課金のID
+	ID             string            // ch_で始まる一意なオブジェクトを示す文字列
+	LiveMode       bool              // 本番環境かどうか
+	CreatedAt      time.Time         // この支払い作成時のタイムスタンプ
+	Amount         int               // 支払額
+	Currency       string            // 3文字のISOコード(現状 “jpy” のみサポート)
+	Paid           bool              // 認証処理が成功しているかどうか。
+	ExpiredAt      time.Time         // 認証状態が自動的に失効される日時のタイムスタンプ
+	Captured       bool              // 支払い処理を確定しているかどうか
+	CapturedAt     time.Time         // 支払い処理確定時のタイムスタンプ
+	Card           CardResponse      // 支払いされたクレジットカードの情報
+	CustomerID     string            // 顧客ID
+	Description    string            // 概要
+	FailureCode    string            // 失敗した支払いのエラーコード
+	FailureMessage string            // 失敗した支払いの説明
+	Refunded       bool              // 返金済みかどうか
+	AmountRefunded int               // この支払いに対しての返金額
+	RefundReason   string            // 返金理由
+	SubscriptionID string            // sub_から始まる定期課金のID
+	Metadata       map[string]string // メタデータ
 
 	service *Service
 }
 
-// Update は支払い情報のDescriptionを更新します
-func (c *ChargeResponse) Update(description string) error {
-	body, err := c.service.Charge.update(c.ID, description)
+// Update は支払い情報のDescriptionとメタデータ(オプション)を更新します
+func (c *ChargeResponse) Update(description string, metadata ...map[string]string) error {
+	var md map[string]string
+	switch len(metadata) {
+	case 0:
+	case 1:
+		md = metadata[0]
+	default:
+		return fmt.Errorf("Update can accept zero or one metadata map, but %d are passed", len(metadata))
+	}
+	body, err := c.service.Charge.update(c.ID, description, md)
 	if err != nil {
 		return err
 	}
@@ -345,25 +365,26 @@ func (c *ChargeResponse) Capture() error {
 }
 
 type chargeResponseParser struct {
-	Amount         int             `json:"amount"`
-	AmountRefunded int             `json:"amount_refunded"`
-	Captured       bool            `json:"captured"`
-	CapturedEpoch  int             `json:"captured_at"`
-	Card           json.RawMessage `json:"card"`
-	CreatedEpoch   int             `json:"created"`
-	Currency       string          `json:"currency"`
-	Customer       string          `json:"customer"`
-	Description    string          `json:"description"`
-	ExpiredEpoch   int             `json:"expired_at"`
-	FailureCode    string          `json:"failure_code"`
-	FailureMessage string          `json:"failure_message"`
-	ID             string          `json:"id"`
-	LiveMode       bool            `json:"livemode"`
-	Object         string          `json:"object"`
-	Paid           bool            `json:"paid"`
-	RefundReason   string          `json:"refund_reason"`
-	Refunded       bool            `json:"refunded"`
-	Subscription   string          `json:"subscription"`
+	Amount         int               `json:"amount"`
+	AmountRefunded int               `json:"amount_refunded"`
+	Captured       bool              `json:"captured"`
+	CapturedEpoch  int               `json:"captured_at"`
+	Card           json.RawMessage   `json:"card"`
+	CreatedEpoch   int               `json:"created"`
+	Currency       string            `json:"currency"`
+	Customer       string            `json:"customer"`
+	Description    string            `json:"description"`
+	ExpiredEpoch   int               `json:"expired_at"`
+	FailureCode    string            `json:"failure_code"`
+	FailureMessage string            `json:"failure_message"`
+	ID             string            `json:"id"`
+	LiveMode       bool              `json:"livemode"`
+	Object         string            `json:"object"`
+	Paid           bool              `json:"paid"`
+	RefundReason   string            `json:"refund_reason"`
+	Refunded       bool              `json:"refunded"`
+	Subscription   string            `json:"subscription"`
+	Metadata       map[string]string `json:"metadata"`
 }
 
 // UnmarshalJSON はJSONパース用の内部APIです。
@@ -389,6 +410,7 @@ func (c *ChargeResponse) UnmarshalJSON(b []byte) error {
 		c.RefundReason = raw.RefundReason
 		c.Refunded = raw.Refunded
 		c.SubscriptionID = raw.Subscription
+		c.Metadata = raw.Metadata
 		return nil
 	}
 	rawError := errorResponse{}

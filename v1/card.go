@@ -8,17 +8,18 @@ import (
 
 // Card はCustomerやTokenのAPIでカード情報を設定する時に使う構造体です
 type Card struct {
-	Name         interface{} // カード保有者名(e.g. YUI ARAGAKI)
-	Number       interface{} // カード番号
-	ExpMonth     int         // 有効期限月
-	ExpYear      int         // 有効期限年
-	CVC          int         // CVCコード
-	Country      interface{} // 2桁のISOコード(e.g. JP)
-	AddressZip   interface{} // 郵便番号
-	AddressState interface{} // 都道府県
-	AddressCity  interface{} // 市区町村
-	AddressLine1 interface{} // 番地など
-	AddressLine2 interface{} // 建物名など
+	Name         interface{}       // カード保有者名(e.g. YUI ARAGAKI)
+	Number       interface{}       // カード番号
+	ExpMonth     int               // 有効期限月
+	ExpYear      int               // 有効期限年
+	CVC          int               // CVCコード
+	Country      interface{}       // 2桁のISOコード(e.g. JP)
+	AddressZip   interface{}       // 郵便番号
+	AddressState interface{}       // 都道府県
+	AddressCity  interface{}       // 市区町村
+	AddressLine1 interface{}       // 番地など
+	AddressLine2 interface{}       // 建物名など
+	Metadata     map[string]string // メタデータ
 }
 
 func (c Card) valid() bool {
@@ -43,45 +44,47 @@ func parseCard(service *Service, body []byte, result *CardResponse, customerID s
 
 // CardResponse はCustomerやTokenのAPIが返す構造体です
 type CardResponse struct {
-	CreatedAt       time.Time // カード作成時のタイムスタンプ
-	ID              string    // car_で始まる一意なオブジェクトを示す文字列
-	Name            string    // カード保有者名(e.g. YUI ARAGAKI)
-	Last4           string    // カード番号の下四桁
-	ExpMonth        int       // 有効期限月
-	ExpYear         int       // 有効期限年
-	Brand           string    // カードブランド名(e.g. Visa)
-	CvcCheck        string    // CVCコードチェックの結果
-	Fingerprint     string    // このクレジットカード番号に紐づけられた一意（他と重複しない）キー
-	Country         string    // 2桁のISOコード(e.g. JP)
-	AddressZip      string    // 郵便番号
-	AddressZipCheck string    // 郵便番号存在チェックの結果
-	AddressState    string    // 都道府県
-	AddressCity     string    // 市区町村
-	AddressLine1    string    // 番地など
-	AddressLine2    string    // 建物名など
+	CreatedAt       time.Time         // カード作成時のタイムスタンプ
+	ID              string            // car_で始まる一意なオブジェクトを示す文字列
+	Name            string            // カード保有者名(e.g. YUI ARAGAKI)
+	Last4           string            // カード番号の下四桁
+	ExpMonth        int               // 有効期限月
+	ExpYear         int               // 有効期限年
+	Brand           string            // カードブランド名(e.g. Visa)
+	CvcCheck        string            // CVCコードチェックの結果
+	Fingerprint     string            // このクレジットカード番号に紐づけられた一意（他と重複しない）キー
+	Country         string            // 2桁のISOコード(e.g. JP)
+	AddressZip      string            // 郵便番号
+	AddressZipCheck string            // 郵便番号存在チェックの結果
+	AddressState    string            // 都道府県
+	AddressCity     string            // 市区町村
+	AddressLine1    string            // 番地など
+	AddressLine2    string            // 建物名など
+	Metadata        map[string]string // メタデータ
 
 	customerID string
 	service    *Service
 }
 
 type cardResponseParser struct {
-	AddressCity     string `json:"address_city"`
-	AddressLine1    string `json:"address_line1"`
-	AddressLine2    string `json:"address_line2"`
-	AddressState    string `json:"address_state"`
-	AddressZip      string `json:"address_zip"`
-	AddressZipCheck string `json:"address_zip_check"`
-	Brand           string `json:"brand"`
-	Country         string `json:"country"`
-	CreatedEpoch    int    `json:"created"`
-	CvcCheck        string `json:"cvc_check"`
-	ExpMonth        int    `json:"exp_month"`
-	ExpYear         int    `json:"exp_year"`
-	Fingerprint     string `json:"fingerprint"`
-	ID              string `json:"id"`
-	Last4           string `json:"last4"`
-	Name            string `json:"name"`
-	Object          string `json:"object"`
+	AddressCity     string            `json:"address_city"`
+	AddressLine1    string            `json:"address_line1"`
+	AddressLine2    string            `json:"address_line2"`
+	AddressState    string            `json:"address_state"`
+	AddressZip      string            `json:"address_zip"`
+	AddressZipCheck string            `json:"address_zip_check"`
+	Brand           string            `json:"brand"`
+	Country         string            `json:"country"`
+	CreatedEpoch    int               `json:"created"`
+	CvcCheck        string            `json:"cvc_check"`
+	ExpMonth        int               `json:"exp_month"`
+	ExpYear         int               `json:"exp_year"`
+	Fingerprint     string            `json:"fingerprint"`
+	ID              string            `json:"id"`
+	Last4           string            `json:"last4"`
+	Name            string            `json:"name"`
+	Object          string            `json:"object"`
+	Metadata        map[string]string `json:"metadata"`
 }
 
 // Update メソッドはカードの内容を更新します
@@ -124,6 +127,7 @@ func (c *CardResponse) UnmarshalJSON(b []byte) error {
 		c.ID = raw.ID
 		c.Last4 = raw.Last4
 		c.Name = raw.Name
+		c.Metadata = raw.Metadata
 		return nil
 	}
 	rawError := errorResponse{}

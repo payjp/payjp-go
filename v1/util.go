@@ -70,6 +70,13 @@ func (qb *requestBuilder) AddCard(card Card) {
 	qb.Add("card[address_zip]", card.AddressZip)
 	qb.Add("card[country]", card.Country)
 	qb.Add("card[name]", card.Name)
+	qb.AddMetadata(card.Metadata)
+}
+
+func (qb *requestBuilder) AddMetadata(metadata map[string]string) {
+	for key, value := range metadata {
+		qb.Add("metadata["+key+"]", value)
+	}
 }
 
 func (qb *requestBuilder) Reader() io.Reader {
