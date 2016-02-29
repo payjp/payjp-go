@@ -47,22 +47,22 @@ type AccountResponse struct {
 	CreatedAt time.Time        // このアカウント作成時のタイムスタンプ
 	Customer  CustomerResponse // カスタマーアカウントの詳細情報(現状準備中のため"null"になっております)
 	Merchant  struct {
-		ID                  string      // acct_mch_で始まる一意なオブジェクトを示す文字列
-		BankEnabled         bool        // 入金先銀行口座情報が設定済みかどうか
-		BrandsAccepted      []string    // 本番環境で利用可能なカードブランドのリスト
-		CurrenciesSupported []string    // 対応通貨のリスト
-		DefaultCurrency     string      // 3文字のISOコード(現状 “jpy” のみサポート)
-		BusinessType        interface{} // 業務形態
-		ContactPhone        string      // 電話番号
-		Country             string      // 所在国
-		ChargeType          interface{} // 支払い方法種別のリスト
-		ProductDetail       string      // 販売商品の詳細
-		ProductName         string      // 販売商品名
-		ProductType         interface{} // 販売商品の種類リスト
-		DetailsSubmitted    bool        // 本番環境申請情報が提出済みかどうか
-		LiveModeEnabled     bool        // 本番環境が有効かどうか
-		LiveModeActivatedAt time.Time   // 本番環境が許可された日時のタイムスタンプ
-		SitePublished       bool        // 申請対象のサイトがオープン済みかどうか
+		ID                  string    // acct_mch_で始まる一意なオブジェクトを示す文字列
+		BankEnabled         bool      // 入金先銀行口座情報が設定済みかどうか
+		BrandsAccepted      []string  // 本番環境で利用可能なカードブランドのリスト
+		CurrenciesSupported []string  // 対応通貨のリスト
+		DefaultCurrency     string    // 3文字のISOコード(現状 “jpy” のみサポート)
+		BusinessType        string    // 業務形態
+		ContactPhone        string    // 電話番号
+		Country             string    // 所在国
+		ChargeType          []string  // 支払い方法種別のリスト
+		ProductDetail       string    // 販売商品の詳細
+		ProductName         string    // 販売商品名
+		ProductType         []string  // 販売商品の種類リスト
+		DetailsSubmitted    bool      // 本番環境申請情報が提出済みかどうか
+		LiveModeEnabled     bool      // 本番環境が有効かどうか
+		LiveModeActivatedAt time.Time // 本番環境が許可された日時のタイムスタンプ
+		SitePublished       bool      // 申請対象のサイトがオープン済みかどうか
 
 		URL       string    // 申請対象サイトのURL
 		CreatedAt time.Time // 作成時のタイムスタンプ
@@ -75,25 +75,25 @@ type accountResponseParser struct {
 	Email        string          `json:"email"`
 	ID           string          `json:"id"`
 	Merchant     struct {
-		BankEnabled            bool        `json:"bank_enabled"`
-		BrandsAccepted         []string    `json:"brands_accepted"`
-		BusinessType           interface{} `json:"business_type"`
-		ChargeType             interface{} `json:"charge_type"`
-		ContactPhone           string      `json:"contact_phone"`
-		Country                string      `json:"country"`
-		CreatedEpoch           int         `json:"created"`
-		CurrenciesSupported    []string    `json:"currencies_supported"`
-		DefaultCurrency        string      `json:"default_currency"`
-		DetailsSubmitted       bool        `json:"details_submitted"`
-		ID                     string      `json:"id"`
-		LiveModeActivatedEpoch int         `json:"livemode_activated_at"`
-		LiveModeEnabled        bool        `json:"livemode_enabled"`
-		Object                 string      `json:"object"`
-		ProductDetail          string      `json:"product_detail"`
-		ProductName            string      `json:"product_name"`
-		ProductType            interface{} `json:"product_type"`
-		SitePublished          bool        `json:"site_published"`
-		URL                    string      `json:"url"`
+		BankEnabled            bool     `json:"bank_enabled"`
+		BrandsAccepted         []string `json:"brands_accepted"`
+		BusinessType           string   `json:"business_type"`
+		ChargeType             []string `json:"charge_type"`
+		ContactPhone           string   `json:"contact_phone"`
+		Country                string   `json:"country"`
+		CreatedEpoch           int      `json:"created"`
+		CurrenciesSupported    []string `json:"currencies_supported"`
+		DefaultCurrency        string   `json:"default_currency"`
+		DetailsSubmitted       bool     `json:"details_submitted"`
+		ID                     string   `json:"id"`
+		LiveModeActivatedEpoch int      `json:"livemode_activated_at"`
+		LiveModeEnabled        bool     `json:"livemode_enabled"`
+		Object                 string   `json:"object"`
+		ProductDetail          string   `json:"product_detail"`
+		ProductName            string   `json:"product_name"`
+		ProductType            []string `json:"product_type"`
+		SitePublished          bool     `json:"site_published"`
+		URL                    string   `json:"url"`
 	} `json:"merchant"`
 	Object string `json:"object"`
 }

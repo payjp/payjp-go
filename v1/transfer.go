@@ -218,11 +218,11 @@ func (c *TransferChargeListCaller) Do() ([]*ChargeResponse, bool, error) {
 // TransferResponse はTransferService.Get、TransferService.Listによって返される、
 // 入金状態を示す構造体です。
 type TransferResponse struct {
-	ID             string    // tr_で始まる一意なオブジェクトを示す文字列
-	LiveMode       bool      // 本番環境かどうか
-	CreatedAt      time.Time // この入金作成時のタイムスタンプ
-	Amount         int       // 入金予定額
-	CarriedBalance int
+	ID             string            // tr_で始まる一意なオブジェクトを示す文字列
+	LiveMode       bool              // 本番環境かどうか
+	CreatedAt      time.Time         // この入金作成時のタイムスタンプ
+	Amount         int               // 入金予定額
+	CarriedBalance int               // 繰越金
 	Currency       string            // 3文字のISOコード(現状 “jpy” のみサポート)
 	Status         TransferStatus    // この入金の処理状態
 	Charges        []*ChargeResponse // この入金に含まれる支払いのリスト

@@ -26,6 +26,7 @@ type Service struct {
 	Subscription *SubscriptionService // 定期課金に関するAPI
 	Token        *TokenService        // トークンに関するAPI
 	Transfer     *TransferService     // 入金に関するAPI
+	Event        *EventService        // イベント情報に関するAPI
 	Account      *AccountService      // アカウント情報に関するAPI
 }
 
@@ -57,6 +58,7 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 	service.Account = newAccountService(service)
 	service.Token = newTokenService(service)
 	service.Transfer = newTransferService(service)
+	service.Event = newEventService(service)
 
 	return service
 }
