@@ -2,7 +2,6 @@ package payjp
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 )
 
@@ -91,17 +90,4 @@ func TestTokenGet(t *testing.T) {
 	} else if token.ID != "tok_5ca06b51685e001723a2c3b4aeb4" {
 		t.Errorf("parse error: plan.Amount should be tok_5ca06b51685e001723a2c3b4aeb4, but %s.", token.ID)
 	}
-}
-
-func ExampleTokenService_Create() {
-	pay := New("sk_test_c62fade9d045b54cd76d7036", nil)
-	token, _ := pay.Token.Create(Card{
-		Number:   "4242424242424242",
-		ExpMonth: 2,
-		ExpYear:  2020,
-	})
-	// You can use token.ID for other APIs like
-	fmt.Println(token.Card.Last4)
-	// Output:
-	// 4242
 }

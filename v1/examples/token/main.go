@@ -16,7 +16,7 @@ func main() {
 		ExpMonth: 2,
 		ExpYear:  2020,
 	})
-	fmt.Println("  Id:", token.Id)
+	fmt.Println("  Id:", token.ID)
 	fmt.Println("  Brand:", token.Card.Brand)
 	fmt.Println("  CVC:", token.Card.CvcCheck)
 	// Output:
@@ -25,8 +25,8 @@ func main() {
 
 	// find existing token
 	fmt.Println("Find Existing Token")
-	existingToken, _ := payjpService.Token.Get(token.Id)
-	fmt.Println("  Id:", existingToken.Id)
+	existingToken, _ := payjpService.Token.Get(token.ID)
+	fmt.Println("  Id:", existingToken.ID)
 	fmt.Println("  Brand:", existingToken.Card.Brand)
 	fmt.Println("  CVC:", existingToken.Card.CvcCheck)
 	// Output:

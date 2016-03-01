@@ -74,8 +74,12 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 	qb := newRequestBuilder()
 	qb.Add("amount", amount)
 	qb.Add("currency", charge.Currency)
-	qb.Add("customer", charge.CustomerID)
-	qb.Add("card", charge.CardToken)
+	if charge.CustomerID != "" {
+		qb.Add("customer", charge.CustomerID)
+	}
+	if charge.CardToken != "" {
+		qb.Add("card", charge.CardToken)
+	}
 	qb.AddCard(charge.Card)
 	qb.Add("description", charge.Description)
 	qb.Add("capture", charge.Capture)

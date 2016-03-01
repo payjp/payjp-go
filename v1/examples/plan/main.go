@@ -14,7 +14,7 @@ func main() {
 	fmt.Println("hasMore:", hasMore)
 	for i, plan := range plans {
 		fmt.Printf("%d:\n", i)
-		fmt.Println("  Id:", plan.Id)
+		fmt.Println("  Id:", plan.ID)
 		fmt.Println("  BillingDay:", plan.BillingDay)
 		fmt.Println("  CreatedAt:", plan.CreatedAt.Format(time.RFC1123Z))
 		fmt.Println("  Amount:", plan.Amount)
