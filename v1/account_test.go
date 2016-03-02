@@ -95,10 +95,10 @@ func TestParseAccountResponseJSON(t *testing.T) {
 	}
 }
 
-func TestAccountGet(t *testing.T) {
+func TestAccountRetrieve(t *testing.T) {
 	mock, transport := NewMockClient(200, accountResponseJSON)
 	service := New("api-key", mock)
-	account, err := service.Account.Get()
+	account, err := service.Account.Retrieve()
 	if transport.URL != "https://api.pay.jp/v1/accounts" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}

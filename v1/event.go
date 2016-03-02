@@ -70,8 +70,8 @@ func newEventService(service *Service) *EventService {
 }
 
 // Get メソッドは特定のイベント情報を取得します。
-func (e EventService) Get(id string) (*EventResponse, error) {
-	data, err := e.service.get("/events/" + id)
+func (e EventService) Retrieve(id string) (*EventResponse, error) {
+	data, err := e.service.retrieve("/events/" + id)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func (e *EventListCaller) Do() ([]*EventResponse, bool, error) {
 	return result, raw.HasMore, nil
 }
 
-// EventResponse は、EventService.Get()/EventService.List()が返す構造体です。
+// EventResponse は、EventService.Retrieve()/EventService.List()が返す構造体です。
 type EventResponse struct {
 	CreatedAt       time.Time
 	ID              string

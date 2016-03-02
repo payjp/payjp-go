@@ -122,7 +122,7 @@ func TestCustomerAddCard2(t *testing.T) {
 	mock, transport := NewMockClient(200, customerResponseJSON)
 	transport.AddResponse(200, cardResponseJSON)
 	service := New("api-key", mock)
-	customer, err := service.Customer.Get("cus_121673955bd7aa144de5a8f6c262")
+	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
 	if customer == nil {
 		t.Error("plan should not be nil")
 		return
@@ -173,7 +173,7 @@ func TestCustomerGetCard2(t *testing.T) {
 	mock, transport := NewMockClient(200, customerResponseJSON)
 	transport.AddResponse(200, cardResponseJSON)
 	service := New("api-key", mock)
-	customer, err := service.Customer.Get("cus_121673955bd7aa144de5a8f6c262")
+	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
 	if customer == nil {
 		t.Error("plan should not be nil")
 		return
@@ -224,7 +224,7 @@ func TestCustomerUpdateCard2(t *testing.T) {
 	mock, transport := NewMockClient(200, customerResponseJSON)
 	transport.AddResponse(200, cardResponseJSON)
 	service := New("api-key", mock)
-	customer, err := service.Customer.Get("cus_121673955bd7aa144de5a8f6c262")
+	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
 	if customer == nil {
 		t.Error("plan should not be nil")
 		return
@@ -282,7 +282,7 @@ func TestCustomerDeleteCard2(t *testing.T) {
 	mock, transport := NewMockClient(200, customerResponseJSON)
 	transport.AddResponse(200, cardDeleteResponseJSON)
 	service := New("api-key", mock)
-	customer, err := service.Customer.Get("cus_121673955bd7aa144de5a8f6c262")
+	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
 	if customer == nil {
 		t.Error("card should not be nil")
 		return

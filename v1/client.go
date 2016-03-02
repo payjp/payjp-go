@@ -68,7 +68,7 @@ func (s Service) APIBase() string {
 	return s.apiBase
 }
 
-func (s Service) get(resourceURL string) ([]byte, error) {
+func (s Service) retrieve(resourceURL string) ([]byte, error) {
 	request, err := http.NewRequest("GET", s.apiBase+resourceURL, nil)
 	if err != nil {
 		return nil, err

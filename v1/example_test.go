@@ -22,7 +22,7 @@ func ExampleTokenService() {
 
 	// 既存のトークン情報の取得
 	fmt.Println("Find Existing Token")
-	existingToken, _ := pay.Token.Get(token.ID)
+	existingToken, _ := pay.Token.Retrieve(token.ID)
 	fmt.Println("  Brand:", existingToken.Card.Brand)
 	fmt.Println("  CVC:", existingToken.Card.CvcCheck)
 	fmt.Println("  Last4:", existingToken.Card.Last4)

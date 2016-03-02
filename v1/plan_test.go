@@ -90,10 +90,10 @@ func TestPlanCreate(t *testing.T) {
 	}
 }
 
-func TestPlanGet(t *testing.T) {
+func TestPlanRetrieve(t *testing.T) {
 	mock, transport := NewMockClient(200, planResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Plan.Get("pln_45dd3268a18b2837d52861716260")
+	plan, err := service.Plan.Retrieve("pln_45dd3268a18b2837d52861716260")
 	if transport.URL != "https://api.pay.jp/v1/plans/pln_45dd3268a18b2837d52861716260" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}
@@ -113,7 +113,7 @@ func TestPlanGet(t *testing.T) {
 func TestPlanGetError(t *testing.T) {
 	mock, _ := NewMockClient(200, planErrorResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Plan.Get("pln_45dd3268a18b2837d52861716260")
+	plan, err := service.Plan.Retrieve("pln_45dd3268a18b2837d52861716260")
 	if err == nil {
 		t.Error("err should not be nil")
 	}
@@ -146,7 +146,7 @@ func TestPlanUpdate(t *testing.T) {
 func TestPlanUpdate2(t *testing.T) {
 	mock, transport := NewMockClient(200, planResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Plan.Get("pln_45dd3268a18b2837d52861716260")
+	plan, err := service.Plan.Retrieve("pln_45dd3268a18b2837d52861716260")
 	if plan == nil {
 		t.Error("plan should not be nil")
 		return
@@ -181,7 +181,7 @@ func TestPlanDelete(t *testing.T) {
 func TestPlanDelete2(t *testing.T) {
 	mock, transport := NewMockClient(200, planResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Plan.Get("pln_45dd3268a18b2837d52861716260")
+	plan, err := service.Plan.Retrieve("pln_45dd3268a18b2837d52861716260")
 	if plan == nil {
 		t.Error("plan should not be nil")
 		return

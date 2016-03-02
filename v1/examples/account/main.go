@@ -12,7 +12,7 @@ func main() {
 
 	// Get Account
 	fmt.Println("Get Account")
-	account, _ := payjpService.Account.Get()
+	account, _ := payjpService.Account.Retrieve()
 	fmt.Println("  Id:", account.ID)
 	fmt.Println("  CreatedAt: ", account.CreatedAt.Format(time.RFC1123Z))
 	fmt.Println("  Email: ", account.Email)

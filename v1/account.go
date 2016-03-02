@@ -19,7 +19,7 @@ func newAccountService(service *Service) *AccountService {
 }
 
 // Get はあなたのアカウント情報を取得します。
-func (t *AccountService) Get() (*AccountResponse, error) {
+func (t *AccountService) Retrieve() (*AccountResponse, error) {
 	request, err := http.NewRequest("GET", t.service.apiBase+"/accounts", nil)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (t *AccountService) Get() (*AccountResponse, error) {
 	return result, nil
 }
 
-// AccountResponse はAccount.Get()メソッドが返す構造体です
+// AccountResponse はAccount.Retrieve()メソッドが返す構造体です
 type AccountResponse struct {
 	ID        string           // acct_で始まる一意なオブジェクトを示す文字列
 	Email     string           // メールアドレス

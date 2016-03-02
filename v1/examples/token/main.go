@@ -25,7 +25,7 @@ func main() {
 
 	// find existing token
 	fmt.Println("Find Existing Token")
-	existingToken, _ := payjpService.Token.Get(token.ID)
+	existingToken, _ := payjpService.Token.Retrieve(token.ID)
 	fmt.Println("  Id:", existingToken.ID)
 	fmt.Println("  Brand:", existingToken.Card.Brand)
 	fmt.Println("  CVC:", existingToken.Card.CvcCheck)
