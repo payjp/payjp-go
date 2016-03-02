@@ -72,10 +72,10 @@ func TestTokenCreate(t *testing.T) {
 	}
 }
 
-func TestTokenGet(t *testing.T) {
+func TestTokenRetrieve(t *testing.T) {
 	mock, transport := NewMockClient(200, tokenResponseJSON)
 	service := New("api-key", mock)
-	token, err := service.Token.Get("tok_5ca06b51685e001723a2c3b4aeb4")
+	token, err := service.Token.Retrieve("tok_5ca06b51685e001723a2c3b4aeb4")
 	if transport.URL != "https://api.pay.jp/v1/tokens/tok_5ca06b51685e001723a2c3b4aeb4" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}

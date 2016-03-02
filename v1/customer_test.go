@@ -177,10 +177,10 @@ func TestCustomerCreateError(t *testing.T) {
 	}
 }
 
-func TestCustomerGet(t *testing.T) {
+func TestCustomerRetrieve(t *testing.T) {
 	mock, transport := NewMockClient(200, customerResponseJSON)
 	service := New("api-key", mock)
-	customer, err := service.Customer.Get("cus_121673955bd7aa144de5a8f6c262")
+	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
 	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}
@@ -225,7 +225,7 @@ func TestCustomerUpdate(t *testing.T) {
 func TestCustomerUpdate2(t *testing.T) {
 	mock, transport := NewMockClient(200, customerResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Customer.Get("cus_121673955bd7aa144de5a8f6c262")
+	plan, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
 	if plan == nil {
 		t.Error("plan should not be nil")
 		return
@@ -262,7 +262,7 @@ func TestCustomerDelete(t *testing.T) {
 func TestCustomerDelete2(t *testing.T) {
 	mock, transport := NewMockClient(200, customerResponseJSON)
 	service := New("api-key", mock)
-	customer, err := service.Customer.Get("cus_121673955bd7aa144de5a8f6c262")
+	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
 	if customer == nil {
 		t.Error("plan should not be nil")
 		return

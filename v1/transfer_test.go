@@ -226,10 +226,10 @@ func TestParseTransferResponseJSON(t *testing.T) {
 	}
 }
 
-func TestTransferGet(t *testing.T) {
+func TestTransferRetrieve(t *testing.T) {
 	mock, transport := NewMockClient(200, transferResponseJSON)
 	service := New("api-key", mock)
-	transfer, err := service.Transfer.Get("tr_8f0c0fe2c9f8a47f9d18f03959ba1")
+	transfer, err := service.Transfer.Retrieve("tr_8f0c0fe2c9f8a47f9d18f03959ba1")
 	if transport.URL != "https://api.pay.jp/v1/transfers/tr_8f0c0fe2c9f8a47f9d18f03959ba1" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}

@@ -133,10 +133,10 @@ func TestParseEventResponseJSON(t *testing.T) {
 	}
 }
 
-func TestEventGet(t *testing.T) {
+func TestEventRetrieve(t *testing.T) {
 	mock, transport := NewMockClient(200, eventResponseJSON)
 	service := New("api-key", mock)
-	event, err := service.Event.Get("evnt_54db4d63c7886256acdbc784ccf")
+	event, err := service.Event.Retrieve("evnt_54db4d63c7886256acdbc784ccf")
 	if transport.URL != "https://api.pay.jp/v1/events/evnt_54db4d63c7886256acdbc784ccf" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}

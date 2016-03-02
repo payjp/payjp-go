@@ -84,8 +84,8 @@ func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
 }
 
 // Get は生成した顧客情報を取得します。
-func (c CustomerService) Get(id string) (*CustomerResponse, error) {
-	body, err := c.service.get("/customers/" + id)
+func (c CustomerService) Retrieve(id string) (*CustomerResponse, error) {
+	body, err := c.service.retrieve("/customers/" + id)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (c CustomerService) AddCard(customerID string, card Card) (*CardResponse, e
 
 // GetCard は顧客の特定のカード情報を取得します。
 func (c CustomerService) GetCard(customerID, cardID string) (*CardResponse, error) {
-	body, err := c.service.get("/customers/" + customerID + "/cards/" + cardID)
+	body, err := c.service.retrieve("/customers/" + customerID + "/cards/" + cardID)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (c CustomerService) ListCard(customerID string) *CustomerCardListCaller {
 
 // GetSubscription は顧客の特定の定期課金情報を取得します。
 func (c CustomerService) GetSubscription(customerID, subscriptionID string) (*SubscriptionResponse, error) {
-	return c.service.Subscription.Get(customerID, subscriptionID)
+	return c.service.Subscription.Retrieve(customerID, subscriptionID)
 }
 
 // ListSubscription は顧客の定期課金リストを取得します。リストは、直近で生成された順番に取得されます。

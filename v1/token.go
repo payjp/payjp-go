@@ -77,11 +77,11 @@ func (t TokenService) Create(card Card) (*TokenResponse, error) {
 }
 
 // Get メソッドは特定のトークン情報を取得します。
-func (t TokenService) Get(id string) (*TokenResponse, error) {
-	return parseToken(t.service.get("/tokens/" + id))
+func (t TokenService) Retrieve(id string) (*TokenResponse, error) {
+	return parseToken(t.service.retrieve("/tokens/" + id))
 }
 
-// TokenResponse はToken.Create(), Token.Get()が返す構造体です。
+// TokenResponse はToken.Create(), Token.Retrieve()が返す構造体です。
 type TokenResponse struct {
 	Card      CardResponse // クレジットカードの情報
 	CreatedAt time.Time    // このトークン作成時間

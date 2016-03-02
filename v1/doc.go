@@ -24,6 +24,6 @@
 //
 // pay has several children like Token, Customer, Plan, Subscription etc:
 //
-//   customer := pay.Customer.Get("customer ID")
+//   customer := pay.Customer.Retrieve("customer ID")
 //
 package payjp

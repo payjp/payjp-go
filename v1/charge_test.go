@@ -155,10 +155,10 @@ func TestChargeCreate(t *testing.T) {
 	}
 }
 
-func TestChargeGet(t *testing.T) {
+func TestChargeRetrieve(t *testing.T) {
 	mock, transport := NewMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Charge.Get("ch_fa990a4c10672a93053a774730b0a")
+	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
 	if transport.URL != "https://api.pay.jp/v1/charges/ch_fa990a4c10672a93053a774730b0a" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}
@@ -178,7 +178,7 @@ func TestChargeGet(t *testing.T) {
 func TestChargeGetError(t *testing.T) {
 	mock, _ := NewMockClient(200, chargeErrorResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Charge.Get("ch_fa990a4c10672a93053a774730b0a")
+	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
 	if err == nil {
 		t.Error("err should not be nil")
 	}
@@ -211,7 +211,7 @@ func TestChargeUpdate(t *testing.T) {
 func TestChargeUpdate2(t *testing.T) {
 	mock, transport := NewMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Charge.Get("ch_fa990a4c10672a93053a774730b0a")
+	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
 	if plan == nil {
 		t.Error("plan should not be nil")
 		return
@@ -246,7 +246,7 @@ func TestChargeRefund(t *testing.T) {
 func TestChargeRefund2(t *testing.T) {
 	mock, transport := NewMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Charge.Get("ch_fa990a4c10672a93053a774730b0a")
+	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
 	if plan == nil {
 		t.Error("plan should not be nil")
 		return
@@ -281,7 +281,7 @@ func TestChargeCapture(t *testing.T) {
 func TestChargeCapture2(t *testing.T) {
 	mock, transport := NewMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Charge.Get("ch_fa990a4c10672a93053a774730b0a")
+	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
 	if plan == nil {
 		t.Error("plan should not be nil")
 		return

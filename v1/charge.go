@@ -102,8 +102,8 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 }
 
 // Get は生成された支払い情報を取得します。
-func (c ChargeService) Get(chargeID string) (*ChargeResponse, error) {
-	body, err := c.service.get("/charges/" + chargeID)
+func (c ChargeService) Retrieve(chargeID string) (*ChargeResponse, error) {
+	body, err := c.service.retrieve("/charges/" + chargeID)
 	if err != nil {
 		return nil, err
 	}
