@@ -38,8 +38,6 @@ var accountResponseJSON = []byte(`
       "url": "/v1/accounts/cards"
     },
     "created": 1439706600,
-    "default_card": null,
-    "description": "account customer",
     "email": null,
     "id": "acct_cus_7d03658e143dee2ef876b3e",
     "object": "customer"

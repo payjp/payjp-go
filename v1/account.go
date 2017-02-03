@@ -8,8 +8,6 @@ import (
 )
 
 // AccountService はあなたのアカウント情報を返します。
-//
-// 事業者用のMerchantアカウント、購入者用のCustomerアカウントの2種類のアカウント情報を含んでいます。
 type AccountService struct {
 	service *Service
 }
@@ -45,7 +43,6 @@ type AccountResponse struct {
 	ID        string           // acct_で始まる一意なオブジェクトを示す文字列
 	Email     string           // メールアドレス
 	CreatedAt time.Time        // このアカウント作成時のタイムスタンプ
-	Customer  CustomerResponse // カスタマーアカウントの詳細情報(現状準備中のため"null"になっております)
 	Merchant  struct {
 		ID                  string    // acct_mch_で始まる一意なオブジェクトを示す文字列
 		BankEnabled         bool      // 入金先銀行口座情報が設定済みかどうか
@@ -71,7 +68,6 @@ type AccountResponse struct {
 
 type accountResponseParser struct {
 	CreatedEpoch int             `json:"created"`
-	Customer     json.RawMessage `json:"customer"`
 	Email        string          `json:"email"`
 	ID           string          `json:"id"`
 	Merchant     struct {
@@ -104,7 +100,6 @@ func (a *AccountResponse) UnmarshalJSON(b []byte) error {
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "account" {
 		a.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
-		json.Unmarshal(raw.Customer, &a.Customer)
 		a.Email = raw.Email
 		a.ID = raw.ID
 		m := &a.Merchant
