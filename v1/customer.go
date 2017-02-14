@@ -233,7 +233,7 @@ func (c CustomerService) ListSubscription(customerID string) *SubscriptionListCa
 // Fluentインタフェースを提供しており、最後にDoを呼ぶことでリストが取得できます:
 //
 //     pay := payjp.New("api-key", nil)
-//     charges, err := pay.Customer.List().Limit(50).Offset(150).Do()
+//     customers, err := pay.Customer.List().Limit(50).Offset(150).Do()
 type CustomerListCaller struct {
 	service *Service
 	limit   int
@@ -293,7 +293,7 @@ func (c *CustomerListCaller) Do() ([]*CustomerResponse, bool, error) {
 // Fluentインタフェースを提供しており、最後にDoを呼ぶことでリストが取得できます:
 //
 //     pay := payjp.New("api-key", nil)
-//     charges, err := pay.Customer.ListCard("userID").Limit(50).Offset(150).Do()
+//     cards, err := pay.Customer.ListCard("userID").Limit(50).Offset(150).Do()
 type CustomerCardListCaller struct {
 	service    *Service
 	customerID string
