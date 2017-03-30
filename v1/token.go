@@ -54,10 +54,10 @@ func (t TokenService) Create(card Card) (*TokenResponse, error) {
 	if card.Number == "" {
 		errors = append(errors, "Number is required")
 	}
-	if card.ExpMonth < 0 || card.ExpMonth > 12 {
-		errors = append(errors, "ExpMonth should be between 1 and 12")
+	if card.ExpMonth == "" {
+		errors = append(errors, "ExpMonth is required")
 	}
-	if card.ExpYear <= 0 {
+	if card.ExpYear == "" {
 		errors = append(errors, "ExpYear is required")
 	}
 	if len(errors) != 0 {

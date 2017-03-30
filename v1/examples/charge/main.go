@@ -16,9 +16,9 @@ func main() {
 		// カード情報、顧客ID、カードトークンのいずれかを指定
 		Card: payjp.Card{
 			Number: "4242424242424242",
-			CVC:      123,
-			ExpMonth: 2,
-			ExpYear:  2020,
+			CVC:      "123",
+			ExpMonth: "2",
+			ExpYear:  "2020",
 		},
 		Capture: true,
 		// 概要のテキストを設定できます
