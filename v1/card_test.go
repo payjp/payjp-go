@@ -131,7 +131,7 @@ func TestCustomerAddCard2(t *testing.T) {
 		Number:   "4242424242424242",
 		ExpMonth: "2",
 		ExpYear:  "2020",
-		CVC: "000",
+		CVC:      "000",
 	})
 	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards" {
 		t.Errorf("URL is wrong: %s", transport.URL)
@@ -234,7 +234,7 @@ func TestCustomerUpdateCard2(t *testing.T) {
 		Number:   "4242424242424242",
 		ExpMonth: "2",
 		ExpYear:  "2020",
-		CVC: "000",
+		CVC:      "000",
 	})
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
