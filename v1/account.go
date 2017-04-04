@@ -40,9 +40,9 @@ func (t *AccountService) Retrieve() (*AccountResponse, error) {
 
 // AccountResponse はAccount.Retrieve()メソッドが返す構造体です
 type AccountResponse struct {
-	ID        string           // acct_で始まる一意なオブジェクトを示す文字列
-	Email     string           // メールアドレス
-	CreatedAt time.Time        // このアカウント作成時のタイムスタンプ
+	ID        string    // acct_で始まる一意なオブジェクトを示す文字列
+	Email     string    // メールアドレス
+	CreatedAt time.Time // このアカウント作成時のタイムスタンプ
 	Merchant  struct {
 		ID                  string    // acct_mch_で始まる一意なオブジェクトを示す文字列
 		BankEnabled         bool      // 入金先銀行口座情報が設定済みかどうか
@@ -67,9 +67,9 @@ type AccountResponse struct {
 }
 
 type accountResponseParser struct {
-	CreatedEpoch int             `json:"created"`
-	Email        string          `json:"email"`
-	ID           string          `json:"id"`
+	CreatedEpoch int    `json:"created"`
+	Email        string `json:"email"`
+	ID           string `json:"id"`
 	Merchant     struct {
 		BankEnabled            bool     `json:"bank_enabled"`
 		BrandsAccepted         []string `json:"brands_accepted"`

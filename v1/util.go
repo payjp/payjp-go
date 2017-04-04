@@ -54,15 +54,9 @@ func (qb *requestBuilder) Add(key string, value interface{}) {
 
 func (qb *requestBuilder) AddCard(card Card) {
 	qb.Add("card[number]", card.Number)
-	if card.ExpMonth != 0 {
-		qb.Add("card[exp_month]", strconv.Itoa(card.ExpMonth))
-	}
-	if card.ExpYear != 0 {
-		qb.Add("card[exp_year]", strconv.Itoa(card.ExpYear))
-	}
-	if card.CVC != 0 {
-		qb.Add("card[cvc]", strconv.Itoa(card.CVC))
-	}
+	qb.Add("card[exp_month]", card.ExpMonth)
+	qb.Add("card[exp_year]", card.ExpYear)
+	qb.Add("card[cvc]", card.CVC)
 	qb.Add("card[address_state]", card.AddressState)
 	qb.Add("card[address_city]", card.AddressCity)
 	qb.Add("card[address_line1]", card.AddressLine1)

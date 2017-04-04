@@ -51,13 +51,13 @@ func parseToken(data []byte, err error) (*TokenResponse, error) {
 // Card構造体で引数を設定しますが、Number/ExpMonth/ExpYearが必須パラメータです。
 func (t TokenService) Create(card Card) (*TokenResponse, error) {
 	var errors []string
-	if card.Number == "" {
+	if card.Number == nil {
 		errors = append(errors, "Number is required")
 	}
-	if card.ExpMonth < 0 || card.ExpMonth > 12 {
-		errors = append(errors, "ExpMonth should be between 1 and 12")
+	if card.ExpMonth == nil {
+		errors = append(errors, "ExpMonth is required")
 	}
-	if card.ExpYear <= 0 {
+	if card.ExpYear == nil {
 		errors = append(errors, "ExpYear is required")
 	}
 	if len(errors) != 0 {

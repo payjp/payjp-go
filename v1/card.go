@@ -10,9 +10,9 @@ import (
 type Card struct {
 	Name         interface{}       // カード保有者名(e.g. YUI ARAGAKI)
 	Number       interface{}       // カード番号
-	ExpMonth     int               // 有効期限月
-	ExpYear      int               // 有効期限年
-	CVC          int               // CVCコード
+	ExpMonth     interface{}       // 有効期限月
+	ExpYear      interface{}       // 有効期限年
+	CVC          interface{}       // CVCコード
 	Country      interface{}       // 2桁のISOコード(e.g. JP)
 	AddressZip   interface{}       // 郵便番号
 	AddressState interface{}       // 都道府県
@@ -24,12 +24,7 @@ type Card struct {
 
 func (c Card) valid() bool {
 	_, ok := c.Number.(string)
-	return ok && c.ExpYear > 0 && c.ExpMonth > 0
-}
-
-func (c Card) empty() bool {
-	_, ok := c.Number.(string)
-	return !ok && c.ExpYear == 0 && c.ExpMonth == 0
+	return ok
 }
 
 func parseCard(service *Service, body []byte, result *CardResponse, customerID string) (*CardResponse, error) {
