@@ -131,7 +131,7 @@ func TestParseChargeErrorResponseJSON(t *testing.T) {
 func TestChargeCreate(t *testing.T) {
 	mock, transport := NewMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Charge.Create(1000, Charge{
+	charge, err := service.Charge.Create(1000, Charge{
 		Card: Card{
 			Number:   "4242424242424242",
 			ExpMonth: 2,
@@ -148,10 +148,32 @@ func TestChargeCreate(t *testing.T) {
 		t.Errorf("err should be nil, but %v", err)
 		return
 	}
-	if plan == nil {
-		t.Error("plan should not be nil")
-	} else if plan.Amount != 3500 {
-		t.Errorf("plan.Amount should be 500, but %d.", plan.Amount)
+	if charge == nil {
+		t.Error("charge should not be nil")
+	} else if charge.Amount != 3500 {
+		t.Errorf("charge.Amount should be 3500, but %d.", charge.Amount)
+	}
+}
+
+func TestChargeCreateByNonDefaultard(t *testing.T) {
+	mock, transport := NewMockClient(200, chargeResponseJSON)
+	service := New("api-key", mock)
+	charge, err := service.Charge.Create(1000, Charge{
+		CustomerID: "cus_xxxxxxxxx",
+		CustomerCardID: "car_xxxxxxxxx",
+	})
+
+	if transport.URL != "https://api.pay.jp/v1/charges" {
+		t.Errorf("URL is wrong: %s", transport.URL)
+	}
+
+	if err != nil {
+		t.Errorf("err should be nil, but %v", err)
+		return
+	}
+
+	if charge == nil {
+		t.Error("charge should not be nil")
 	}
 }
 
