@@ -26,6 +26,7 @@ type Charge struct {
 	CustomerID  string            // 顧客ID (CardかCustomerのどちらかは必須パラメータ)
 	Card        Card              // カードオブジェクト(cardかcustomerのどちらかは必須)
 	CardToken   string            // トークンID (CardかCustomerのどちらかは必須パラメータ)
+	CustomerCardID	string        // 顧客のカードID
 	Capture     bool              // 支払い処理を確定するかどうか (falseの場合、カードの認証と支払い額の確保のみ行う)
 	Description string            // 	概要
 	ExpireDays  interface{}       // デフォルトで7日となっており、1日~60日の間で設定が可能
@@ -33,6 +34,7 @@ type Charge struct {
 }
 
 // Create はトークンID、カードを保有している顧客ID、カードオブジェクトのいずれかのパラメーターを指定して支払いを作成します。
+// 顧客IDを使って支払いを作成する場合は CustomerCardID に顧客の保有するカードのIDを指定でき、省略された場合はデフォルトカードとして登録されているものが利用されます。
 // テスト用のキーでは、本番用の決済ネットワークへは接続されず、実際の請求が行われることもありません。 本番用のキーでは、決済ネットワークで処理が行われ、実際の請求が行われます。
 //
 // 支払いを確定せずに、カードの認証と支払い額のみ確保する場合は、 Capture に false を指定してください。 このとき ExpireDays を指定することで、認証の期間を定めることができます。 ExpireDays はデフォルトで7日となっており、1日~60日の間で設定が可能です。
@@ -76,8 +78,10 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 	qb.Add("currency", charge.Currency)
 	if charge.CustomerID != "" {
 		qb.Add("customer", charge.CustomerID)
-	}
-	if charge.CardToken != "" {
+		if charge.CustomerCardID != "" {
+			qb.Add("card", charge.CustomerCardID)
+		}
+	} else if charge.CardToken != "" {
 		qb.Add("card", charge.CardToken)
 	}
 	qb.AddCard(charge.Card)
