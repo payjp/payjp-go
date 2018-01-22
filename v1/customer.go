@@ -163,7 +163,7 @@ func (c CustomerService) AddCardToken(customerID, token string) (*CardResponse, 
 
 func (c CustomerService) postCard(customerID, resourcePath string, card Card, result *CardResponse) (*CardResponse, error) {
 	qb := newRequestBuilder()
-	qb.AddCard(card)
+	qb.AddCardFlat(card)
 
 	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+customerID+"/cards"+resourcePath, qb.Reader())
 	if err != nil {

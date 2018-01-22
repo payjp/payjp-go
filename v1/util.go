@@ -67,6 +67,21 @@ func (qb *requestBuilder) AddCard(card Card) {
 	qb.AddMetadata(card.Metadata)
 }
 
+func (qb *requestBuilder) AddCardFlat(card Card) {
+	qb.Add("number", card.Number)
+	qb.Add("exp_month", card.ExpMonth)
+	qb.Add("exp_year", card.ExpYear)
+	qb.Add("cvc", card.CVC)
+	qb.Add("address_state", card.AddressState)
+	qb.Add("address_city", card.AddressCity)
+	qb.Add("address_line1", card.AddressLine1)
+	qb.Add("address_line2", card.AddressLine2)
+	qb.Add("address_zip", card.AddressZip)
+	qb.Add("country", card.Country)
+	qb.Add("name", card.Name)
+	qb.AddMetadata(card.Metadata)
+}
+
 func (qb *requestBuilder) AddMetadata(metadata map[string]string) {
 	for key, value := range metadata {
 		qb.Add("metadata["+key+"]", value)
