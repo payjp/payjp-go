@@ -25,6 +25,7 @@ var cardResponseJSON = []byte(`
   "last4": "4242",
   "livemode": false,
   "name": null,
+  "issuing_country": "JP",
   "object": "card"
 }
 `)
@@ -51,6 +52,7 @@ var cardListResponseJSON = []byte(`
       "last4": "4242",
       "livemode": false,
       "name": null,
+      "issuing_country": "JP",
       "object": "card"
     }
   ],
@@ -89,6 +91,10 @@ func TestParseCardResponseJSON(t *testing.T) {
 	createdAt := card.CreatedAt.UTC().Format("2006-01-02 15:04:05")
 	if createdAt != "2015-06-01 03:06:23" {
 		t.Errorf("card.CreatedAt() should be '2015-06-01 03:06:23' but '%s'", createdAt)
+	}
+	issuingCountry := card.IssuingCountry
+	if issuingCountry != "JP" {
+		t.Errorf("card.IssuingCountry should be 'JP' but '%s'", issuingCountry)
 	}
 }
 

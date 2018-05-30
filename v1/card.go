@@ -55,6 +55,7 @@ type CardResponse struct {
 	AddressCity     string            // 市区町村
 	AddressLine1    string            // 番地など
 	AddressLine2    string            // 建物名など
+	IssuingCountry  string            // カード発行国の国コード
 	Metadata        map[string]string // メタデータ
 
 	customerID string
@@ -62,6 +63,7 @@ type CardResponse struct {
 }
 
 type cardResponseParser struct {
+	IssuingCountry  string            `json:"issuing_country"`
 	AddressCity     string            `json:"address_city"`
 	AddressLine1    string            `json:"address_line1"`
 	AddressLine2    string            `json:"address_line2"`
@@ -106,6 +108,7 @@ func (c *CardResponse) UnmarshalJSON(b []byte) error {
 	raw := cardResponseParser{}
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "card" {
+		c.IssuingCountry = raw.IssuingCountry
 		c.AddressCity = raw.AddressCity
 		c.AddressLine1 = raw.AddressLine1
 		c.AddressLine2 = raw.AddressLine2
