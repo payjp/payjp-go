@@ -17,6 +17,18 @@ var subscriptionResponseJSON = []byte(`
   "livemode": false,
   "object": "subscription",
   "paused_at": null,
+  "next_cycle_plan": {
+    "amount": 1000,
+    "billing_day": null,
+    "created": 1432965398,
+    "currency": "jpy",
+    "id": "next_plan",
+    "interval": "month",
+    "name": "next plan",
+    "object": "plan",
+    "metadata": {},
+    "trial_days": 0
+  },
   "plan": {
     "amount": 1000,
     "billing_day": null,
@@ -26,6 +38,7 @@ var subscriptionResponseJSON = []byte(`
     "interval": "month",
     "name": "test plan",
     "object": "plan",
+    "metadata": {},
     "trial_days": 0
   },
   "resumed_at": null,
@@ -33,6 +46,41 @@ var subscriptionResponseJSON = []byte(`
   "status": "active",
   "trial_end": null,
   "trial_start": null,
+  "metadata": {},
+  "prorate": false
+}
+`)
+
+var nextCyclePlanNullResponseJSON = []byte(`
+{
+  "canceled_at": null,
+  "created": 1433127983,
+  "current_period_end": 1435732422,
+  "current_period_start": 1433140422,
+  "customer": "cus_4df4b5ed720933f4fb9e28857517",
+  "id": "sub_567a1e44562932ec1a7682d746e0",
+  "livemode": false,
+  "object": "subscription",
+  "paused_at": null,
+  "next_cycle_plan": null,
+  "plan": {
+    "amount": 1000,
+    "billing_day": null,
+    "created": 1432965397,
+    "currency": "jpy",
+    "id": "pln_9589006d14aad86aafeceac06b60",
+    "interval": "month",
+    "name": "test plan",
+    "object": "plan",
+    "metadata": {},
+    "trial_days": 0
+  },
+  "resumed_at": null,
+  "start": 1433140422,
+  "status": "active",
+  "trial_end": null,
+  "trial_start": null,
+  "metadata": {},
   "prorate": false
 }
 `)
@@ -51,6 +99,7 @@ var subscriptionListResponseJSON = []byte(`
       "livemode": false,
       "object": "subscription",
       "paused_at": null,
+      "next_cycle_plan": null,
       "plan": {
         "amount": 1000,
         "billing_day": null,
@@ -60,6 +109,7 @@ var subscriptionListResponseJSON = []byte(`
         "interval": "month",
         "name": "test plan",
         "object": "plan",
+        "metadata": {},
         "trial_days": 0
       },
       "resumed_at": null,
@@ -67,6 +117,7 @@ var subscriptionListResponseJSON = []byte(`
       "status": "active",
       "trial_end": null,
       "trial_start": null,
+      "metadata": {},
       "prorate": false
     }
   ],
@@ -88,6 +139,24 @@ func TestParseSubscriptionResponseJSON(t *testing.T) {
 	}
 	if subscription.Plan.Amount != 1000 {
 		t.Errorf("subscription.Plan.Amount should be 1000 but %d", subscription.Plan.Amount)
+	}
+	if subscription.NextCyclePlan.ID != "next_plan" {
+		t.Errorf("subscription.NextCyclePlan.ID is invalid. got: '%s'", subscription.NextCyclePlan.ID)
+	}
+	if subscription.NextCyclePlan.Currency != "jpy" {
+		t.Errorf("subscription.NextCyclePlan.Currency is invalid. got: '%s'", subscription.NextCyclePlan.Currency)
+	}
+	if subscription.NextCyclePlan.Interval != "month" {
+		t.Errorf("subscription.NextCyclePlan.Interval is invalid. got: '%s'", subscription.NextCyclePlan.Interval)
+	}
+	if subscription.NextCyclePlan.Name != "next plan" {
+		t.Errorf("subscription.NextCyclePlan.Name is invalid. got: '%s'", subscription.NextCyclePlan.Name)
+	}
+	if subscription.NextCyclePlan.TrialDays != 0 {
+		t.Errorf("subscription.NextCyclePlan.TrialDays is invalid. got: '%d'", subscription.NextCyclePlan.TrialDays)
+	}
+	if len(subscription.NextCyclePlan.Metadata) != 0 {
+		t.Errorf("The length of subscription.NextCyclePlan.Metadata is invalid")
 	}
 }
 
@@ -132,8 +201,13 @@ func TestCustomerListSubscription(t *testing.T) {
 	if !hasMore {
 		t.Error("parse error: hasMore")
 	}
-	if len(subscriptions) != 1 {
-		t.Error("parse error: plans")
+	for i, subscription := range subscriptions {
+		if i != 0 {
+			t.Error("parse error: List length")
+		}
+		if subscription.NextCyclePlan != nil {
+			t.Error("parse error: next_cycle_plan")
+		}
 	}
 }
 
@@ -185,6 +259,7 @@ func TestSubscriptionUpdate(t *testing.T) {
 	service := New("api-key", mock)
 	subscription, err := service.Subscription.Update("sub_567a1e44562932ec1a7682d746e0", Subscription{
 		PlanID: "pln_9589006d14aad86aafeceac06b60",
+		NextCyclePlanID: "next_plan",
 	})
 	if transport.URL != "https://api.pay.jp/v1/subscriptions/sub_567a1e44562932ec1a7682d746e0" {
 		t.Errorf("URL is wrong: %s", transport.URL)
@@ -200,6 +275,20 @@ func TestSubscriptionUpdate(t *testing.T) {
 		t.Error("subscription should not be nil")
 	} else if subscription.Plan.ID != "pln_9589006d14aad86aafeceac06b60" {
 		t.Errorf("subscription.Plan.ID is wrong: %s.", subscription.Plan.ID)
+	} else if subscription.NextCyclePlan.ID != "next_plan" {
+		t.Errorf("subscription.NextCyclePlan.ID is wrong: %s.", subscription.NextCyclePlan.ID)
+	}
+
+	mock2, transport2 := NewMockClient(200, nextCyclePlanNullResponseJSON)
+	service2 := New("api-key", mock2)
+	new_subscr, err := service2.Subscription.Update("sub_567a1e44562932ec1a7682d746e0", Subscription{
+		NextCyclePlanID: "",
+	})
+	if transport2.Method != "POST" {
+		t.Errorf("Method should be POST, but %s", transport2.Method)
+	}
+	if new_subscr.NextCyclePlan != nil {
+		t.Errorf("subscription.NextCyclePlan is not nil")
 	}
 }
 

@@ -60,6 +60,7 @@ type Subscription struct {
 	TrialEndAt time.Time         // トライアルの終了時期
 	SkipTrial  interface{}       // トライアルをしない(bool)
 	PlanID     interface{}       // プランID(string)
+	NextCyclePlanID interface{}  // 次サイクルから適用するプランID(string, 更新時のみ設定可能)
 	Prorate    interface{}       // 日割り課金をするかどうか(bool)
 	Metadata   map[string]string // メタデータ
 }
@@ -124,6 +125,7 @@ func (s SubscriptionService) update(subscriptionID string, subscription Subscrip
 		return nil, errors.New("Subscription.Update() parameter error: TrialEndAt and SkipTrial are exclusive")
 	}
 	qb := newRequestBuilder()
+	qb.Add("next_cycle_plan", subscription.NextCyclePlanID)
 	qb.Add("plan", subscription.PlanID)
 	if subscription.TrialEndAt != defaultTime {
 		qb.Add("trial_end", strconv.Itoa(int(subscription.TrialEndAt.Unix())))
@@ -261,6 +263,7 @@ type SubscriptionResponse struct {
 	StartAt              time.Time          // この定期課金開始時のタイムスタンプ
 	CustomerID           string             // この定期課金を購読している顧客のID
 	Plan                 Plan               // この定期課金のプラン情報
+	NextCyclePlan        *Plan              // この定期課金の次のサイクルから適用されるプラン情報
 	Status               SubscriptionStatus // この定期課金の現在の状態
 	Prorate              bool               // 日割り課金が有効かどうか
 	CurrentPeriodStartAt time.Time          // 現在の購読期間開始時のタイムスタンプ
@@ -286,6 +289,7 @@ type subscriptionResponseParser struct {
 	Object                  string            `json:"object"`
 	PausedEpoch             int               `json:"paused_at"`
 	Plan                    json.RawMessage   `json:"plan"`
+	NextCyclePlan           json.RawMessage   `json:"next_cycle_plan"`
 	Prorate                 bool              `json:"prorate"`
 	ResumedEpoch            int               `json:"resumed_at"`
 	StartEpoch              int               `json:"start"`
@@ -383,6 +387,7 @@ func (s *SubscriptionResponse) UnmarshalJSON(b []byte) error {
 		s.LiveMode = raw.LiveMode
 		s.PausedAt = time.Unix(int64(raw.PausedEpoch), 0)
 		json.Unmarshal(raw.Plan, &s.Plan)
+		json.Unmarshal(raw.NextCyclePlan, &s.NextCyclePlan)
 		s.Prorate = raw.Prorate
 		s.ResumedAt = time.Unix(int64(raw.ResumedEpoch), 0)
 		s.StartAt = time.Unix(int64(raw.StartEpoch), 0)
