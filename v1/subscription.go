@@ -109,7 +109,7 @@ func (s SubscriptionService) Subscribe(customerID string, subscription Subscript
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
-// Get は生成した特定の定期課金情報を取得します。
+// Retrieve subscription object. 特定の定期課金情報を取得します。
 func (s SubscriptionService) Retrieve(customerID, subscriptionID string) (*SubscriptionResponse, error) {
 	body, err := s.service.retrieve("/customers/" + customerID + "/subscriptions/" + subscriptionID)
 	if err != nil {

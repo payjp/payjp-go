@@ -76,7 +76,7 @@ func (t TokenService) Create(card Card) (*TokenResponse, error) {
 	return parseToken(respToBody(t.service.Client.Do(request)))
 }
 
-// Get メソッドは特定のトークン情報を取得します。
+// Retrieve token object. 特定のトークン情報を取得します。
 func (t TokenService) Retrieve(id string) (*TokenResponse, error) {
 	return parseToken(t.service.retrieve("/tokens/" + id))
 }

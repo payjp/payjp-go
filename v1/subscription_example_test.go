@@ -23,20 +23,20 @@ func TestSubscriptionExample(t *testing.T) {
         t.Errorf("plan create error")
         fmt.Println("err:", err)
     }
-    set_subscr, err := service.Subscription.Update(id, Subscription{
+    setSubscr, err := service.Subscription.Update(id, Subscription{
         NextCyclePlanID: plan.ID,
     })
-    if err != nil || set_subscr.NextCyclePlan.ID != plan.ID {
+    if err != nil || setSubscr.NextCyclePlan.ID != plan.ID {
         t.Errorf("subscription update error with NextCyclePlan")
     }
-    fmt.Println("NextCyclePlan:", set_subscr.NextCyclePlan)
-    del_subscr, err := service.Subscription.Update(id, Subscription{
+    fmt.Println("NextCyclePlan:", setSubscr.NextCyclePlan)
+    delSubscr, err := service.Subscription.Update(id, Subscription{
         NextCyclePlanID: "",
     })
-    if err != nil || del_subscr.NextCyclePlan != nil {
+    if err != nil || delSubscr.NextCyclePlan != nil {
         t.Errorf("subscription update error without NextCyclePlan")
     }
-    fmt.Println("NextCyclePlan:", del_subscr.NextCyclePlan)
+    fmt.Println("NextCyclePlan:", delSubscr.NextCyclePlan)
     if service.Plan.Delete(plan.ID) != nil {
         t.Errorf("plan delete error")
         fmt.Println("err:", err)

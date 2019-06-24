@@ -69,7 +69,7 @@ func newEventService(service *Service) *EventService {
 	}
 }
 
-// Get メソッドは特定のイベント情報を取得します。
+// Retrieve event object. 特定のイベント情報を取得します。
 func (e EventService) Retrieve(id string) (*EventResponse, error) {
 	data, err := e.service.retrieve("/events/" + id)
 	if err != nil {
@@ -194,7 +194,7 @@ type EventResponse struct {
 // ChargeData は、イベントの種類がChargeEventの時にChargeResponse構造体を返します。
 func (e EventResponse) ChargeData() (*ChargeResponse, error) {
 	if e.ResultType != ChargeEvent {
-		return nil, errors.New("This event is not charge type.")
+		return nil, errors.New("this event is not charge type")
 	}
 	result := &ChargeResponse{}
 	json.Unmarshal(e.data, result)
@@ -204,7 +204,7 @@ func (e EventResponse) ChargeData() (*ChargeResponse, error) {
 // TokenData は、イベントの種類がTokenEventの時にTokenResponse構造体を返します。
 func (e EventResponse) TokenData() (*TokenResponse, error) {
 	if e.ResultType != TokenEvent {
-		return nil, errors.New("This event is not token type.")
+		return nil, errors.New("this event is not token type")
 	}
 	result := &TokenResponse{}
 	json.Unmarshal(e.data, result)
@@ -214,7 +214,7 @@ func (e EventResponse) TokenData() (*TokenResponse, error) {
 // CustomerData は、イベントの種類がCustomerEventの時にCustomerResponse構造体を返します。
 func (e EventResponse) CustomerData() (*CustomerResponse, error) {
 	if e.ResultType != CustomerEvent {
-		return nil, errors.New("This event is not customer type.")
+		return nil, errors.New("this event is not customer type")
 	}
 	result := &CustomerResponse{}
 	json.Unmarshal(e.data, result)
@@ -224,7 +224,7 @@ func (e EventResponse) CustomerData() (*CustomerResponse, error) {
 // CardData は、イベントの種類がCardEventの時にCardResponse構造体を返します。
 func (e EventResponse) CardData() (*CardResponse, error) {
 	if e.ResultType != CardEvent {
-		return nil, errors.New("This event is not card type.")
+		return nil, errors.New("this event is not card type")
 	}
 	result := &CardResponse{}
 	json.Unmarshal(e.data, result)
@@ -234,7 +234,7 @@ func (e EventResponse) CardData() (*CardResponse, error) {
 // PlanData は、イベントの種類がPlanEventの時にPlanResponse構造体を返します。
 func (e EventResponse) PlanData() (*PlanResponse, error) {
 	if e.ResultType != PlanEvent {
-		return nil, errors.New("This event is not plan type.")
+		return nil, errors.New("this event is not plan type")
 	}
 	result := &PlanResponse{}
 	json.Unmarshal(e.data, result)
@@ -244,7 +244,7 @@ func (e EventResponse) PlanData() (*PlanResponse, error) {
 // SubscriptionData は、イベントの種類がSubscriptionEventの時にSubscriptionResponse構造体を返します。
 func (e EventResponse) SubscriptionData() (*SubscriptionResponse, error) {
 	if e.ResultType != SubscriptionEvent {
-		return nil, errors.New("This event is not subscription type.")
+		return nil, errors.New("this event is not subscription type")
 	}
 	result := &SubscriptionResponse{}
 	json.Unmarshal(e.data, result)
@@ -254,7 +254,7 @@ func (e EventResponse) SubscriptionData() (*SubscriptionResponse, error) {
 // TransferData は、イベントの種類がTransferEventの時にTransferResponse構造体を返します。
 func (e EventResponse) TransferData() (*TransferResponse, error) {
 	if e.ResultType != TransferEvent {
-		return nil, errors.New("This event is not tranfer type.")
+		return nil, errors.New("this event is not tranfer type")
 	}
 	result := &TransferResponse{}
 	json.Unmarshal(e.data, result)
@@ -264,7 +264,7 @@ func (e EventResponse) TransferData() (*TransferResponse, error) {
 // DeleteData は、イベントの種類がDeleteEventの時にDeleteResponse構造体を返します。
 func (e EventResponse) DeleteData() (*DeleteResponse, error) {
 	if e.ResultType != DeleteEvent {
-		return nil, errors.New("This event is not delete type.")
+		return nil, errors.New("this event is not delete type")
 	}
 	result := &DeleteResponse{}
 	json.Unmarshal(e.data, result)

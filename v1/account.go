@@ -16,7 +16,7 @@ func newAccountService(service *Service) *AccountService {
 	return &AccountService{service}
 }
 
-// Get はあなたのアカウント情報を取得します。
+// Retrieve account object. あなたのアカウント情報を取得します。
 func (t *AccountService) Retrieve() (*AccountResponse, error) {
 	request, err := http.NewRequest("GET", t.service.apiBase+"/accounts", nil)
 	if err != nil {

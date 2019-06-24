@@ -95,7 +95,7 @@ func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
 	return parsePlan(p.service, body, &PlanResponse{})
 }
 
-// Get は特定のプラン情報を取得します。
+// Retrieve plan object. 特定のプラン情報を取得します。
 func (p PlanService) Retrieve(id string) (*PlanResponse, error) {
 	body, err := p.service.retrieve("/plans/" + id)
 	if err != nil {

@@ -105,7 +105,7 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 
 }
 
-// Get は生成された支払い情報を取得します。
+// Retrieve charge object. 支払い情報を取得します。
 func (c ChargeService) Retrieve(chargeID string) (*ChargeResponse, error) {
 	body, err := c.service.retrieve("/charges/" + chargeID)
 	if err != nil {

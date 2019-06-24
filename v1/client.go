@@ -91,7 +91,7 @@ func (s Service) delete(resourceURL string) error {
 
 func (s Service) queryList(resourcePath string, limit, offset, since, until int, callbacks ...func(*url.Values) bool) ([]byte, error) {
 	if limit < 0 || limit > 100 {
-		return nil, fmt.Errorf("List().Limit() should be between 1 and 100, but %d.", limit)
+		return nil, fmt.Errorf("method Limit() should be between 1 and 100, but %d", limit)
 	}
 
 	values := url.Values{}

@@ -281,13 +281,13 @@ func TestSubscriptionUpdate(t *testing.T) {
 
 	mock2, transport2 := NewMockClient(200, nextCyclePlanNullResponseJSON)
 	service2 := New("api-key", mock2)
-	new_subscr, err := service2.Subscription.Update("sub_567a1e44562932ec1a7682d746e0", Subscription{
+	newSubscr, err := service2.Subscription.Update("sub_567a1e44562932ec1a7682d746e0", Subscription{
 		NextCyclePlanID: "",
 	})
 	if transport2.Method != "POST" {
 		t.Errorf("Method should be POST, but %s", transport2.Method)
 	}
-	if new_subscr.NextCyclePlan != nil {
+	if newSubscr.NextCyclePlan != nil {
 		t.Errorf("subscription.NextCyclePlan is not nil")
 	}
 }
