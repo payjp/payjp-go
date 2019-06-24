@@ -2,13 +2,14 @@ sudo: false
 language: go
 
 go:
-  - 1.6
-  - 1.7
-  - tip
+  - stable
+  - 1.11.x
+  - 1.10.x
+  - 1.9.x
 
-#install:
-#  - go get -u github.com/golang/lint/golint
+install:
+  - go get -u golang.org/x/lint/golint
 
 script:
-#  - golint ./...
+  - golint ./...
   - go test -v ./...

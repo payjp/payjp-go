@@ -83,7 +83,7 @@ func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
 	return parseCustomer(c.service, body, &CustomerResponse{})
 }
 
-// Get は生成した顧客情報を取得します。
+// Retrieve customer object. 顧客情報を取得します。
 func (c CustomerService) Retrieve(id string) (*CustomerResponse, error) {
 	body, err := c.service.retrieve("/customers/" + id)
 	if err != nil {

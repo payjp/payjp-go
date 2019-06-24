@@ -48,7 +48,7 @@ func newTransferService(service *Service) *TransferService {
 	}
 }
 
-// Get は特定の入金情報を取得します。
+// Retrieve transfer object. 入金情報を取得します。
 func (t TransferService) Retrieve(transferID string) (*TransferResponse, error) {
 	body, err := t.service.retrieve("/transfers/" + transferID)
 	if err != nil {
