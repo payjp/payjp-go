@@ -297,21 +297,21 @@ func TestParseTransferResponseJSON(t *testing.T) {
 	if transfer.Charges[0].ID != "ch_60baaf2dc8f3e35684ebe2031a6e0" {
 		t.Errorf("Charge.ID should be 'ch_60baaf2dc8f3e35684ebe2031a6e0', but '%s'", transfer.Charges[0].ID)
 	}
-  if transfer.Status.status() != "pending" {
+	if transfer.Status.status() != "pending" {
 		t.Errorf("transfer.Status should be 'pending', but '%s'", transfer.Status.status())
-  }
+	}
 }
 
 func TestParseRecombinationTransferResponseJSON(t *testing.T) {
-  recombinationTransfer := &TransferResponse{}
-  err := json.Unmarshal(recombinationTransferResponseJSON, recombinationTransfer)
+	recombinationTransfer := &TransferResponse{}
+	err := json.Unmarshal(recombinationTransferResponseJSON, recombinationTransfer)
 
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}
-  if recombinationTransfer.Status.status() != "recombination" {
+	if recombinationTransfer.Status.status() != "recombination" {
 		t.Errorf("transfer.Status should be 'recombination', but '%s'", recombinationTransfer.Status.status())
-  }
+	}
 }
 
 func TestTransferRetrieve(t *testing.T) {
