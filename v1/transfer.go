@@ -19,6 +19,8 @@ const (
 	TransferFailed
 	// TransferCanceled は支払いキャンセルのステータスを表す定数
 	TransferCanceled
+  // TransferRecombination は組戻ステータスを表す定数
+  TransferRecombination
 )
 
 func (t TransferStatus) status() interface{} {
@@ -31,6 +33,8 @@ func (t TransferStatus) status() interface{} {
 		return "failed"
 	case TransferCanceled:
 		return "canceled"
+  case TransferRecombination:
+    return "recombination"
 	}
 	return nil
 }
@@ -294,6 +298,8 @@ func (t *TransferResponse) UnmarshalJSON(b []byte) error {
 			t.Status = TransferFailed
 		case "canceled":
 			t.Status = TransferCanceled
+    case "recombination":
+      t.Status = TransferRecombination
 		}
 		t.Summary.ChargeCount = raw.Summary.ChargeCount
 		t.Summary.ChargeFee = raw.Summary.ChargeFee
