@@ -320,6 +320,24 @@ func TestChargeCapture2(t *testing.T) {
 	}
 }
 
+func TestChargeCaptureChangedAmount(t *testing.T) {
+	mock, transport := NewMockClient(200, chargeResponseJSON)
+	service := New("api-key", mock)
+  chargeID := "ch_fa990a4c10672a93053a774730b0a"
+	charge, err := service.Charge.Retrieve(chargeID)
+  newAmount := 100
+  err = charge.Capture(newAmount)
+	if err != nil {
+		t.Errorf("err should be nil, but %v", err)
+	}
+	if transport.URL != "https://api.pay.jp/v1/charges/" + chargeID + "/capture" {
+		t.Errorf("URL is wrong: %s", transport.URL)
+	}
+	if transport.Method != "POST" {
+		t.Errorf("Method should be POST, but %s", transport.Method)
+	}
+}
+
 func TestChargeList(t *testing.T) {
 	mock, transport := NewMockClient(200, chargeListResponseJSON)
 	service := New("api-key", mock)
