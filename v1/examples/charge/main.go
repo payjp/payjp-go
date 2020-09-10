@@ -9,17 +9,15 @@ import (
 func main() {
 	pay := payjp.New("sk_test_c62fade9d045b54cd76d7036", nil)
 
+	var cardToken string = "生成したトークン"
+
 	// 支払いをします
 	charge, _ := pay.Charge.Create(3500, payjp.Charge{
 		// 現在はjpyのみサポート
 		Currency: "jpy",
-		// カード情報、顧客ID、カードトークンのいずれかを指定
-		Card: payjp.Card{
-			Number: "4242424242424242",
-			CVC:      "123",
-			ExpMonth: "2",
-			ExpYear:  "2020",
-		},
+		// カードトークンを指定（サンプルのトークンは以下などで生成できます）
+		// https://pay.jp/docs/checkout
+		CardToken: cardToken,
 		Capture: true,
 		// 概要のテキストを設定できます
 		Description: "Book: 'The Art of Community'",
