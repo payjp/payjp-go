@@ -15,7 +15,8 @@ func main() {
 	charge, _ := pay.Charge.Create(3500, payjp.Charge{
 		// 現在はjpyのみサポート
 		Currency: "jpy",
-		// カード情報、顧客ID、カードトークンのいずれかを指定
+		// カードトークンを指定（サンプルのトークンは以下などで生成できます）
+		// https://pay.jp/docs/checkout
 		CardToken: cardToken,
 		Capture: true,
 		// 概要のテキストを設定できます
