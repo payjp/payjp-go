@@ -170,7 +170,9 @@ func (c ChargeService) Refund(chargeID, reason string, amount ...int) (*ChargeRe
 	return parseCharge(c.service, body, &ChargeResponse{})
 }
 
-func (c ChargeService) capture(chargeID string, amount ...int) ([]byte, error) {
+
+
+func (c ChargeService) capture(chargeID string, amount []int) ([]byte, error) {
 	qb := newRequestBuilder()
 	if len(amount) > 0 {
 		qb.Add("amount", amount[0])
@@ -191,8 +193,8 @@ func (c ChargeService) capture(chargeID string, amount ...int) ([]byte, error) {
 // amount をセットした場合、AmountRefunded に認証時の amount との差額が入ります。
 //
 // 例えば、認証時に amount=500 で作成し、 amount=400 で支払い確定を行った場合、 AmountRefunded=100 となり、確定金額が400円に変更された状態で支払いが確定されます。
-func (c ChargeService) Capture(chargeID string) (*ChargeResponse, error) {
-	body, err := c.capture(chargeID)
+func (c ChargeService) Capture(chargeID string, amount ...int) (*ChargeResponse, error) {
+	body, err := c.capture(chargeID, amount)
 	if err != nil {
 		return nil, err
 	}
@@ -362,8 +364,8 @@ func (c *ChargeResponse) Refund(reason string, amount ...int) error {
 // amount をセットした場合、AmountRefunded に認証時の amount との差額が入ります。
 //
 // 例えば、認証時に amount=500 で作成し、 amount=400 で支払い確定を行った場合、 AmountRefunded=100 となり、確定金額が400円に変更された状態で支払いが確定されます。
-func (c *ChargeResponse) Capture() error {
-	body, err := c.service.Charge.capture(c.ID)
+func (c *ChargeResponse) Capture(amount ...int) error {
+	body, err := c.service.Charge.capture(c.ID, amount)
 	if err != nil {
 		return err
 	}
