@@ -162,7 +162,6 @@ func (c ChargeService) refund(id string, reason string, amount []int) ([]byte, e
 
 // Refund は支払い済みとなった処理を返金します。
 // Amount省略時は全額返金、指定時に金額の部分返金を行うことができます。
-// ただし部分返金を最初に行った場合、2度目の返金は全額返金しか行うことができないため、ご注意ください。
 func (c ChargeService) Refund(chargeID, reason string, amount ...int) (*ChargeResponse, error) {
 	body, err := c.refund(chargeID, reason, amount)
 	if err != nil {
