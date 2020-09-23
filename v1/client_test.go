@@ -50,4 +50,13 @@ func TestNewClientWithOptions(t *testing.T) {
 	if service.RetryConfig() != retryConfig {
 		t.Errorf(`RetryConfig should be %v, but %v`, retryConfig, service.RetryConfig())
 	}
+
+	retryConfig2 := RetryConfig{3, 4, 50}
+	service2 := New("sk_test_37dba67cf2cb5932eb4859af", client, OptionRetryConfig(retryConfig2))
+	if service2.APIBase() != "https://api.pay.jp/v1" {
+		t.Errorf(`ApiBase should be "https://api.pay.jp/v1", but "%s"`, service2.APIBase())
+	}
+	if service2.RetryConfig() != retryConfig2 {
+		t.Errorf(`RetryConfig should be %v, but %v`, retryConfig2, service2.RetryConfig())
+	}
 }
