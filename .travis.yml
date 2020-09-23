@@ -14,5 +14,5 @@ install:
   - go get -u golang.org/x/lint/golint
 
 script:
-  - golint ./...
-  - go test -v ./...
+  - golint ./v1
+  - go test -v ./v1
