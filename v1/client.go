@@ -6,16 +6,28 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+  "math"
+  "time"
 )
 
 type RetryConfig struct {
 	MaxCount     int
-	InitialDelay int
-	MaxDelay     int
+	InitialDelay float64  // sec
+	MaxDelay     float64  // sec
 }
 
 func defaultRetryConfig() RetryConfig {
 	return RetryConfig{0, 2, 32}
+}
+
+// リクエストリトライ時に遅延させる時間を計算する
+// equal jitter に基づいて算出
+// ref: https://aws.amazon.com/jp/blogs/architecture/exponential-backoff-and-jitter/
+func (r RetryConfig) getRetryDelay(retryCount int) float64 {
+  delay := math.Min(r.MaxDelay, math.Pow(r.InitialDelay * 2, float64(retryCount)))
+  half := delay / 2.0
+  offset := RandUniform(0, half)
+  return half + offset
 }
 
 // Service 構造体はPAY.JPのすべてのAPIの起点となる構造体です。
@@ -129,6 +141,31 @@ func (s Service) buildRequest(method HttpMethod, url string, requestBuilder *req
 	return req, nil
 }
 
+func (s Service) request(request *http.Request) (res *http.Response, err error) {
+  // レートリミット時、必要に応じてリトライを試行するリクエストのラッパー
+  for currentRetryCount := 0; currentRetryCount < s.retryConfig.MaxCount; currentRetryCount++ {
+    res, err = s.Client.Do(request)
+    if err != nil {
+      return nil, err
+    }
+    if res.StatusCode != 429 {
+      // レートリミットではないのでリトライは不要
+      break
+    }
+    delay := s.retryConfig.getRetryDelay(currentRetryCount)
+    time.Sleep(time.Duration(delay) * 1000 * time.Millisecond)
+  }
+  return res, err
+}
+
+func (s Service) reqPost(url string, requestBuilder *requestBuilder) ([]byte, error) {
+	req, err := s.buildRequest(POST, url, requestBuilder)
+	if err != nil {
+		return nil, err
+	}
+	return respToBody(s.request(req))
+}
+
 func (s Service) retrieve(resourceURL string) ([]byte, error) {
 	request, err := http.NewRequest("GET", s.apiBase+resourceURL, nil)
 	if err != nil {
@@ -139,13 +176,6 @@ func (s Service) retrieve(resourceURL string) ([]byte, error) {
 	return respToBody(s.Client.Do(request))
 }
 
-func (s Service) post(url string, requestBuilder *requestBuilder) ([]byte, error) {
-	req, err := s.buildRequest(POST, url, requestBuilder)
-	if err != nil {
-		return nil, err
-	}
-	return respToBody(s.Client.Do(req))
-}
 
 func (s Service) delete(resourceURL string) error {
 	request, err := http.NewRequest("DELETE", s.apiBase+resourceURL, nil)
