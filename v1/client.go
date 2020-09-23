@@ -8,9 +8,14 @@ import (
 	"strconv"
 )
 
-// Config 構造体はNewに渡すパラメータを設定するのに使用します。
-type Config struct {
-	APIBase string // APIのエンドポイントのURL(省略時は'https://api.pay.jp/v1')
+type RetryConfig struct {
+  MaxCount int
+  InitialDelay int
+  MaxDelay int
+}
+
+func defaultRetryConfig() RetryConfig {
+  return RetryConfig { 0, 2, 32 }
 }
 
 // Service 構造体はPAY.JPのすべてのAPIの起点となる構造体です。
@@ -19,6 +24,7 @@ type Service struct {
 	Client  *http.Client
 	apiKey  string
 	apiBase string
+  retryConfig RetryConfig
 
 	Charge       *ChargeService       // 支払いに関するAPI
 	Customer     *CustomerService     // 顧客情報に関するAPI
@@ -30,6 +36,22 @@ type Service struct {
 	Account      *AccountService      // アカウント情報に関するAPI
 }
 
+
+type Option func(*Service)
+
+
+func OptionApiBase(url string) Option {
+  return func(s *Service) {
+    s.apiBase = url
+  }
+}
+
+func OptionRetryConfig(retryConfig RetryConfig) Option {
+  return func(s *Service) {
+    s.retryConfig = retryConfig
+  }
+}
+
 // New はPAY.JPのAPIを初期化する関数です。
 //
 // apiKeyはPAY.JPのウェブサイトで作成したキーを指定します。
@@ -37,7 +59,7 @@ type Service struct {
 // clientは特別な設定をしたhttp.Clientを使用する場合に渡します。nilを指定するとデフォルトのもhttp.Clientを指定します。
 //
 // configは追加の設定が必要な場合に渡します。現状で設定できるのはAPIのエントリーポイントのURLのみです。省略できます。
-func New(apiKey string, client *http.Client, config ...Config) *Service {
+func New(apiKey string, client *http.Client, options ...Option) *Service {
 	if client == nil {
 		client = &http.Client{}
 	}
@@ -45,11 +67,12 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 		apiKey: "Basic " + base64.StdEncoding.EncodeToString([]byte(apiKey+":")),
 		Client: client,
 	}
-	if len(config) > 0 {
-		service.apiBase = config[0].APIBase
-	} else {
-		service.apiBase = "https://api.pay.jp/v1"
-	}
+
+  service.apiBase = "https://api.pay.jp/v1"
+  service.retryConfig = defaultRetryConfig()
+  for _, o := range options {
+    o(service)
+  }
 
 	service.Charge = newChargeService(service)
 	service.Customer = newCustomerService(service)
@@ -66,6 +89,10 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 // APIBase はPAY.JPのエントリーポイントの基底部分のURLを返します。
 func (s Service) APIBase() string {
 	return s.apiBase
+}
+
+func (s Service) RetryConfig() RetryConfig {
+  return s.retryConfig
 }
 
 func (s Service) retrieve(resourceURL string) ([]byte, error) {
