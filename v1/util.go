@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strconv"
-  "math/rand"
 )
 
 type requestBuilder struct {
@@ -113,5 +113,5 @@ func (p *listResponseParser) UnmarshalJSON(b []byte) error {
 }
 
 func RandUniform(min, max float64) float64 {
-  return (rand.Float64() * (max - min)) + min
+	return (rand.Float64() * (max - min)) + min
 }
