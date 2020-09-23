@@ -9,22 +9,22 @@ import (
 )
 
 type RetryConfig struct {
-  MaxCount int
-  InitialDelay int
-  MaxDelay int
+	MaxCount     int
+	InitialDelay int
+	MaxDelay     int
 }
 
 func defaultRetryConfig() RetryConfig {
-  return RetryConfig { 0, 2, 32 }
+	return RetryConfig{0, 2, 32}
 }
 
 // Service 構造体はPAY.JPのすべてのAPIの起点となる構造体です。
 // New()を使ってインスタンスを生成します。
 type Service struct {
-	Client  *http.Client
-	apiKey  string
-	apiBase string
-  retryConfig RetryConfig
+	Client      *http.Client
+	apiKey      string
+	apiBase     string
+	retryConfig RetryConfig
 
 	Charge       *ChargeService       // 支払いに関するAPI
 	Customer     *CustomerService     // 顧客情報に関するAPI
@@ -36,20 +36,18 @@ type Service struct {
 	Account      *AccountService      // アカウント情報に関するAPI
 }
 
-
 type Option func(*Service)
 
-
 func OptionApiBase(url string) Option {
-  return func(s *Service) {
-    s.apiBase = url
-  }
+	return func(s *Service) {
+		s.apiBase = url
+	}
 }
 
 func OptionRetryConfig(retryConfig RetryConfig) Option {
-  return func(s *Service) {
-    s.retryConfig = retryConfig
-  }
+	return func(s *Service) {
+		s.retryConfig = retryConfig
+	}
 }
 
 // New はPAY.JPのAPIを初期化する関数です。
@@ -68,11 +66,11 @@ func New(apiKey string, client *http.Client, options ...Option) *Service {
 		Client: client,
 	}
 
-  service.apiBase = "https://api.pay.jp/v1"
-  service.retryConfig = defaultRetryConfig()
-  for _, o := range options {
-    o(service)
-  }
+	service.apiBase = "https://api.pay.jp/v1"
+	service.retryConfig = defaultRetryConfig()
+	for _, o := range options {
+		o(service)
+	}
 
 	service.Charge = newChargeService(service)
 	service.Customer = newCustomerService(service)
@@ -92,7 +90,7 @@ func (s Service) APIBase() string {
 }
 
 func (s Service) RetryConfig() RetryConfig {
-  return s.retryConfig
+	return s.retryConfig
 }
 
 func (s Service) retrieve(resourceURL string) ([]byte, error) {
