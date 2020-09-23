@@ -139,12 +139,12 @@ func (s Service) retrieve(resourceURL string) ([]byte, error) {
 	return respToBody(s.Client.Do(request))
 }
 
-func (s Service) post(url string, requestBuilder requestBuilder) ([]byte, error) {
-	request, err := http.NewRequest("POST", url, requestBuilder.Reader())
+func (s Service) post(url string, requestBuilder *requestBuilder) ([]byte, error) {
+	req, err := s.buildRequest(POST, url, requestBuilder)
 	if err != nil {
 		return nil, err
 	}
-	return respToBody(s.Client.Do(request))
+	return respToBody(s.Client.Do(req))
 }
 
 func (s Service) delete(resourceURL string) error {
