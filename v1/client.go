@@ -93,6 +93,42 @@ func (s Service) RetryConfig() RetryConfig {
 	return s.retryConfig
 }
 
+type HttpMethod int
+
+const (
+	GET HttpMethod = iota + 1
+	POST
+	PUT
+	DELETE
+)
+
+type UnkownHttpMethod struct{}
+
+func (m HttpMethod) String() string {
+	switch m {
+	case 1:
+		return "GET"
+	case 2:
+		return "POST"
+	case 3:
+		return "PUT"
+	case 4:
+		return "DELETE"
+	default:
+		// though never reach
+		panic(UnkownHttpMethod{})
+	}
+}
+
+func (s Service) buildRequest(method HttpMethod, url string, requestBuilder *requestBuilder) (*http.Request, error) {
+	req, err := http.NewRequest(method.String(), url, requestBuilder.Reader())
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Authorization", s.apiKey)
+	return req, nil
+}
+
 func (s Service) retrieve(resourceURL string) ([]byte, error) {
 	request, err := http.NewRequest("GET", s.apiBase+resourceURL, nil)
 	if err != nil {
@@ -100,6 +136,14 @@ func (s Service) retrieve(resourceURL string) ([]byte, error) {
 	}
 	request.Header.Add("Authorization", s.apiKey)
 
+	return respToBody(s.Client.Do(request))
+}
+
+func (s Service) post(url string, requestBuilder requestBuilder) ([]byte, error) {
+	request, err := http.NewRequest("POST", url, requestBuilder.Reader())
+	if err != nil {
+		return nil, err
+	}
 	return respToBody(s.Client.Do(request))
 }
 
