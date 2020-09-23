@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+  "math/rand"
 )
 
 type requestBuilder struct {
@@ -109,4 +110,8 @@ func (p *listResponseParser) UnmarshalJSON(b []byte) error {
 	}
 
 	return nil
+}
+
+func RandUniform(min, max float64) float64 {
+  return (rand.Float64() * (max - min)) + min
 }
