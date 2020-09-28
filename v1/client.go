@@ -24,7 +24,7 @@ func defaultRetryConfig() RetryConfig {
 // equal jitter に基づいて算出
 // ref: https://aws.amazon.com/jp/blogs/architecture/exponential-backoff-and-jitter/
 func (r RetryConfig) getRetryDelay(retryCount int) float64 {
-	delay := math.Min(r.MaxDelay, math.Pow(r.InitialDelay*2, float64(retryCount)))
+	delay := math.Min(r.MaxDelay, r.InitialDelay * math.Pow(2.0, float64(retryCount)))
 	half := delay / 2.0
 	offset := RandUniform(0, half)
 	return half + offset
