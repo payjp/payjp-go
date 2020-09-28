@@ -113,5 +113,6 @@ func (p *listResponseParser) UnmarshalJSON(b []byte) error {
 }
 
 func RandUniform(min, max float64) float64 {
+  // [min, max) の小数を返す
 	return (rand.Float64() * (max - min)) + min
 }
