@@ -2,7 +2,6 @@ package payjp
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"math"
 	"math/rand"
