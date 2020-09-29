@@ -141,7 +141,7 @@ func (s Service) buildRequest(method HttpMethod, url string, requestBuilder *req
 	return req, nil
 }
 
-func (s Service) request(request *http.Request) (res *http.Response, err error) {
+func (s Service) attemptRequest(request *http.Request) (res *http.Response, err error) {
 	// レートリミット時、必要に応じてリトライを試行するリクエストのラッパー
 	for currentRetryCount := 0; currentRetryCount < s.retryConfig.MaxCount; currentRetryCount++ {
 		res, err = s.Client.Do(request)
@@ -153,17 +153,30 @@ func (s Service) request(request *http.Request) (res *http.Response, err error) 
 			break
 		}
 		delay := s.retryConfig.getRetryDelay(currentRetryCount)
-		time.Sleep(time.Duration(delay) * 1000 * time.Millisecond)
+		time.Sleep((time.Duration(delay) * 1000) * time.Millisecond)
 	}
 	return res, err
 }
 
-func (s Service) reqPost(url string, requestBuilder *requestBuilder) ([]byte, error) {
-	req, err := s.buildRequest(POST, url, requestBuilder)
+func (s Service) request(method HttpMethod, url string, requestBuilder *requestBuilder) ([]byte, error) {
+  // レスポンスのデコードを含めたHTTPリクエストを行う
+  req, err := s.buildRequest(method, url, requestBuilder)
 	if err != nil {
 		return nil, err
 	}
-	return respToBody(s.request(req))
+	return respToBody(s.attemptRequest(req))
+}
+
+func (s Service) postRequest(url string, requestBuilder *requestBuilder) ([]byte, error) {
+  return s.request(POST, url, requestBuilder)
+}
+
+func (s Service) getRequest(url string, requestBuilder *requestBuilder) ([]byte, error) {
+  return s.request(GET, url, requestBuilder)
+}
+
+func (s Service) deleteRequest(url string, requestBuilder *requestBuilder) ([]byte, error) {
+  return s.request(DELETE, url, requestBuilder)
 }
 
 func (s Service) retrieve(resourceURL string) ([]byte, error) {
