@@ -90,5 +90,25 @@ func TestGetRetryDelay(t *testing.T) {
     t.Errorf("overLimit: Not allowed delay value %f", overLimit)
     return
   }
+}
 
+var rateLimitResponseBody = []byte(`{
+  "error": {
+    "code": "over_capacity",
+    "message": "The service is over capacity. Please try again later.",
+    "status": 429,
+    "type": "client_error"
+  }
+}`)
+
+func TestAttempRequestReachedRateLimit(t *testing.T) {
+  // レートリミットに到達したリクエストを想定したテスト
+  client, _ := NewMockClient(rateLimitStatusCode, rateLimitResponseBody)
+  noRetry := RetryConfig{0, 2, 32}  // リトライなしであることを明示
+  s := New("sk_test_xxxx", client, OptionRetryConfig(noRetry))
+  req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", newRequestBuilder())
+  resp, _ := s.attemptRequest(req)
+  if resp.StatusCode != rateLimitStatusCode {
+    t.Error("Expected 429")
+  }
 }

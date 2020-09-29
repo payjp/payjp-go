@@ -141,19 +141,27 @@ func (s Service) buildRequest(method HttpMethod, url string, requestBuilder *req
 	return req, nil
 }
 
+func (s Service) doRequest(request *http.Request) (*http.Response, error) {
+  res, err := s.Client.Do(request)
+  if err != nil {
+    return nil, err
+  }
+  return res, nil
+}
+
+var rateLimitStatusCode = 429
+
 func (s Service) attemptRequest(request *http.Request) (res *http.Response, err error) {
 	// レートリミット時、必要に応じてリトライを試行するリクエストのラッパー
+  res, err = s.doRequest(request)
 	for currentRetryCount := 0; currentRetryCount < s.retryConfig.MaxCount; currentRetryCount++ {
-		res, err = s.Client.Do(request)
-		if err != nil {
-			return nil, err
-		}
-		if res.StatusCode != 429 {
-			// レートリミットではないのでリトライは不要
-			break
-		}
 		delay := s.retryConfig.getRetryDelay(currentRetryCount)
 		time.Sleep((time.Duration(delay) * 1000) * time.Millisecond)
+    res, err = s.doRequest(request)
+		if res.StatusCode != rateLimitStatusCode {
+			// レートリミット制限ではないのでこれ以上のリトライは不要
+			break
+		}
 	}
 	return res, err
 }
