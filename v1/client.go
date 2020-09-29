@@ -3,6 +3,7 @@ package payjp
 import (
 	"encoding/base64"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -12,19 +13,25 @@ import (
 
 type RetryConfig struct {
 	MaxCount     int
-	InitialDelay float64 // sec
-	MaxDelay     float64 // sec
+	InitialDelay float64     // sec
+	MaxDelay     float64     // sec
+	Logger       *log.Logger // nilable
 }
 
 func defaultRetryConfig() RetryConfig {
-	return RetryConfig{0, 2, 32}
+	return RetryConfig{
+		0,
+		2,
+		32,
+		nil,
+	}
 }
 
 // リクエストリトライ時に遅延させる時間を計算する
 // equal jitter に基づいて算出
 // ref: https://aws.amazon.com/jp/blogs/architecture/exponential-backoff-and-jitter/
 func (r RetryConfig) getRetryDelay(retryCount int) float64 {
-	delay := math.Min(r.MaxDelay, r.InitialDelay * math.Pow(2.0, float64(retryCount)))
+	delay := math.Min(r.MaxDelay, r.InitialDelay*math.Pow(2.0, float64(retryCount)))
 	half := delay / 2.0
 	offset := RandUniform(0, half)
 	return half + offset
@@ -142,22 +149,27 @@ func (s Service) buildRequest(method HttpMethod, url string, requestBuilder *req
 }
 
 func (s Service) doRequest(request *http.Request) (*http.Response, error) {
-  res, err := s.Client.Do(request)
-  if err != nil {
-    return nil, err
-  }
-  return res, nil
+	res, err := s.Client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 var rateLimitStatusCode = 429
 
 func (s Service) attemptRequest(request *http.Request) (res *http.Response, err error) {
+	logger := s.retryConfig.Logger
 	// レートリミット時、必要に応じてリトライを試行するリクエストのラッパー
-  res, err = s.doRequest(request)
+	res, err = s.doRequest(request)
 	for currentRetryCount := 0; currentRetryCount < s.retryConfig.MaxCount; currentRetryCount++ {
 		delay := s.retryConfig.getRetryDelay(currentRetryCount)
-		time.Sleep((time.Duration(delay) * 1000) * time.Millisecond)
-    res, err = s.doRequest(request)
+		delaySec := time.Duration(delay*1000) * time.Millisecond
+		if logger != nil {
+			logger.Printf("Retry after %v seconds", delaySec)
+		}
+		time.Sleep(delaySec)
+		res, err = s.doRequest(request)
 		if res.StatusCode != rateLimitStatusCode {
 			// レートリミット制限ではないのでこれ以上のリトライは不要
 			break
@@ -167,8 +179,8 @@ func (s Service) attemptRequest(request *http.Request) (res *http.Response, err 
 }
 
 func (s Service) request(method HttpMethod, url string, requestBuilder *requestBuilder) ([]byte, error) {
-  // レスポンスのデコードを含めたHTTPリクエストを行う
-  req, err := s.buildRequest(method, url, requestBuilder)
+	// レスポンスのデコードを含めたHTTPリクエストを行う
+	req, err := s.buildRequest(method, url, requestBuilder)
 	if err != nil {
 		return nil, err
 	}
@@ -176,15 +188,15 @@ func (s Service) request(method HttpMethod, url string, requestBuilder *requestB
 }
 
 func (s Service) postRequest(url string, requestBuilder *requestBuilder) ([]byte, error) {
-  return s.request(POST, url, requestBuilder)
+	return s.request(POST, url, requestBuilder)
 }
 
 func (s Service) getRequest(url string, requestBuilder *requestBuilder) ([]byte, error) {
-  return s.request(GET, url, requestBuilder)
+	return s.request(GET, url, requestBuilder)
 }
 
 func (s Service) deleteRequest(url string, requestBuilder *requestBuilder) ([]byte, error) {
-  return s.request(DELETE, url, requestBuilder)
+	return s.request(DELETE, url, requestBuilder)
 }
 
 func (s Service) retrieve(resourceURL string) ([]byte, error) {
