@@ -1,7 +1,10 @@
 package payjp
 
 import (
+	"bytes"
+	"log"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -15,7 +18,7 @@ func TestNewClient(t *testing.T) {
 	if service.APIBase() != "https://api.pay.jp/v1" {
 		t.Errorf(`ApiBase should be "https://api.pay.jp/v1", but "%s"`, service.APIBase())
 	}
-	defaultRetryConfig := RetryConfig{0, 2, 32}
+	defaultRetryConfig := RetryConfig{0, 2, 32, nil}
 	if service.RetryConfig() != defaultRetryConfig {
 		t.Errorf(`RetryConfig should be %v, but %v`, defaultRetryConfig, service.RetryConfig())
 	}
@@ -36,7 +39,7 @@ func TestNewClientWithClient(t *testing.T) {
 func TestNewClientWithOptions(t *testing.T) {
 	// init with http.Client (to support proxy, etc)
 	client := &http.Client{}
-	retryConfig := RetryConfig{1, 2, 30}
+	retryConfig := RetryConfig{1, 2, 30, nil}
 	service := New("sk_test_37dba67cf2cb5932eb4859af", client, OptionApiBase("https://api.pay.jp/v2"), OptionRetryConfig(retryConfig))
 
 	if service == nil {
@@ -51,7 +54,7 @@ func TestNewClientWithOptions(t *testing.T) {
 		t.Errorf(`RetryConfig should be %v, but %v`, retryConfig, service.RetryConfig())
 	}
 
-	retryConfig2 := RetryConfig{3, 4, 50}
+	retryConfig2 := RetryConfig{3, 4, 50, nil}
 	service2 := New("sk_test_37dba67cf2cb5932eb4859af", client, OptionRetryConfig(retryConfig2))
 	if service2.APIBase() != "https://api.pay.jp/v1" {
 		t.Errorf(`ApiBase should be "https://api.pay.jp/v1", but "%s"`, service2.APIBase())
@@ -61,35 +64,48 @@ func TestNewClientWithOptions(t *testing.T) {
 	}
 }
 
+func TestRetryConfigLogging(t *testing.T) {
+	var buf bytes.Buffer
+	prefix := "TestRetryConfigLoggin_"
+	logger := log.New(&buf, prefix, log.Ldate)
+	config := RetryConfig{0, 2, 32, logger}
+	msg := "this-is-log-message"
+	config.Logger.Printf(msg)
+	result := buf.String()
+	if !strings.Contains(result, msg) {
+		t.Errorf("Failed to log")
+	}
+}
+
 func TestGetRetryDelay(t *testing.T) {
-  config := RetryConfig { 0, 2, 32 }
-  first := config.getRetryDelay(0)
-  if !(first >= 1.0 && first <= 2.0) {
-    t.Errorf("first: Not allowed delay value %f", first)
-    return
-  }
-  second := config.getRetryDelay(1)
-  if !(second >= 2.0 && second <= 4.0) {
-    t.Errorf("second: Not allowed delay value %f", second)
-    return
-  }
-  third := config.getRetryDelay(2)
-  if !(third >= 4.0 && third <= 8.0) {
-    t.Errorf("third: Not allowed delay value %f", third)
-    return
-  }
+	config := RetryConfig{0, 2, 32, nil}
+	first := config.getRetryDelay(0)
+	if !(first >= 1.0 && first <= 2.0) {
+		t.Errorf("first: Not allowed delay value %f", first)
+		return
+	}
+	second := config.getRetryDelay(1)
+	if !(second >= 2.0 && second <= 4.0) {
+		t.Errorf("second: Not allowed delay value %f", second)
+		return
+	}
+	third := config.getRetryDelay(2)
+	if !(third >= 4.0 && third <= 8.0) {
+		t.Errorf("third: Not allowed delay value %f", third)
+		return
+	}
 
-  upperLimit := config.getRetryDelay(4)
-  if !(upperLimit >= 16.0 && upperLimit <= 32.0) {
-    t.Errorf("upperLimit: Not allowed delay value %f", upperLimit)
-    return
-  }
+	upperLimit := config.getRetryDelay(4)
+	if !(upperLimit >= 16.0 && upperLimit <= 32.0) {
+		t.Errorf("upperLimit: Not allowed delay value %f", upperLimit)
+		return
+	}
 
-  overLimit := config.getRetryDelay(10)
-  if !(overLimit >= 16.0 && overLimit <= 32.0) {
-    t.Errorf("overLimit: Not allowed delay value %f", overLimit)
-    return
-  }
+	overLimit := config.getRetryDelay(10)
+	if !(overLimit >= 16.0 && overLimit <= 32.0) {
+		t.Errorf("overLimit: Not allowed delay value %f", overLimit)
+		return
+	}
 }
 
 var rateLimitResponseBody = []byte(`{
@@ -102,13 +118,13 @@ var rateLimitResponseBody = []byte(`{
 }`)
 
 func TestAttempRequestReachedRateLimit(t *testing.T) {
-  // レートリミットに到達したリクエストを想定したテスト
-  client, _ := NewMockClient(rateLimitStatusCode, rateLimitResponseBody)
-  noRetry := RetryConfig{0, 2, 32}  // リトライなしであることを明示
-  s := New("sk_test_xxxx", client, OptionRetryConfig(noRetry))
-  req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", newRequestBuilder())
-  resp, _ := s.attemptRequest(req)
-  if resp.StatusCode != rateLimitStatusCode {
-    t.Error("Expected 429")
-  }
+	// レートリミットに到達したリクエストを想定したテスト
+	client, _ := NewMockClient(rateLimitStatusCode, rateLimitResponseBody)
+	noRetry := RetryConfig{0, 2, 32, nil} // リトライなしであることを明示
+	s := New("sk_test_xxxx", client, OptionRetryConfig(noRetry))
+	req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", newRequestBuilder())
+	resp, _ := s.attemptRequest(req)
+	if resp.StatusCode != rateLimitStatusCode {
+		t.Error("Expected 429")
+	}
 }
