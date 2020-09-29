@@ -60,3 +60,35 @@ func TestNewClientWithOptions(t *testing.T) {
 		t.Errorf(`RetryConfig should be %v, but %v`, retryConfig2, service2.RetryConfig())
 	}
 }
+
+func TestGetRetryDelay(t *testing.T) {
+  config := RetryConfig { 0, 2, 32 }
+  first := config.getRetryDelay(0)
+  if !(first >= 1.0 && first <= 2.0) {
+    t.Errorf("first: Not allowed delay value %f", first)
+    return
+  }
+  second := config.getRetryDelay(1)
+  if !(second >= 2.0 && second <= 4.0) {
+    t.Errorf("second: Not allowed delay value %f", second)
+    return
+  }
+  third := config.getRetryDelay(2)
+  if !(third >= 4.0 && third <= 8.0) {
+    t.Errorf("third: Not allowed delay value %f", third)
+    return
+  }
+
+  upperLimit := config.getRetryDelay(4)
+  if !(upperLimit >= 16.0 && upperLimit <= 32.0) {
+    t.Errorf("upperLimit: Not allowed delay value %f", upperLimit)
+    return
+  }
+
+  overLimit := config.getRetryDelay(10)
+  if !(overLimit >= 16.0 && overLimit <= 32.0) {
+    t.Errorf("overLimit: Not allowed delay value %f", overLimit)
+    return
+  }
+
+}
