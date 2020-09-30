@@ -68,9 +68,7 @@ func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
 	}
 	qb.AddMetadata(customer.Metadata)
 
-	header := make(HeaderMap)
-	header["Content-Type"] = "application/x-www-form-urlencoded"
-	body, err := respToBody(c.service.postRequest(c.service.apiBase+"/customers", header, qb))
+	body, err := respToBody(c.service.formUrlEncodedPostRequest(c.service.apiBase+"/customers", make(HeaderMap), qb))
 	if err != nil {
 		return nil, err
 	}
@@ -114,9 +112,7 @@ func (c CustomerService) update(id string, customer Customer) ([]byte, error) {
 		qb.AddCard(customer.Card)
 	}
 	qb.AddMetadata(customer.Metadata)
-	header := make(HeaderMap)
-	header["Content-Type"] = "application/x-www-form-urlencoded"
-	return parseResponseError(c.service.postRequest(c.service.apiBase+"/customers/"+id, header, qb))
+	return parseResponseError(c.service.formUrlEncodedPostRequest(c.service.apiBase+"/customers/"+id, make(HeaderMap), qb))
 }
 
 // Delete は生成した顧客情報を削除します。削除した顧客情報は、もう一度生成することができないためご注意ください。
@@ -135,9 +131,7 @@ func (c CustomerService) List() *CustomerListCaller {
 func (c CustomerService) AddCardToken(customerID, token string) (*CardResponse, error) {
 	qb := newRequestBuilder()
 	qb.Add("card", token)
-	header := make(HeaderMap)
-	header["Content-Type"] = "application/x-www-form-urlencoded"
-	body, err := respToBody(c.service.postRequest(c.service.apiBase+"/customers/"+customerID+"/cards", header, qb))
+	body, err := respToBody(c.service.formUrlEncodedPostRequest(c.service.apiBase+"/customers/"+customerID+"/cards", make(HeaderMap), qb))
 	if err != nil {
 		return nil, err
 	}
@@ -148,9 +142,7 @@ func (c CustomerService) postCard(customerID, resourcePath string, card Card, re
 	qb := newRequestBuilder()
 	qb.AddCard(card)
 
-	header := make(HeaderMap)
-	header["Content-Type"] = "application/x-www-form-urlencoded"
-	body, err := respToBody(c.service.postRequest(c.service.apiBase+"/customers/"+customerID+"/cards"+resourcePath, header, qb))
+	body, err := respToBody(c.service.formUrlEncodedPostRequest(c.service.apiBase+"/customers/"+customerID+"/cards"+resourcePath, make(HeaderMap), qb))
 	if err != nil {
 		return nil, err
 	}

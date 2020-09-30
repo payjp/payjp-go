@@ -80,9 +80,7 @@ func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
 		qb.Add("billing_day", strconv.Itoa(plan.BillingDay))
 	}
 	qb.AddMetadata(plan.Metadata)
-	header := make(HeaderMap)
-	header["Content-Type"] = "application/x-www-form-urlencoded"
-	body, err := respToBody(p.service.postRequest(p.service.apiBase+"/plans", header, qb))
+	body, err := respToBody(p.service.formUrlEncodedPostRequest(p.service.apiBase+"/plans", make(HeaderMap), qb))
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +108,7 @@ func parsePlan(service *Service, body []byte, result *PlanResponse) (*PlanRespon
 func (p PlanService) update(id, name string) ([]byte, error) {
 	qb := newRequestBuilder()
 	qb.Add("name", name)
-	header := make(HeaderMap)
-	header["Content-Type"] = "application/x-www-form-urlencoded"
-	return parseResponseError(p.service.postRequest(p.service.apiBase+"/plans/"+id, header, qb))
+	return parseResponseError(p.service.formUrlEncodedPostRequest(p.service.apiBase+"/plans/"+id, make(HeaderMap), qb))
 }
 
 // Update はプラン情報を更新します。
