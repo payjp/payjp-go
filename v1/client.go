@@ -163,17 +163,17 @@ func (s Service) attemptRequest(request *http.Request) (res *http.Response, err 
 	// レートリミット時、必要に応じてリトライを試行するリクエストのラッパー
 	res, err = s.doRequest(request)
 	for currentRetryCount := 0; currentRetryCount < s.retryConfig.MaxCount; currentRetryCount++ {
-		delay := s.retryConfig.getRetryDelay(currentRetryCount)
-		delaySec := time.Duration(delay*1000) * time.Millisecond
-		if logger != nil {
-			logger.Printf("Retry after %v seconds", delaySec)
-		}
-		time.Sleep(delaySec)
-		res, err = s.doRequest(request)
 		if res.StatusCode != rateLimitStatusCode {
 			// レートリミット制限ではないのでこれ以上のリトライは不要
 			break
 		}
+		delay := s.retryConfig.getRetryDelay(currentRetryCount)
+		delaySec := time.Duration(delay*1000) * time.Millisecond
+		if logger != nil {
+			logger.Printf("Current Retry Count: %d. Retry after %v seconds", currentRetryCount+1, delaySec)
+		}
+		time.Sleep(delaySec)
+		res, err = s.doRequest(request)
 	}
 	return res, err
 }

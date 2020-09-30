@@ -2,6 +2,7 @@ package payjp
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -108,15 +109,6 @@ func TestGetRetryDelay(t *testing.T) {
 	}
 }
 
-var rateLimitResponseBody = []byte(`{
-  "error": {
-    "code": "over_capacity",
-    "message": "The service is over capacity. Please try again later.",
-    "status": 429,
-    "type": "client_error"
-  }
-}`)
-
 func TestAttemptRequestWithoutRetrySetting(t *testing.T) {
 	// リトライなし設定におけるリクエスト試行をテスト
 	// RetryConfig.Logger によるログ記録がないことで処理完了を検証
@@ -134,5 +126,45 @@ func TestAttemptRequestWithoutRetrySetting(t *testing.T) {
 	}
 	if resp.StatusCode != statusCode {
 		t.Error("Expected 429")
+	}
+}
+
+var rateLimitResponseBody = []byte(`{
+  "error": {
+    "code": "over_capacity",
+    "message": "The service is over capacity. Please try again later.",
+    "status": 429,
+    "type": "client_error"
+  }
+}`)
+
+func TestAttemptRequestReachedRateLimit(t *testing.T) {
+	// レートリミット上限に到達する場合のテスト
+	client, transport := NewMockClient(rateLimitStatusCode, rateLimitResponseBody)
+	var buf bytes.Buffer
+	logger := log.New(&buf, "TestAttemptRequestReachedRateLimit_", log.Ldate)
+	retryConfig := RetryConfig{2, 0.1, 10, logger}
+	s := New("sk_test_xxxx", client, OptionRetryConfig(retryConfig))
+	transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
+	req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", newRequestBuilder())
+	resp, err := s.attemptRequest(req)
+	if err != nil {
+		t.Error("Expected normal response")
+		return
+	}
+	if resp.StatusCode != rateLimitStatusCode {
+		t.Error("Expected reached the rate limit")
+		return
+	}
+	logResults := strings.Split(strings.Trim(buf.String(), "\n"), "\n")
+	if len(logResults) != retryConfig.MaxCount {
+		t.Error("Expected logging retry statuses")
+		return
+	}
+	for i := 0; i < len(logResults); i++ {
+		if !strings.Contains(logResults[i], fmt.Sprintf("Retry Count: %d", i+1)) {
+			t.Error("Failed to log retry count correctly")
+			return
+		}
 	}
 }
