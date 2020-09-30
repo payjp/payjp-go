@@ -117,7 +117,7 @@ var rateLimitResponseBody = []byte(`{
   }
 }`)
 
-func TestAttemptRequestWithoutRetry(t *testing.T) {
+func TestAttemptRequestWithoutRetrySetting(t *testing.T) {
 	// リトライなし設定におけるリクエスト試行をテスト
 	// RetryConfig.Logger によるログ記録がないことで処理完了を検証
 	var body []byte
