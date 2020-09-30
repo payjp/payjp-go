@@ -119,11 +119,17 @@ var rateLimitResponseBody = []byte(`{
 
 func TestAttempRequestReachedRateLimit(t *testing.T) {
 	// レートリミットに到達したリクエストを想定したテスト
+	// リトライなしとし、RetryConfig.Logger によるログ記録がないことで処理完了を検証
 	client, _ := NewMockClient(rateLimitStatusCode, rateLimitResponseBody)
-	noRetry := RetryConfig{0, 2, 32, nil} // リトライなしであることを明示
+	var buf bytes.Buffer
+	logger := log.New(&buf, "pre", log.Ldate)
+	noRetry := RetryConfig{0, 2, 32, logger} // リトライなしであることを明示
 	s := New("sk_test_xxxx", client, OptionRetryConfig(noRetry))
 	req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", newRequestBuilder())
 	resp, _ := s.attemptRequest(req)
+	if buf.Len() != 0 {
+		t.Error("Unexpected logging fired")
+	}
 	if resp.StatusCode != rateLimitStatusCode {
 		t.Error("Expected 429")
 	}
