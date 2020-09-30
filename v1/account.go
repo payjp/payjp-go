@@ -2,8 +2,6 @@ package payjp
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"net/http"
 	"time"
 )
 
@@ -18,18 +16,7 @@ func newAccountService(service *Service) *AccountService {
 
 // Retrieve account object. あなたのアカウント情報を取得します。
 func (t *AccountService) Retrieve() (*AccountResponse, error) {
-	request, err := http.NewRequest("GET", t.service.apiBase+"/accounts", nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", t.service.apiKey)
-
-	resp, err := t.service.Client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := t.service.getRequest(t.service.apiBase+"/accounts", make(HeaderMap), nil)
 	result := &AccountResponse{}
 	err = json.Unmarshal(body, result)
 	if err != nil {
