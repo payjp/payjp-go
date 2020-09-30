@@ -22,15 +22,15 @@ func newChargeService(service *Service) *ChargeService {
 
 // Charge 構造体はCharge.Createのパラメータを設定するのに使用します
 type Charge struct {
-	Currency    string            // 必須: 3文字のISOコード(現状 “jpy” のみサポート)
-	CustomerID  string            // 顧客ID (CardかCustomerのどちらかは必須パラメータ)
-	Card        Card              // カードオブジェクト(cardかcustomerのどちらかは必須)
-	CardToken   string            // トークンID (CardかCustomerのどちらかは必須パラメータ)
-	CustomerCardID	string        // 顧客のカードID
-	Capture     bool              // 支払い処理を確定するかどうか (falseの場合、カードの認証と支払い額の確保のみ行う)
-	Description string            // 	概要
-	ExpireDays  interface{}       // デフォルトで7日となっており、1日~60日の間で設定が可能
-	Metadata    map[string]string // メタデータ
+	Currency       string            // 必須: 3文字のISOコード(現状 “jpy” のみサポート)
+	CustomerID     string            // 顧客ID (CardかCustomerのどちらかは必須パラメータ)
+	Card           Card              // カードオブジェクト(cardかcustomerのどちらかは必須)
+	CardToken      string            // トークンID (CardかCustomerのどちらかは必須パラメータ)
+	CustomerCardID string            // 顧客のカードID
+	Capture        bool              // 支払い処理を確定するかどうか (falseの場合、カードの認証と支払い額の確保のみ行う)
+	Description    string            // 	概要
+	ExpireDays     interface{}       // デフォルトで7日となっており、1日~60日の間で設定が可能
+	Metadata       map[string]string // メタデータ
 }
 
 // Create はトークンID、カードを保有している顧客ID、カードオブジェクトのいずれかのパラメーターを指定して支払いを作成します。
@@ -90,14 +90,9 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 	qb.Add("expiry_days", charge.ExpireDays)
 	qb.AddMetadata(charge.Metadata)
 
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	body, err := respToBody(c.service.Client.Do(request))
+	header := make(HeaderMap)
+	header["Content-Type"] = "application/x-www-form-urlencoded"
+	body, err := c.service.postRequest(c.service.apiBase+"/charges", header, qb)
 	if err != nil {
 		return nil, err
 	}
@@ -169,8 +164,6 @@ func (c ChargeService) Refund(chargeID, reason string, amount ...int) (*ChargeRe
 	}
 	return parseCharge(c.service, body, &ChargeResponse{})
 }
-
-
 
 func (c ChargeService) capture(chargeID string, amount []int) ([]byte, error) {
 	qb := newRequestBuilder()
