@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+type HeaderMap = map[string]string
 type RetryConfig struct {
 	MaxCount     int
 	InitialDelay float64     // sec
@@ -139,12 +140,22 @@ func (m HttpMethod) String() string {
 	}
 }
 
-func (s Service) buildRequest(method HttpMethod, url string, requestBuilder *requestBuilder) (*http.Request, error) {
+func (s Service) buildRequest(
+	method HttpMethod,
+	url string,
+	headers HeaderMap,
+	requestBuilder *requestBuilder,
+) (*http.Request, error) {
 	req, err := http.NewRequest(method.String(), url, requestBuilder.Reader())
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Authorization", s.apiKey)
+	if headers != nil {
+		for k, v := range headers {
+			req.Header.Add(k, v)
+		}
+	}
 	return req, nil
 }
 
@@ -178,25 +189,30 @@ func (s Service) attemptRequest(request *http.Request) (res *http.Response, err 
 	return res, err
 }
 
-func (s Service) request(method HttpMethod, url string, requestBuilder *requestBuilder) ([]byte, error) {
+func (s Service) request(
+	method HttpMethod,
+	url string,
+	headers HeaderMap,
+	requestBuilder *requestBuilder,
+) ([]byte, error) {
 	// レスポンスのデコードを含めたHTTPリクエストを行う
-	req, err := s.buildRequest(method, url, requestBuilder)
+	req, err := s.buildRequest(method, url, headers, requestBuilder)
 	if err != nil {
 		return nil, err
 	}
 	return respToBody(s.attemptRequest(req))
 }
 
-func (s Service) postRequest(url string, requestBuilder *requestBuilder) ([]byte, error) {
-	return s.request(POST, url, requestBuilder)
+func (s Service) postRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) ([]byte, error) {
+	return s.request(POST, url, headers, requestBuilder)
 }
 
-func (s Service) getRequest(url string, requestBuilder *requestBuilder) ([]byte, error) {
-	return s.request(GET, url, requestBuilder)
+func (s Service) getRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) ([]byte, error) {
+	return s.request(GET, url, headers, requestBuilder)
 }
 
-func (s Service) deleteRequest(url string, requestBuilder *requestBuilder) ([]byte, error) {
-	return s.request(DELETE, url, requestBuilder)
+func (s Service) deleteRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) ([]byte, error) {
+	return s.request(DELETE, url, headers, requestBuilder)
 }
 
 func (s Service) retrieve(resourceURL string) ([]byte, error) {

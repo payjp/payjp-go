@@ -119,7 +119,7 @@ func TestAttemptRequestWithoutRetrySetting(t *testing.T) {
 	logger := log.New(&buf, "pre", log.Ldate)
 	noRetry := RetryConfig{0, 2, 32, logger} // リトライなしであることを明示
 	s := New("sk_test_xxxx", client, OptionRetryConfig(noRetry))
-	req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", newRequestBuilder())
+	req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", make(HeaderMap), newRequestBuilder())
 	resp, _ := s.attemptRequest(req)
 	if buf.Len() != 0 {
 		t.Error("Unexpected logging fired")
@@ -146,7 +146,7 @@ func TestAttemptRequestReachedRetryLimit(t *testing.T) {
 	retryConfig := RetryConfig{2, 0.1, 10, logger}
 	s := New("sk_test_xxxx", client, OptionRetryConfig(retryConfig))
 	transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
-	req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", newRequestBuilder())
+	req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", make(HeaderMap), newRequestBuilder())
 	resp, err := s.attemptRequest(req)
 	if err != nil {
 		t.Error("Expected normal response")
@@ -179,7 +179,7 @@ func TestAttemptRequestNotReachedRetryLimit(t *testing.T) {
 	notRateLimitStatusCode := 200
 	transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
 	transport.AddResponse(notRateLimitStatusCode, []byte(``))
-	req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", newRequestBuilder())
+	req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", make(HeaderMap), newRequestBuilder())
 	resp, err := s.attemptRequest(req)
 	if err != nil {
 		t.Error("Expected normal response")
