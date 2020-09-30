@@ -3,7 +3,6 @@ package payjp
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -141,13 +140,7 @@ func (c ChargeService) refund(id string, reason string, amount []int) ([]byte, e
 		qb.Add("amount", amount[0])
 	}
 	qb.Add("refund_reason", reason)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+id+"/refund", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	return parseResponseError(c.service.Client.Do(request))
+	return parseResponseError(c.service.postRequest(c.service.apiBase+"/charges/"+id+"/refund", make(HeaderMap), qb))
 }
 
 // Refund は支払い済みとなった処理を返金します。
@@ -165,13 +158,7 @@ func (c ChargeService) capture(chargeID string, amount []int) ([]byte, error) {
 	if len(amount) > 0 {
 		qb.Add("amount", amount[0])
 	}
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID+"/capture", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	return parseResponseError(c.service.Client.Do(request))
+	return parseResponseError(c.service.postRequest(c.service.apiBase+"/charges/"+chargeID+"/capture", make(HeaderMap), qb))
 }
 
 // Capture は認証状態となった処理待ちの支払い処理を確定させます。具体的には Captured="false" となった支払いが該当します。
