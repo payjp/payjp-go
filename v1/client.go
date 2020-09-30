@@ -216,23 +216,11 @@ func (s Service) deleteRequest(url string, headers HeaderMap, requestBuilder *re
 }
 
 func (s Service) retrieve(resourceURL string) ([]byte, error) {
-	request, err := http.NewRequest("GET", s.apiBase+resourceURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", s.apiKey)
-
-	return respToBody(s.Client.Do(request))
+	return respToBody(s.getRequest(s.apiBase+resourceURL, make(HeaderMap), nil))
 }
 
 func (s Service) delete(resourceURL string) error {
-	request, err := http.NewRequest("DELETE", s.apiBase+resourceURL, nil)
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Authorization", s.apiKey)
-
-	_, err = parseResponseError(s.Client.Do(request))
+	_, err := parseResponseError(s.deleteRequest(s.apiBase+resourceURL, make(HeaderMap), nil))
 	return err
 }
 
@@ -271,11 +259,5 @@ func (s Service) queryList(resourcePath string, limit, offset, since, until int,
 	} else {
 		requestURL = s.apiBase + resourcePath
 	}
-	request, err := http.NewRequest("GET", requestURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", s.apiKey)
-
-	return respToBody(s.Client.Do(request))
+	return respToBody(s.getRequest(requestURL, make(HeaderMap), nil))
 }
