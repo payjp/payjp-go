@@ -110,7 +110,7 @@ func (c ChargeService) Retrieve(chargeID string) (*ChargeResponse, error) {
 
 func (c ChargeService) update(chargeID, description string, metadata map[string]string) ([]byte, error) {
 	qb := newRequestBuilder()
-	qb.Add("name", description)
+	qb.Add("description", description)
 	qb.AddMetadata(metadata)
 	header := make(HeaderMap)
 	header["Content-Type"] = "application/x-www-form-urlencoded"
