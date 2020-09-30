@@ -194,24 +194,24 @@ func (s Service) request(
 	url string,
 	headers HeaderMap,
 	requestBuilder *requestBuilder,
-) ([]byte, error) {
+) (*http.Response, error) {
 	// レスポンスのデコードを含めたHTTPリクエストを行う
 	req, err := s.buildRequest(method, url, headers, requestBuilder)
 	if err != nil {
 		return nil, err
 	}
-	return respToBody(s.attemptRequest(req))
+	return s.attemptRequest(req)
 }
 
-func (s Service) postRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) ([]byte, error) {
+func (s Service) postRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Response, error) {
 	return s.request(POST, url, headers, requestBuilder)
 }
 
-func (s Service) getRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) ([]byte, error) {
+func (s Service) getRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Response, error) {
 	return s.request(GET, url, headers, requestBuilder)
 }
 
-func (s Service) deleteRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) ([]byte, error) {
+func (s Service) deleteRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Response, error) {
 	return s.request(DELETE, url, headers, requestBuilder)
 }
 
