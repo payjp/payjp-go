@@ -3,6 +3,7 @@ package payjp
 import (
 	"encoding/base64"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -140,13 +141,12 @@ func (m HttpMethod) String() string {
 	}
 }
 
-func (s Service) buildRequest(
-	method HttpMethod,
-	url string,
-	headers HeaderMap,
-	requestBuilder *requestBuilder,
-) (*http.Request, error) {
-	req, err := http.NewRequest(method.String(), url, requestBuilder.Reader())
+func (s Service) buildRequest(method HttpMethod, url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Request, error) {
+	var payload io.Reader = nil
+	if requestBuilder != nil {
+		payload = requestBuilder.Reader()
+	}
+	req, err := http.NewRequest(method.String(), url, payload)
 	if err != nil {
 		return nil, err
 	}
