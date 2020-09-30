@@ -1,8 +1,8 @@
 package payjp
 
 import (
+  "fmt"
 	"bytes"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -138,33 +138,60 @@ var rateLimitResponseBody = []byte(`{
   }
 }`)
 
-func TestAttemptRequestReachedRateLimit(t *testing.T) {
-	// レートリミット上限に到達する場合のテスト
-	client, transport := NewMockClient(rateLimitStatusCode, rateLimitResponseBody)
-	var buf bytes.Buffer
-	logger := log.New(&buf, "TestAttemptRequestReachedRateLimit_", log.Ldate)
-	retryConfig := RetryConfig{2, 0.1, 10, logger}
-	s := New("sk_test_xxxx", client, OptionRetryConfig(retryConfig))
-	transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
+func TestAttemptRequestReachedRetryLimit(t *testing.T) {
+  // リトライ回数上限に到達する場合のテスト
+  client, transport := NewMockClient(rateLimitStatusCode, rateLimitResponseBody)
+  var buf bytes.Buffer
+  logger := log.New(&buf, "TestAttemptRequestReachedRateLimit_", log.Ldate)
+  retryConfig := RetryConfig { 2, 0.1, 10, logger}
+  s := New("sk_test_xxxx", client, OptionRetryConfig(retryConfig))
+  transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
 	req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", newRequestBuilder())
-	resp, err := s.attemptRequest(req)
-	if err != nil {
-		t.Error("Expected normal response")
-		return
-	}
-	if resp.StatusCode != rateLimitStatusCode {
-		t.Error("Expected reached the rate limit")
-		return
-	}
-	logResults := strings.Split(strings.Trim(buf.String(), "\n"), "\n")
-	if len(logResults) != retryConfig.MaxCount {
-		t.Error("Expected logging retry statuses")
-		return
-	}
-	for i := 0; i < len(logResults); i++ {
-		if !strings.Contains(logResults[i], fmt.Sprintf("Retry Count: %d", i+1)) {
-			t.Error("Failed to log retry count correctly")
-			return
-		}
-	}
+  resp, err := s.attemptRequest(req)
+  if err != nil {
+    t.Error("Expected normal response")
+    return
+  }
+  if resp.StatusCode != rateLimitStatusCode {
+    t.Error("Expected reached the rate limit")
+    return
+  }
+  logResults := strings.Split(strings.Trim(buf.String(), "\n"), "\n")
+  if len(logResults) != retryConfig.MaxCount {
+    t.Error("Expected logging retry statuses")
+    return
+  }
+  for i := 0; i < len(logResults); i++ {
+    if !strings.Contains(logResults[i], fmt.Sprintf("Retry Count: %d", i+1)) {
+      t.Error("Failed to log retry count correctly")
+      return
+    }
+  }
+}
+
+func TestAttemptRequestNotReachedRetryLimit(t *testing.T) {
+  // リトライ回数上限到達前にリクエストを完了する場合のテスト
+  client, transport := NewMockClient(rateLimitStatusCode, rateLimitResponseBody)
+  var buf bytes.Buffer
+  logger := log.New(&buf, "TestAttemptRequestNotReachedRetryLimit", log.Ldate)
+  retryConfig := RetryConfig { 3, 0.1, 10, logger }
+  s := New("sk_test_xxx", client, OptionRetryConfig(retryConfig))
+  notRateLimitStatusCode := 200
+  transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
+  transport.AddResponse(notRateLimitStatusCode, []byte(``))
+  req, _ := s.buildRequest(POST, "https://te.st/somewhere/endpoint", newRequestBuilder())
+  resp, err := s.attemptRequest(req)
+  if err != nil {
+    t.Error("Expected normal response")
+    return
+  }
+  if resp.StatusCode != notRateLimitStatusCode {
+    t.Errorf("Expected not rate limit status code(%d), but %d", notRateLimitStatusCode, resp.StatusCode)
+    return
+  }
+  logResults := strings.Split(strings.Trim(buf.String(), "\n"), "\n")
+  if len(logResults) != 2 {
+    t.Error("Incorrect retry logging")
+    return
+  }
 }
