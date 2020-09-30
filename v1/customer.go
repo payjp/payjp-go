@@ -2,7 +2,6 @@ package payjp
 
 import (
 	"encoding/json"
-	"net/http"
 	"time"
 )
 
@@ -69,14 +68,9 @@ func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
 	}
 	qb.AddMetadata(customer.Metadata)
 
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	body, err := respToBody(c.service.Client.Do(request))
+	header := make(HeaderMap)
+	header["Content-Type"] = "application/x-www-form-urlencoded"
+	body, err := respToBody(c.service.postRequest(c.service.apiBase+"/customers", header, qb))
 	if err != nil {
 		return nil, err
 	}
@@ -120,14 +114,9 @@ func (c CustomerService) update(id string, customer Customer) ([]byte, error) {
 		qb.AddCard(customer.Card)
 	}
 	qb.AddMetadata(customer.Metadata)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+id, qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	return parseResponseError(c.service.Client.Do(request))
+	header := make(HeaderMap)
+	header["Content-Type"] = "application/x-www-form-urlencoded"
+	return parseResponseError(c.service.postRequest(c.service.apiBase+"/customers/"+id, header, qb))
 }
 
 // Delete は生成した顧客情報を削除します。削除した顧客情報は、もう一度生成することができないためご注意ください。
@@ -146,15 +135,9 @@ func (c CustomerService) List() *CustomerListCaller {
 func (c CustomerService) AddCardToken(customerID, token string) (*CardResponse, error) {
 	qb := newRequestBuilder()
 	qb.Add("card", token)
-
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+customerID+"/cards", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	body, err := respToBody(c.service.Client.Do(request))
+	header := make(HeaderMap)
+	header["Content-Type"] = "application/x-www-form-urlencoded"
+	body, err := respToBody(c.service.postRequest(c.service.apiBase+"/customers/"+customerID+"/cards", header, qb))
 	if err != nil {
 		return nil, err
 	}
@@ -165,14 +148,9 @@ func (c CustomerService) postCard(customerID, resourcePath string, card Card, re
 	qb := newRequestBuilder()
 	qb.AddCard(card)
 
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+customerID+"/cards"+resourcePath, qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	body, err := respToBody(c.service.Client.Do(request))
+	header := make(HeaderMap)
+	header["Content-Type"] = "application/x-www-form-urlencoded"
+	body, err := respToBody(c.service.postRequest(c.service.apiBase+"/customers/"+customerID+"/cards"+resourcePath, header, qb))
 	if err != nil {
 		return nil, err
 	}
