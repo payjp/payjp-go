@@ -92,7 +92,7 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 
 	header := make(HeaderMap)
 	header["Content-Type"] = "application/x-www-form-urlencoded"
-	body, err := c.service.postRequest(c.service.apiBase+"/charges", header, qb)
+	body, err := respToBody(c.service.postRequest(c.service.apiBase+"/charges", header, qb))
 	if err != nil {
 		return nil, err
 	}
@@ -113,14 +113,9 @@ func (c ChargeService) update(chargeID, description string, metadata map[string]
 	qb := newRequestBuilder()
 	qb.Add("name", description)
 	qb.AddMetadata(metadata)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID, qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	return parseResponseError(c.service.Client.Do(request))
+	header := make(HeaderMap)
+	header["Content-Type"] = "application/x-www-form-urlencoded"
+	return parseResponseError(c.service.postRequest(c.service.apiBase+"/charges/"+chargeID, header, qb))
 }
 
 // Update は支払い情報のDescriptionを更新します。

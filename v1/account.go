@@ -16,7 +16,7 @@ func newAccountService(service *Service) *AccountService {
 
 // Retrieve account object. あなたのアカウント情報を取得します。
 func (t *AccountService) Retrieve() (*AccountResponse, error) {
-	body, err := t.service.getRequest(t.service.apiBase+"/accounts", make(HeaderMap), nil)
+	body, err := respToBody(t.service.getRequest(t.service.apiBase+"/accounts", make(HeaderMap), nil))
 	result := &AccountResponse{}
 	err = json.Unmarshal(body, result)
 	if err != nil {
