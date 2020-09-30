@@ -3,7 +3,6 @@ package payjp
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -81,14 +80,9 @@ func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
 		qb.Add("billing_day", strconv.Itoa(plan.BillingDay))
 	}
 	qb.AddMetadata(plan.Metadata)
-	request, err := http.NewRequest("POST", p.service.apiBase+"/plans", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", p.service.apiKey)
-
-	body, err := respToBody(p.service.Client.Do(request))
+	header := make(HeaderMap)
+	header["Content-Type"] = "application/x-www-form-urlencoded"
+	body, err := respToBody(p.service.postRequest(p.service.apiBase+"/plans", header, qb))
 	if err != nil {
 		return nil, err
 	}
@@ -116,14 +110,9 @@ func parsePlan(service *Service, body []byte, result *PlanResponse) (*PlanRespon
 func (p PlanService) update(id, name string) ([]byte, error) {
 	qb := newRequestBuilder()
 	qb.Add("name", name)
-	request, err := http.NewRequest("POST", p.service.apiBase+"/plans/"+id, qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", p.service.apiKey)
-
-	return parseResponseError(p.service.Client.Do(request))
+	header := make(HeaderMap)
+	header["Content-Type"] = "application/x-www-form-urlencoded"
+	return parseResponseError(p.service.postRequest(p.service.apiBase+"/plans/"+id, header, qb))
 }
 
 // Update はプラン情報を更新します。

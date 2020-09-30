@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -57,12 +56,12 @@ func newSubscriptionService(service *Service) *SubscriptionService {
 
 // Subscription はSubscribeやUpdateの引数を設定するのに使用する構造体です。
 type Subscription struct {
-	TrialEndAt time.Time         // トライアルの終了時期
-	SkipTrial  interface{}       // トライアルをしない(bool)
-	PlanID     interface{}       // プランID(string)
-	NextCyclePlanID interface{}  // 次サイクルから適用するプランID(string, 更新時のみ設定可能)
-	Prorate    interface{}       // 日割り課金をするかどうか(bool)
-	Metadata   map[string]string // メタデータ
+	TrialEndAt      time.Time         // トライアルの終了時期
+	SkipTrial       interface{}       // トライアルをしない(bool)
+	PlanID          interface{}       // プランID(string)
+	NextCyclePlanID interface{}       // 次サイクルから適用するプランID(string, 更新時のみ設定可能)
+	Prorate         interface{}       // 日割り課金をするかどうか(bool)
+	Metadata        map[string]string // メタデータ
 }
 
 // Subscribe は顧客IDとプランIDを指定して、定期課金を開始することができます。
@@ -95,14 +94,7 @@ func (s SubscriptionService) Subscribe(customerID string, subscription Subscript
 	}
 	qb.Add("prorate", subscription.Prorate)
 	qb.AddMetadata(subscription.Metadata)
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", s.service.apiKey)
-
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := respToBody(s.service.formUrlEncodedPostRequest(s.service.apiBase+"/subscriptions", make(HeaderMap), qb))
 	if err != nil {
 		return nil, err
 	}
@@ -133,13 +125,7 @@ func (s SubscriptionService) update(subscriptionID string, subscription Subscrip
 		qb.Add("trial_end", "now")
 	}
 	qb.Add("prorate", subscription.Prorate)
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID, qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", s.service.apiKey)
-	return parseResponseError(s.service.Client.Do(request))
+	return parseResponseError(s.service.formUrlEncodedPostRequest(s.service.apiBase+"/subscriptions/"+subscriptionID, make(HeaderMap), qb))
 }
 
 // Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
@@ -163,12 +149,7 @@ func (s SubscriptionService) Update(subscriptionID string, subscription Subscrip
 //
 // 定期課金を停止させると、再開されるまで引き落とし処理は一切行われません。
 func (s SubscriptionService) Pause(subscriptionID string) (*SubscriptionResponse, error) {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/pause", nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := respToBody(s.service.postRequest(s.service.apiBase+"/subscriptions/"+subscriptionID+"/pause", make(HeaderMap), nil))
 	if err != nil {
 		return nil, err
 	}
@@ -195,13 +176,7 @@ func (s SubscriptionService) Resume(subscriptionID string, subscription Subscrip
 		qb.Add("trial_end", strconv.Itoa(int(subscription.TrialEndAt.Unix())))
 	}
 	qb.Add("prorate", subscription.Prorate)
-
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/resume", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := respToBody(s.service.postRequest(s.service.apiBase+"/subscriptions/"+subscriptionID+"/resume", make(HeaderMap), qb))
 	if err != nil {
 		return nil, err
 	}
@@ -214,12 +189,7 @@ func (s SubscriptionService) Resume(subscriptionID string, subscription Subscrip
 // キャンセルを取り消すことができます。終了日をむかえた定期課金は、
 // 自動的に削除されますのでご注意ください。
 func (s SubscriptionService) Cancel(subscriptionID string) (*SubscriptionResponse, error) {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/cancel", nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := respToBody(s.service.postRequest(s.service.apiBase+"/subscriptions/"+subscriptionID+"/cancel", make(HeaderMap), nil))
 	if err != nil {
 		return nil, err
 	}
@@ -229,12 +199,7 @@ func (s SubscriptionService) Cancel(subscriptionID string) (*SubscriptionRespons
 // Delete は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
 // 再び戻すことができません。
 func (s SubscriptionService) Delete(subscriptionID string) error {
-	request, err := http.NewRequest("DELETE", s.service.apiBase+"/subscriptions/"+subscriptionID, nil)
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	_, err = parseResponseError(s.service.Client.Do(request))
+	_, err := parseResponseError(s.service.deleteRequest(s.service.apiBase+"/subscriptions/"+subscriptionID, make(HeaderMap), nil))
 	return err
 }
 
@@ -311,12 +276,7 @@ func (s *SubscriptionResponse) Update(subscription Subscription) error {
 
 // Pause は引き落としの失敗やカードが不正である、また定期課金を停止したい場合はこのリクエストで定期購入を停止させます。
 func (s *SubscriptionResponse) Pause() error {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/pause", nil)
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := respToBody(s.service.postRequest(s.service.apiBase+"/subscriptions/"+s.ID+"/pause", make(HeaderMap), nil))
 	if err != nil {
 		return err
 	}
@@ -332,13 +292,7 @@ func (s *SubscriptionResponse) Resume(subscription Subscription) error {
 		qb.Add("trial_end", strconv.Itoa(int(subscription.TrialEndAt.Unix())))
 	}
 	qb.Add("prorate", subscription.Prorate)
-
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/resume", qb.Reader())
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := respToBody(s.service.postRequest(s.service.apiBase+"/subscriptions/"+s.ID+"/resume", make(HeaderMap), qb))
 	if err != nil {
 		return err
 	}
@@ -348,12 +302,7 @@ func (s *SubscriptionResponse) Resume(subscription Subscription) error {
 
 // Cancel は定期課金をキャンセルし、現在の周期の終了日をもって定期課金を終了させます。
 func (s *SubscriptionResponse) Cancel() error {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/cancel", nil)
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := respToBody(s.service.postRequest(s.service.apiBase+"/subscriptions/"+s.ID+"/cancel", make(HeaderMap), nil))
 	if err != nil {
 		return err
 	}
@@ -364,12 +313,7 @@ func (s *SubscriptionResponse) Cancel() error {
 // Delete は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
 // 再び戻すことができません。
 func (s *SubscriptionResponse) Delete() error {
-	request, err := http.NewRequest("DELETE", s.service.apiBase+"/subscriptions/"+s.ID, nil)
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	_, err = parseResponseError(s.service.Client.Do(request))
+	_, err := parseResponseError(s.service.deleteRequest(s.service.apiBase+"/subscriptions/"+s.ID, make(HeaderMap), nil))
 	return err
 }
 

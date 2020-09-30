@@ -207,6 +207,12 @@ func (s Service) postRequest(url string, headers HeaderMap, requestBuilder *requ
 	return s.request(POST, url, headers, requestBuilder)
 }
 
+func (s Service) formUrlEncodedPostRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Response, error) {
+	// ContentType に application/x-www-form-url-encoded を設定して POST リクエストする
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+	return s.postRequest(url, headers, requestBuilder)
+}
+
 func (s Service) getRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Response, error) {
 	return s.request(GET, url, headers, requestBuilder)
 }
