@@ -64,7 +64,9 @@ func (t TokenService) Create(card Card) (*TokenResponse, error) {
 	}
 	qb := newRequestBuilder()
 	qb.AddCard(card)
-	return parseToken(respToBody(t.service.formUrlEncodedPostRequest(t.service.apiBase+"/tokens", make(HeaderMap), qb)))
+  header := make(HeaderMap)
+  header["X-Payjp-Direct-Token-Generate"] = "true"  // テスト用途の場合にのみ設定するものです。
+	return parseToken(respToBody(t.service.formUrlEncodedPostRequest(t.service.apiBase+"/tokens", header, qb)))
 }
 
 // Retrieve token object. 特定のトークン情報を取得します。
