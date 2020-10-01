@@ -181,7 +181,7 @@ func (s Service) attemptRequest(request *http.Request) (res *http.Response, err 
 		delay := s.retryConfig.getRetryDelay(currentRetryCount)
 		delaySec := time.Duration(delay*1000) * time.Millisecond
 		if logger != nil {
-			logger.Printf("Current Retry Count: %d. Retry after %v seconds", currentRetryCount+1, delaySec)
+			logger.Printf("Current Retry Count: %d. Retry after %v", currentRetryCount+1, delaySec)
 		}
 		time.Sleep(delaySec)
 		res, err = s.doRequest(request)
