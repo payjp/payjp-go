@@ -70,7 +70,9 @@ var transferResponseJSON = []byte(`
     "charge_gross": 1000,
     "net": 1000,
     "refund_amount": 0,
-    "refund_count": 0
+    "refund_count": 0,
+    "dispute_amount": 0,
+    "dispute_count": 0
   },
   "term_end": 1439650800,
   "term_start": 1438354800,
@@ -143,7 +145,9 @@ var recombinationTransferResponseJSON = []byte(`
     "charge_gross": 1000,
     "net": 1000,
     "refund_amount": 0,
-    "refund_count": 0
+    "refund_count": 0,
+    "dispute_amount": 0,
+    "dispute_count": 0
   },
   "term_end": 1439650800,
   "term_start": 1438354800,
@@ -219,7 +223,9 @@ var transferListResponseJSON = []byte(`
         "charge_gross": 1000,
         "net": 1000,
         "refund_amount": 0,
-        "refund_count": 0
+        "refund_count": 0,
+        "dispute_amount": 0,
+        "dispute_count": 0
       },
       "term_end": 1439650800,
       "term_start": 1438354800,
