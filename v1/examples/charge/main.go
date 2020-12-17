@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/payjp/payjp-go/v1"
+	"v1/v1"
 )
 
 
