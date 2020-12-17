@@ -238,6 +238,8 @@ type TransferResponse struct {
 		Net          int // 差引額
 		RefundAmount int // 返金総額
 		RefundCount  int // 返金総数
+		DisputeAmount int // チャージバックにより相殺された金額の合計
+		DisputeCount  int // チャージバック対象となったchargeの個数
 	} // この入金に関する集計情報
 	Description    string    // 概要
 	TermStartAt    time.Time // 集計期間開始時のタイムスタンプ
@@ -267,6 +269,8 @@ type transferResponseParser struct {
 		Net          int `json:"net"`
 		RefundAmount int `json:"refund_amount"`
 		RefundCount  int `json:"refund_count"`
+		DisputeAmount int `json:"dispute_amount"`
+		DisputeCount  int `json:"dispute_count"`
 	} `json:"summary"`
 	TermEndEpoch   int    `json:"term_end"`
 	TermStartEpoch int    `json:"term_start"`
@@ -307,6 +311,8 @@ func (t *TransferResponse) UnmarshalJSON(b []byte) error {
 		t.Summary.Net = raw.Summary.Net
 		t.Summary.RefundAmount = raw.Summary.RefundAmount
 		t.Summary.RefundCount = raw.Summary.RefundCount
+		t.Summary.DisputeAmount = raw.Summary.DisputeAmount
+		t.Summary.DisputeCount = raw.Summary.DisputeCount
 		t.TermEndAt = time.Unix(int64(raw.TermEndEpoch), 0)
 		t.TermStartAt = time.Unix(int64(raw.TermStartEpoch), 0)
 		t.TransferAmount = raw.TransferAmount
