@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"v1/v1"
+	"payjp/v1"
 	"time"
 	"strings"
 )
