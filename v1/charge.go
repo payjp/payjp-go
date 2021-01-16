@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -39,6 +40,10 @@ type Charge struct {
 //
 // 支払いを確定せずに、カードの認証と支払い額のみ確保する場合は、 Capture に false を指定してください。 このとき ExpireDays を指定することで、認証の期間を定めることができます。 ExpireDays はデフォルトで7日となっており、1日~60日の間で設定が可能です。
 func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error) {
+	return c.CreateContext(context.Background(), amount, charge)
+}
+
+func (c ChargeService) CreateContext(ctx context.Context, amount int, charge Charge) (*ChargeResponse, error) {
 	var errorMessages []string
 	if amount < 50 || amount > 9999999 {
 		errorMessages = append(errorMessages, fmt.Sprintf("Amount should be between 50 and 9,999,999, but %d.", amount))
@@ -90,7 +95,7 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 	qb.Add("expiry_days", charge.ExpireDays)
 	qb.AddMetadata(charge.Metadata)
 
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges", qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", c.service.apiBase+"/charges", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -107,18 +112,22 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 
 // Retrieve charge object. 支払い情報を取得します。
 func (c ChargeService) Retrieve(chargeID string) (*ChargeResponse, error) {
-	body, err := c.service.retrieve("/charges/" + chargeID)
+	return c.RetrieveContext(context.Background(), chargeID)
+}
+
+func (c ChargeService) RetrieveContext(ctx context.Context, chargeID string) (*ChargeResponse, error) {
+	body, err := c.service.retrieve(ctx, "/charges/" + chargeID)
 	if err != nil {
 		return nil, err
 	}
 	return parseCharge(c.service, body, &ChargeResponse{})
 }
 
-func (c ChargeService) update(chargeID, description string, metadata map[string]string) ([]byte, error) {
+func (c ChargeService) update(ctx context.Context, chargeID, description string, metadata map[string]string) ([]byte, error) {
 	qb := newRequestBuilder()
 	qb.Add("name", description)
 	qb.AddMetadata(metadata)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID, qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", c.service.apiBase+"/charges/"+chargeID, qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -130,6 +139,10 @@ func (c ChargeService) update(chargeID, description string, metadata map[string]
 
 // Update は支払い情報のDescriptionを更新します。
 func (c ChargeService) Update(chargeID, description string, metadata ...map[string]string) (*ChargeResponse, error) {
+	return c.UpdateContext(context.Background(), chargeID, description, metadata...)
+}
+
+func (c ChargeService) UpdateContext(ctx context.Context, chargeID, description string, metadata ...map[string]string) (*ChargeResponse, error) {
 	var md map[string]string
 	switch len(metadata) {
 	case 0:
@@ -138,20 +151,20 @@ func (c ChargeService) Update(chargeID, description string, metadata ...map[stri
 	default:
 		return nil, fmt.Errorf("Update can accept zero or one metadata map, but %d are passed", len(metadata))
 	}
-	body, err := c.update(chargeID, description, md)
+	body, err := c.update(ctx, chargeID, description, md)
 	if err != nil {
 		return nil, err
 	}
 	return parseCharge(c.service, body, &ChargeResponse{})
 }
 
-func (c ChargeService) refund(id string, reason string, amount []int) ([]byte, error) {
+func (c ChargeService) refund(ctx context.Context, id string, reason string, amount []int) ([]byte, error) {
 	qb := newRequestBuilder()
 	if len(amount) > 0 {
 		qb.Add("amount", amount[0])
 	}
 	qb.Add("refund_reason", reason)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+id+"/refund", qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", c.service.apiBase+"/charges/"+id+"/refund", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +176,11 @@ func (c ChargeService) refund(id string, reason string, amount []int) ([]byte, e
 // Refund は支払い済みとなった処理を返金します。
 // Amount省略時は全額返金、指定時に金額の部分返金を行うことができます。
 func (c ChargeService) Refund(chargeID, reason string, amount ...int) (*ChargeResponse, error) {
-	body, err := c.refund(chargeID, reason, amount)
+	return c.RefundContext(context.Background(), chargeID, reason, amount...)
+}
+
+func (c ChargeService) RefundContext(ctx context.Context, chargeID, reason string, amount ...int) (*ChargeResponse, error) {
+	body, err := c.refund(ctx, chargeID, reason, amount)
 	if err != nil {
 		return nil, err
 	}
@@ -172,12 +189,12 @@ func (c ChargeService) Refund(chargeID, reason string, amount ...int) (*ChargeRe
 
 
 
-func (c ChargeService) capture(chargeID string, amount []int) ([]byte, error) {
+func (c ChargeService) capture(ctx context.Context, chargeID string, amount []int) ([]byte, error) {
 	qb := newRequestBuilder()
 	if len(amount) > 0 {
 		qb.Add("amount", amount[0])
 	}
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID+"/capture", qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", c.service.apiBase+"/charges/"+chargeID+"/capture", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +211,11 @@ func (c ChargeService) capture(chargeID string, amount []int) ([]byte, error) {
 //
 // 例えば、認証時に amount=500 で作成し、 amount=400 で支払い確定を行った場合、 AmountRefunded=100 となり、確定金額が400円に変更された状態で支払いが確定されます。
 func (c ChargeService) Capture(chargeID string, amount ...int) (*ChargeResponse, error) {
-	body, err := c.capture(chargeID, amount)
+	return c.CaptureContext(context.Background(), chargeID, amount...)
+}
+
+func (c ChargeService) CaptureContext(ctx context.Context, chargeID string, amount ...int) (*ChargeResponse, error) {
+	body, err := c.capture(ctx, chargeID, amount)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +283,11 @@ func (c *ChargeListCaller) SubscriptionID(id string) *ChargeListCaller {
 
 // Do は指定されたクエリーを元に支払いのリストを配列で取得します。
 func (c *ChargeListCaller) Do() ([]*ChargeResponse, bool, error) {
-	body, err := c.service.queryList("/charges", c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
+	return c.DoContext(context.Background())
+}
+
+func (c *ChargeListCaller) DoContext(ctx context.Context) ([]*ChargeResponse, bool, error) {
+	body, err := c.service.queryList(ctx, "/charges", c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
 		result := false
 		if c.customerID != "" {
 			values.Add("customer", c.customerID)
@@ -328,6 +353,10 @@ type ChargeResponse struct {
 
 // Update は支払い情報のDescriptionとメタデータ(オプション)を更新します
 func (c *ChargeResponse) Update(description string, metadata ...map[string]string) error {
+	return c.UpdateContext(context.Background(), description, metadata...)
+}
+
+func (c *ChargeResponse) UpdateContext(ctx context.Context, description string, metadata ...map[string]string) error {
 	var md map[string]string
 	switch len(metadata) {
 	case 0:
@@ -336,7 +365,7 @@ func (c *ChargeResponse) Update(description string, metadata ...map[string]strin
 	default:
 		return fmt.Errorf("Update can accept zero or one metadata map, but %d are passed", len(metadata))
 	}
-	body, err := c.service.Charge.update(c.ID, description, md)
+	body, err := c.service.Charge.update(ctx, c.ID, description, md)
 	if err != nil {
 		return err
 	}
@@ -347,9 +376,13 @@ func (c *ChargeResponse) Update(description string, metadata ...map[string]strin
 // Refund 支払い済みとなった処理を返金します。
 // 全額返金、及び amount を指定することで金額の部分返金を行うことができます。ただし部分返金を最初に行った場合、2度目の返金は全額返金しか行うことができないため、ご注意ください。
 func (c *ChargeResponse) Refund(reason string, amount ...int) error {
+	return c.RefundContext(context.Background(), reason, amount...)
+}
+
+func (c *ChargeResponse) RefundContext(ctx context.Context, reason string, amount ...int) error {
 	var body []byte
 	var err error
-	body, err = c.service.Charge.refund(c.ID, reason, amount)
+	body, err = c.service.Charge.refund(ctx, c.ID, reason, amount)
 	if err != nil {
 		return err
 	}
@@ -365,7 +398,11 @@ func (c *ChargeResponse) Refund(reason string, amount ...int) error {
 //
 // 例えば、認証時に amount=500 で作成し、 amount=400 で支払い確定を行った場合、 AmountRefunded=100 となり、確定金額が400円に変更された状態で支払いが確定されます。
 func (c *ChargeResponse) Capture(amount ...int) error {
-	body, err := c.service.Charge.capture(c.ID, amount)
+	return c.CaptureContext(context.Background(), amount...)
+}
+
+func (c *ChargeResponse) CaptureContext(ctx context.Context, amount ...int) error {
+	body, err := c.service.Charge.capture(ctx, c.ID, amount)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -72,6 +73,10 @@ type Subscription struct {
 // 作成時よりもあとの支払い実行日に最初の課金が行われます。またトライアル設定がある場合は、
 // トライアル終了時に支払い処理が行われ、そこを基準にして定期課金が開始されます。
 func (s SubscriptionService) Subscribe(customerID string, subscription Subscription) (*SubscriptionResponse, error) {
+	return s.SubscribeContext(context.Background(), customerID, subscription)
+}
+
+func (s SubscriptionService) SubscribeContext(ctx context.Context, customerID string, subscription Subscription) (*SubscriptionResponse, error) {
 	var errors []string
 	planID, ok := subscription.PlanID.(string)
 	if !ok || planID == "" {
@@ -95,7 +100,7 @@ func (s SubscriptionService) Subscribe(customerID string, subscription Subscript
 	}
 	qb.Add("prorate", subscription.Prorate)
 	qb.AddMetadata(subscription.Metadata)
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions", qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -111,14 +116,18 @@ func (s SubscriptionService) Subscribe(customerID string, subscription Subscript
 
 // Retrieve subscription object. 特定の定期課金情報を取得します。
 func (s SubscriptionService) Retrieve(customerID, subscriptionID string) (*SubscriptionResponse, error) {
-	body, err := s.service.retrieve("/customers/" + customerID + "/subscriptions/" + subscriptionID)
+	return s.RetrieveContext(context.Background(), customerID, subscriptionID)
+}
+
+func (s SubscriptionService) RetrieveContext(ctx context.Context, customerID, subscriptionID string) (*SubscriptionResponse, error) {
+	body, err := s.service.retrieve(ctx, "/customers/" + customerID + "/subscriptions/" + subscriptionID)
 	if err != nil {
 		return nil, err
 	}
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
-func (s SubscriptionService) update(subscriptionID string, subscription Subscription) ([]byte, error) {
+func (s SubscriptionService) update(ctx context.Context, subscriptionID string, subscription Subscription) ([]byte, error) {
 	var defaultTime time.Time
 	_, ok := subscription.SkipTrial.(bool)
 	if subscription.TrialEndAt != defaultTime && ok {
@@ -133,7 +142,7 @@ func (s SubscriptionService) update(subscriptionID string, subscription Subscrip
 		qb.Add("trial_end", "now")
 	}
 	qb.Add("prorate", subscription.Prorate)
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID, qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+subscriptionID, qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +161,11 @@ func (s SubscriptionService) update(subscriptionID string, subscription Subscrip
 // プランを変更する場合は、 PlanID に新しいプランのIDを指定してください。
 // 同時に Prorate=true とする事により、 日割り課金を有効化できます。
 func (s SubscriptionService) Update(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
-	body, err := s.update(subscriptionID, subscription)
+	return s.UpdateContext(context.Background(), subscriptionID, subscription)
+}
+
+func (s SubscriptionService) UpdateContext(ctx context.Context, subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
+	body, err := s.update(ctx, subscriptionID, subscription)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +176,11 @@ func (s SubscriptionService) Update(subscriptionID string, subscription Subscrip
 //
 // 定期課金を停止させると、再開されるまで引き落とし処理は一切行われません。
 func (s SubscriptionService) Pause(subscriptionID string) (*SubscriptionResponse, error) {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/pause", nil)
+	return s.PauseContext(context.Background(), subscriptionID)
+}
+
+func (s SubscriptionService) PauseContext(ctx context.Context, subscriptionID string) (*SubscriptionResponse, error) {
+	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/pause", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -189,6 +206,10 @@ func (s SubscriptionService) Pause(subscriptionID string) (*SubscriptionResponse
 // またProrate を指定することで、日割り課金を有効化することができます。 日割り課金が有効な場合は、
 // 再開日より課金日までの日数分で課金額を日割りします。
 func (s SubscriptionService) Resume(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
+	return s.ResumeContext(context.Background(), subscriptionID, subscription)
+}
+
+func (s SubscriptionService) ResumeContext(ctx context.Context, subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
 	var defaultTime time.Time
 	qb := newRequestBuilder()
 	if subscription.TrialEndAt != defaultTime {
@@ -196,7 +217,7 @@ func (s SubscriptionService) Resume(subscriptionID string, subscription Subscrip
 	}
 	qb.Add("prorate", subscription.Prorate)
 
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/resume", qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/resume", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +235,11 @@ func (s SubscriptionService) Resume(subscriptionID string, subscription Subscrip
 // キャンセルを取り消すことができます。終了日をむかえた定期課金は、
 // 自動的に削除されますのでご注意ください。
 func (s SubscriptionService) Cancel(subscriptionID string) (*SubscriptionResponse, error) {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/cancel", nil)
+	return s.CancelContext(context.Background(), subscriptionID)
+}
+
+func (s SubscriptionService) CancelContext(ctx context.Context, subscriptionID string) (*SubscriptionResponse, error) {
+	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/cancel", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +254,11 @@ func (s SubscriptionService) Cancel(subscriptionID string) (*SubscriptionRespons
 // Delete は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
 // 再び戻すことができません。
 func (s SubscriptionService) Delete(subscriptionID string) error {
-	request, err := http.NewRequest("DELETE", s.service.apiBase+"/subscriptions/"+subscriptionID, nil)
+	return s.DeleteContext(context.Background(), subscriptionID)
+}
+
+func (s SubscriptionService) DeleteContext(ctx context.Context, subscriptionID string) error {
+	request, err := http.NewRequestWithContext(ctx, "DELETE", s.service.apiBase+"/subscriptions/"+subscriptionID, nil)
 	if err != nil {
 		return err
 	}
@@ -301,7 +330,11 @@ type subscriptionResponseParser struct {
 
 // Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
 func (s *SubscriptionResponse) Update(subscription Subscription) error {
-	body, err := s.service.Subscription.update(s.ID, subscription)
+	return s.UpdateContext(context.Background(), subscription)
+}
+
+func (s *SubscriptionResponse) UpdateContext(ctx context.Context, subscription Subscription) error {
+	body, err := s.service.Subscription.update(ctx, s.ID, subscription)
 	if err != nil {
 		return err
 	}
@@ -311,7 +344,11 @@ func (s *SubscriptionResponse) Update(subscription Subscription) error {
 
 // Pause は引き落としの失敗やカードが不正である、また定期課金を停止したい場合はこのリクエストで定期購入を停止させます。
 func (s *SubscriptionResponse) Pause() error {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/pause", nil)
+	return s.PauseContext(context.Background())
+}
+
+func (s *SubscriptionResponse) PauseContext(ctx context.Context) error {
+	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+s.ID+"/pause", nil)
 	if err != nil {
 		return err
 	}
@@ -326,6 +363,10 @@ func (s *SubscriptionResponse) Pause() error {
 
 // Resume は停止もしくはキャンセル状態の定期課金を再開させます。
 func (s *SubscriptionResponse) Resume(subscription Subscription) error {
+	return s.ResumeContext(context.Background(), subscription)
+}
+
+func (s *SubscriptionResponse) ResumeContext(ctx context.Context, subscription Subscription) error {
 	var defaultTime time.Time
 	qb := newRequestBuilder()
 	if subscription.TrialEndAt != defaultTime {
@@ -333,7 +374,7 @@ func (s *SubscriptionResponse) Resume(subscription Subscription) error {
 	}
 	qb.Add("prorate", subscription.Prorate)
 
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/resume", qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+s.ID+"/resume", qb.Reader())
 	if err != nil {
 		return err
 	}
@@ -348,7 +389,11 @@ func (s *SubscriptionResponse) Resume(subscription Subscription) error {
 
 // Cancel は定期課金をキャンセルし、現在の周期の終了日をもって定期課金を終了させます。
 func (s *SubscriptionResponse) Cancel() error {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/cancel", nil)
+	return s.CancelContext(context.Background())
+}
+
+func (s *SubscriptionResponse) CancelContext(ctx context.Context) error {
+	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+s.ID+"/cancel", nil)
 	if err != nil {
 		return err
 	}
@@ -364,7 +409,11 @@ func (s *SubscriptionResponse) Cancel() error {
 // Delete は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
 // 再び戻すことができません。
 func (s *SubscriptionResponse) Delete() error {
-	request, err := http.NewRequest("DELETE", s.service.apiBase+"/subscriptions/"+s.ID, nil)
+	return s.DeleteContext(context.Background())
+}
+
+func (s *SubscriptionResponse) DeleteContext(ctx context.Context) error {
+	request, err := http.NewRequestWithContext(ctx, "DELETE", s.service.apiBase+"/subscriptions/"+s.ID, nil)
 	if err != nil {
 		return err
 	}
@@ -458,13 +507,17 @@ func (c *SubscriptionListCaller) PlanID(planID string) *SubscriptionListCaller {
 
 // Do は指定されたクエリーを元に顧客のリストを配列で取得します。
 func (c *SubscriptionListCaller) Do() ([]*SubscriptionResponse, bool, error) {
+	return c.DoContext(context.Background())
+}
+
+func (c *SubscriptionListCaller) DoContext(ctx context.Context) ([]*SubscriptionResponse, bool, error) {
 	var url string
 	if c.customerID == "" {
 		url = "/subscriptions"
 	} else {
 		url = "/customers/" + c.customerID + "/subscriptions"
 	}
-	body, err := c.service.queryList(url, c.limit, c.offset, c.since, c.until)
+	body, err := c.service.queryList(ctx, url, c.limit, c.offset, c.since, c.until)
 	if err != nil {
 		return nil, false, err
 	}

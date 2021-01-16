@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/url"
@@ -71,7 +72,11 @@ func newEventService(service *Service) *EventService {
 
 // Retrieve event object. 特定のイベント情報を取得します。
 func (e EventService) Retrieve(id string) (*EventResponse, error) {
-	data, err := e.service.retrieve("/events/" + id)
+	return e.RetrieveContext(context.Background(), id)
+}
+
+func (e EventService) RetrieveContext(ctx context.Context, id string) (*EventResponse, error) {
+	data, err := e.service.retrieve(ctx, "/events/" + id)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +151,11 @@ func (e *EventListCaller) Until(until time.Time) *EventListCaller {
 
 // Do は指定されたクエリーを元にイベントのリストを配列で取得します。
 func (e *EventListCaller) Do() ([]*EventResponse, bool, error) {
-	body, err := e.service.queryList("/events", e.limit, e.offset, e.since, e.until, func(values *url.Values) bool {
+	return e.DoContext(context.Background())
+}
+
+func (e *EventListCaller) DoContext(ctx context.Context) ([]*EventResponse, bool, error) {
+	body, err := e.service.queryList(ctx, "/events", e.limit, e.offset, e.since, e.until, func(values *url.Values) bool {
 		hasParam := false
 		if e.resourceID != "" {
 			values.Set("resource_id", e.resourceID)

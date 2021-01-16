@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -18,7 +19,11 @@ func newAccountService(service *Service) *AccountService {
 
 // Retrieve account object. あなたのアカウント情報を取得します。
 func (t *AccountService) Retrieve() (*AccountResponse, error) {
-	request, err := http.NewRequest("GET", t.service.apiBase+"/accounts", nil)
+	return t.RetrieveContext(context.Background())
+}
+
+func (t *AccountService) RetrieveContext(ctx context.Context) (*AccountResponse, error) {
+	request, err := http.NewRequestWithContext(ctx, "GET", t.service.apiBase+"/accounts", nil)
 	if err != nil {
 		return nil, err
 	}

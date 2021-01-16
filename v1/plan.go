@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -42,6 +43,10 @@ type Plan struct {
 //
 // また、支払いの実行日を指定すると、支払い日の固定されたプランを生成することができます。
 func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
+	return p.CreateContext(context.Background(), plan)
+}
+
+func (p PlanService) CreateContext(ctx context.Context, plan Plan) (*PlanResponse, error) {
 	var errors []string
 	if plan.Amount < 50 || plan.Amount > 9999999 {
 		errors = append(errors, fmt.Sprintf("Amount should be between 50 and 9,999,999, but %d.", plan.Amount))
@@ -81,7 +86,7 @@ func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
 		qb.Add("billing_day", strconv.Itoa(plan.BillingDay))
 	}
 	qb.AddMetadata(plan.Metadata)
-	request, err := http.NewRequest("POST", p.service.apiBase+"/plans", qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", p.service.apiBase+"/plans", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +102,11 @@ func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
 
 // Retrieve plan object. 特定のプラン情報を取得します。
 func (p PlanService) Retrieve(id string) (*PlanResponse, error) {
-	body, err := p.service.retrieve("/plans/" + id)
+	return p.RetrieveContext(context.Background(), id)
+}
+
+func (p PlanService) RetrieveContext(ctx context.Context, id string) (*PlanResponse, error) {
+	body, err := p.service.retrieve(ctx, "/plans/" + id)
 	if err != nil {
 		return nil, err
 	}
@@ -113,10 +122,10 @@ func parsePlan(service *Service, body []byte, result *PlanResponse) (*PlanRespon
 	return result, nil
 }
 
-func (p PlanService) update(id, name string) ([]byte, error) {
+func (p PlanService) update(ctx context.Context, id, name string) ([]byte, error) {
 	qb := newRequestBuilder()
 	qb.Add("name", name)
-	request, err := http.NewRequest("POST", p.service.apiBase+"/plans/"+id, qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", p.service.apiBase+"/plans/"+id, qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +137,11 @@ func (p PlanService) update(id, name string) ([]byte, error) {
 
 // Update はプラン情報を更新します。
 func (p PlanService) Update(id, name string) (*PlanResponse, error) {
-	body, err := p.update(id, name)
+	return p.UpdateContext(context.Background(), id, name)
+}
+
+func (p PlanService) UpdateContext(ctx context.Context, id, name string) (*PlanResponse, error) {
+	body, err := p.update(ctx, id, name)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +150,11 @@ func (p PlanService) Update(id, name string) (*PlanResponse, error) {
 
 // Delete はプランを削除します。
 func (p PlanService) Delete(id string) error {
-	return p.service.delete("/plans/" + id)
+	return p.DeleteContext(context.Background(), id)
+}
+
+func (p PlanService) DeleteContext(ctx context.Context, id string) error {
+	return p.service.delete(ctx, "/plans/" + id)
 }
 
 // List は生成したプランのリストを取得します。リストは、直近で生成された順番に取得されます。
@@ -182,7 +199,11 @@ func (c *PlanListCaller) Until(until time.Time) *PlanListCaller {
 
 // Do は指定されたクエリーを元にプランのリストを配列で取得します。
 func (c *PlanListCaller) Do() ([]*PlanResponse, bool, error) {
-	body, err := c.service.queryList("/plans", c.limit, c.offset, c.since, c.until)
+	return c.DoContext(context.Background())
+}
+
+func (c *PlanListCaller) DoContext(ctx context.Context) ([]*PlanResponse, bool, error) {
+	body, err := c.service.queryList(ctx, "/plans", c.limit, c.offset, c.since, c.until)
 	if err != nil {
 		return nil, false, err
 	}
@@ -233,7 +254,11 @@ type planResponseParser struct {
 
 // Update はプラン情報を更新します。
 func (p *PlanResponse) Update(name string) error {
-	body, err := p.service.Plan.update(p.ID, name)
+	return p.UpdateContext(context.Background(), name)
+}
+
+func (p *PlanResponse) UpdateContext(ctx context.Context, name string) error {
+	body, err := p.service.Plan.update(ctx, p.ID, name)
 	if err != nil {
 		return err
 	}

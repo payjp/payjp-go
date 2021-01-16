@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"time"
@@ -85,20 +86,28 @@ type cardResponseParser struct {
 // Update メソッドはカードの内容を更新します
 // Customer情報から得られるカードでしか更新はできません
 func (c *CardResponse) Update(card Card) error {
+	return c.UpdateContext(context.Background(), card)
+}
+
+func (c *CardResponse) UpdateContext(ctx context.Context, card Card) error {
 	if c.customerID == "" {
 		return errors.New("Token's card doens't support Update()")
 	}
-	_, err := c.service.Customer.postCard(c.customerID, "/"+c.ID, card, c)
+	_, err := c.service.Customer.postCard(ctx, c.customerID, "/"+c.ID, card, c)
 	return err
 }
 
 // Delete メソッドは顧客に登録されているカードを削除します
 // Customer情報から得られるカードでしか削除はできません
 func (c *CardResponse) Delete() error {
+	return c.DeleteContext(context.Background())
+}
+
+func (c *CardResponse) DeleteContext(ctx context.Context) error {
 	if c.customerID == "" {
 		return errors.New("Token's card doens't support Delete()")
 	}
-	return c.service.delete("/customers/" + c.customerID + "/cards/" + c.ID)
+	return c.service.delete(ctx, "/customers/" + c.customerID + "/cards/" + c.ID)
 }
 
 // UnmarshalJSON はJSONパース用の内部APIです。

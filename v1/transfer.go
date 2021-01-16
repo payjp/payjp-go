@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"net/url"
 	"time"
@@ -54,7 +55,11 @@ func newTransferService(service *Service) *TransferService {
 
 // Retrieve transfer object. 入金情報を取得します。
 func (t TransferService) Retrieve(transferID string) (*TransferResponse, error) {
-	body, err := t.service.retrieve("/transfers/" + transferID)
+	return t.RetrieveContext(context.Background(), transferID)
+}
+
+func (t TransferService) RetrieveContext(ctx context.Context, transferID string) (*TransferResponse, error) {
+	body, err := t.service.retrieve(ctx, "/transfers/" + transferID)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +122,11 @@ func (c *TransferListCaller) Status(status TransferStatus) *TransferListCaller {
 
 // Do は指定されたクエリーを元に入金のリストを配列で取得します。
 func (c *TransferListCaller) Do() ([]*TransferResponse, bool, error) {
-	body, err := c.service.queryList("/transfers", c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
+	return c.DoContext(context.Background())
+}
+
+func (c *TransferListCaller) DoContext(ctx context.Context) ([]*TransferResponse, bool, error) {
+	body, err := c.service.queryList(ctx, "/transfers", c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
 		if c.status != noTransferStatus {
 			values.Add("status", c.status.status().(string))
 			return true
@@ -193,8 +202,12 @@ func (c *TransferChargeListCaller) CustomerID(ID string) *TransferChargeListCall
 
 // Do は指定されたクエリーを元に入金内訳のリストを配列で取得します。
 func (c *TransferChargeListCaller) Do() ([]*ChargeResponse, bool, error) {
+	return c.DoContext(context.Background())
+}
+
+func (c *TransferChargeListCaller) DoContext(ctx context.Context) ([]*ChargeResponse, bool, error) {
 	path := "/transfers/" + c.transferID + "/charges"
-	body, err := c.service.queryList(path, c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
+	body, err := c.service.queryList(ctx, path, c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
 		if c.customerID != "" {
 			values.Add("customer", c.customerID)
 			return true

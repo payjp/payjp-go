@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -68,8 +69,8 @@ func (s Service) APIBase() string {
 	return s.apiBase
 }
 
-func (s Service) retrieve(resourceURL string) ([]byte, error) {
-	request, err := http.NewRequest("GET", s.apiBase+resourceURL, nil)
+func (s Service) retrieve(ctx context.Context, resourceURL string) ([]byte, error) {
+	request, err := http.NewRequestWithContext(ctx, "GET", s.apiBase+resourceURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +79,8 @@ func (s Service) retrieve(resourceURL string) ([]byte, error) {
 	return respToBody(s.Client.Do(request))
 }
 
-func (s Service) delete(resourceURL string) error {
-	request, err := http.NewRequest("DELETE", s.apiBase+resourceURL, nil)
+func (s Service) delete(ctx context.Context, resourceURL string) error {
+	request, err := http.NewRequestWithContext(ctx, "DELETE", s.apiBase+resourceURL, nil)
 	if err != nil {
 		return err
 	}
@@ -89,7 +90,7 @@ func (s Service) delete(resourceURL string) error {
 	return err
 }
 
-func (s Service) queryList(resourcePath string, limit, offset, since, until int, callbacks ...func(*url.Values) bool) ([]byte, error) {
+func (s Service) queryList(ctx context.Context, resourcePath string, limit, offset, since, until int, callbacks ...func(*url.Values) bool) ([]byte, error) {
 	if limit < 0 || limit > 100 {
 		return nil, fmt.Errorf("method Limit() should be between 1 and 100, but %d", limit)
 	}
@@ -124,7 +125,7 @@ func (s Service) queryList(resourcePath string, limit, offset, since, until int,
 	} else {
 		requestURL = s.apiBase + resourcePath
 	}
-	request, err := http.NewRequest("GET", requestURL, nil)
+	request, err := http.NewRequestWithContext(ctx, "GET", requestURL, nil)
 	if err != nil {
 		return nil, err
 	}

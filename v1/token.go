@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -50,6 +51,10 @@ func parseToken(data []byte, err error) (*TokenResponse, error) {
 //
 // Card構造体で引数を設定しますが、Number/ExpMonth/ExpYearが必須パラメータです。
 func (t TokenService) Create(card Card) (*TokenResponse, error) {
+	return t.CreateContext(context.Background(), card)
+}
+
+func (t TokenService) CreateContext(ctx context.Context, card Card) (*TokenResponse, error) {
 	var errors []string
 	if card.Number == nil {
 		errors = append(errors, "Number is required")
@@ -66,7 +71,7 @@ func (t TokenService) Create(card Card) (*TokenResponse, error) {
 	qb := newRequestBuilder()
 	qb.AddCard(card)
 
-	request, err := http.NewRequest("POST", t.service.apiBase+"/tokens", qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", t.service.apiBase+"/tokens", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +83,11 @@ func (t TokenService) Create(card Card) (*TokenResponse, error) {
 
 // Retrieve token object. 特定のトークン情報を取得します。
 func (t TokenService) Retrieve(id string) (*TokenResponse, error) {
-	return parseToken(t.service.retrieve("/tokens/" + id))
+	return t.RetrieveContext(context.Background(), id)
+}
+
+func (t TokenService) RetrieveContext(ctx context.Context, id string) (*TokenResponse, error) {
+	return parseToken(t.service.retrieve(ctx, "/tokens/" + id))
 }
 
 // TokenResponse はToken.Create(), Token.Retrieve()が返す構造体です。

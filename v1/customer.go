@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -52,6 +53,10 @@ func parseCustomer(service *Service, body []byte, result *CustomerResponse) (*Cu
 //
 // DefaultCardは更新時のみ設定が可能です
 func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
+	return c.CreateContext(context.Background(), customer)
+}
+
+func (c CustomerService) CreateContext(ctx context.Context, customer Customer) (*CustomerResponse, error) {
 	qb := newRequestBuilder()
 	if customer.Email != "" {
 		qb.Add("email", customer.Email)
@@ -69,7 +74,7 @@ func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
 	}
 	qb.AddMetadata(customer.Metadata)
 
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers", qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", c.service.apiBase+"/customers", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +90,11 @@ func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
 
 // Retrieve customer object. 顧客情報を取得します。
 func (c CustomerService) Retrieve(id string) (*CustomerResponse, error) {
-	body, err := c.service.retrieve("/customers/" + id)
+	return c.RetrieveContext(context.Background(), id)
+}
+
+func (c CustomerService) RetrieveContext(ctx context.Context, id string) (*CustomerResponse, error) {
+	body, err := c.service.retrieve(ctx, "/customers/" + id)
 	if err != nil {
 		return nil, err
 	}
@@ -96,14 +105,18 @@ func (c CustomerService) Retrieve(id string) (*CustomerResponse, error) {
 //
 // また default_card に保持しているカードIDを指定することで、メイン利用のカードを変更することもできます。
 func (c CustomerService) Update(id string, customer Customer) (*CustomerResponse, error) {
-	body, err := c.update(id, customer)
+	return c.UpdateContext(context.Background(), id, customer)
+}
+
+func (c CustomerService) UpdateContext(ctx context.Context, id string, customer Customer) (*CustomerResponse, error) {
+	body, err := c.update(ctx, id, customer)
 	if err != nil {
 		return nil, err
 	}
 	return parseCustomer(c.service, body, &CustomerResponse{})
 }
 
-func (c CustomerService) update(id string, customer Customer) ([]byte, error) {
+func (c CustomerService) update(ctx context.Context, id string, customer Customer) ([]byte, error) {
 	qb := newRequestBuilder()
 	if customer.Email != "" {
 		qb.Add("email", customer.Email)
@@ -120,7 +133,7 @@ func (c CustomerService) update(id string, customer Customer) ([]byte, error) {
 		qb.AddCard(customer.Card)
 	}
 	qb.AddMetadata(customer.Metadata)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+id, qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", c.service.apiBase+"/customers/"+id, qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +145,11 @@ func (c CustomerService) update(id string, customer Customer) ([]byte, error) {
 
 // Delete は生成した顧客情報を削除します。削除した顧客情報は、もう一度生成することができないためご注意ください。
 func (c CustomerService) Delete(id string) error {
-	return c.service.delete("/customers/" + id)
+	return c.DeleteContext(context.Background(), id)
+}
+
+func (c CustomerService) DeleteContext(ctx context.Context, id string) error {
+	return c.service.delete(ctx, "/customers/" + id)
 }
 
 // List は生成した顧客情報のリストを取得します。リストは、直近で生成された順番に取得されます。
@@ -144,10 +161,14 @@ func (c CustomerService) List() *CustomerListCaller {
 
 // AddCardToken はトークンIDを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
 func (c CustomerService) AddCardToken(customerID, token string) (*CardResponse, error) {
+	return c.AddCardTokenContext(context.Background(), customerID, token)
+}
+
+func (c CustomerService) AddCardTokenContext(ctx context.Context, customerID, token string) (*CardResponse, error) {
 	qb := newRequestBuilder()
 	qb.Add("card", token)
 
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+customerID+"/cards", qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", c.service.apiBase+"/customers/"+customerID+"/cards", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -161,11 +182,11 @@ func (c CustomerService) AddCardToken(customerID, token string) (*CardResponse, 
 	return parseCard(c.service, body, &CardResponse{}, customerID)
 }
 
-func (c CustomerService) postCard(customerID, resourcePath string, card Card, result *CardResponse) (*CardResponse, error) {
+func (c CustomerService) postCard(ctx context.Context, customerID, resourcePath string, card Card, result *CardResponse) (*CardResponse, error) {
 	qb := newRequestBuilder()
 	qb.AddCard(card)
 
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+customerID+"/cards"+resourcePath, qb.Reader())
+	request, err := http.NewRequestWithContext(ctx, "POST", c.service.apiBase+"/customers/"+customerID+"/cards"+resourcePath, qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -181,12 +202,20 @@ func (c CustomerService) postCard(customerID, resourcePath string, card Card, re
 
 // AddCard はカード情報のパラメーターを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
 func (c CustomerService) AddCard(customerID string, card Card) (*CardResponse, error) {
-	return c.postCard(customerID, "", card, &CardResponse{})
+	return c.AddCardContext(context.Background(), customerID, card)
+}
+
+func (c CustomerService) AddCardContext(ctx context.Context, customerID string, card Card) (*CardResponse, error) {
+	return c.postCard(ctx, customerID, "", card, &CardResponse{})
 }
 
 // GetCard は顧客の特定のカード情報を取得します。
 func (c CustomerService) GetCard(customerID, cardID string) (*CardResponse, error) {
-	body, err := c.service.retrieve("/customers/" + customerID + "/cards/" + cardID)
+	return c.GetCardContext(context.Background(), customerID, cardID)
+}
+
+func (c CustomerService) GetCardContext(ctx context.Context, customerID, cardID string) (*CardResponse, error) {
+	body, err := c.service.retrieve(ctx, "/customers/" + customerID + "/cards/" + cardID)
 	if err != nil {
 		return nil, err
 	}
@@ -195,16 +224,24 @@ func (c CustomerService) GetCard(customerID, cardID string) (*CardResponse, erro
 
 // UpdateCard は顧客の特定のカード情報を更新します。
 func (c CustomerService) UpdateCard(customerID, cardID string, card Card) (*CardResponse, error) {
+	return c.UpdateCardContext(context.Background(), customerID, cardID, card)
+}
+
+func (c CustomerService) UpdateCardContext(ctx context.Context, customerID, cardID string, card Card) (*CardResponse, error) {
 	result := &CardResponse{
 		customerID: customerID,
 		service:    c.service,
 	}
-	return c.postCard(customerID, "/"+cardID, card, result)
+	return c.postCard(ctx, customerID, "/"+cardID, card, result)
 }
 
 // DeleteCard は顧客の特定のカードを削除します。
 func (c CustomerService) DeleteCard(customerID, cardID string) error {
-	return c.service.delete("/customers/" + customerID + "/cards/" + cardID)
+	return c.DeleteCardContext(context.Background(), customerID, cardID)
+}
+
+func (c CustomerService) DeleteCardContext(ctx context.Context, customerID, cardID string) error {
+	return c.service.delete(ctx, "/customers/" + customerID + "/cards/" + cardID)
 }
 
 // ListCard は顧客の保持しているカードリストを取得します。リストは、直近で生成された順番に取得されます。
@@ -217,7 +254,11 @@ func (c CustomerService) ListCard(customerID string) *CustomerCardListCaller {
 
 // GetSubscription は顧客の特定の定期課金情報を取得します。
 func (c CustomerService) GetSubscription(customerID, subscriptionID string) (*SubscriptionResponse, error) {
-	return c.service.Subscription.Retrieve(customerID, subscriptionID)
+	return c.GetSubscriptionContext(context.Background(), customerID, subscriptionID)
+}
+
+func (c CustomerService) GetSubscriptionContext(ctx context.Context, customerID, subscriptionID string) (*SubscriptionResponse, error) {
+	return c.service.Subscription.RetrieveContext(ctx, customerID, subscriptionID)
 }
 
 // ListSubscription は顧客の定期課金リストを取得します。リストは、直近で生成された順番に取得されます。
@@ -268,7 +309,11 @@ func (c *CustomerListCaller) Until(until time.Time) *CustomerListCaller {
 
 // Do は指定されたクエリーを元に顧客のリストを配列で取得します。
 func (c *CustomerListCaller) Do() ([]*CustomerResponse, bool, error) {
-	body, err := c.service.queryList("/customers", c.limit, c.offset, c.since, c.until)
+	return c.DoContext(context.Background())
+}
+
+func (c *CustomerListCaller) DoContext(ctx context.Context) ([]*CustomerResponse, bool, error) {
+	body, err := c.service.queryList(ctx, "/customers", c.limit, c.offset, c.since, c.until)
 	if err != nil {
 		return nil, false, err
 	}
@@ -329,7 +374,11 @@ func (c *CustomerCardListCaller) Until(until time.Time) *CustomerCardListCaller 
 
 // Do は指定されたクエリーを元に支払いのリストを配列で取得します。
 func (c *CustomerCardListCaller) Do() ([]*CardResponse, bool, error) {
-	body, err := c.service.queryList("/customers/"+c.customerID+"/cards", c.limit, c.offset, c.since, c.until)
+	return c.DoContext(context.Background())
+}
+
+func (c *CustomerCardListCaller) DoContext(ctx context.Context) ([]*CardResponse, bool, error) {
+	body, err := c.service.queryList(ctx, "/customers/"+c.customerID+"/cards", c.limit, c.offset, c.since, c.until)
 	if err != nil {
 		return nil, false, err
 	}
@@ -379,7 +428,11 @@ type customerResponseParser struct {
 //
 // また default_card に保持しているカードIDを指定することで、メイン利用のカードを変更することもできます。
 func (c *CustomerResponse) Update(customer Customer) error {
-	body, err := c.service.Customer.update(c.ID, customer)
+	return c.UpdateContext(context.Background(), customer)
+}
+
+func (c *CustomerResponse) UpdateContext(ctx context.Context, customer Customer) error {
+	body, err := c.service.Customer.update(ctx, c.ID, customer)
 	if err != nil {
 		return err
 	}
