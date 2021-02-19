@@ -1,3 +1,3 @@
-module v1
+module github.com/payjp/payjp-go
 
 go 1.15
