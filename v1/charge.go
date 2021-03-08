@@ -322,6 +322,7 @@ type ChargeResponse struct {
 	RefundReason   string            // 返金理由
 	SubscriptionID string            // sub_から始まる定期課金のID
 	Metadata       map[string]string // メタデータ
+	FeeRate        string            // 決済手数料率
 
 	service *Service
 }
@@ -394,6 +395,7 @@ type chargeResponseParser struct {
 	Refunded       bool              `json:"refunded"`
 	Subscription   string            `json:"subscription"`
 	Metadata       map[string]string `json:"metadata"`
+	FeeRate        string            `json:"fee_rate"`
 }
 
 // UnmarshalJSON はJSONパース用の内部APIです。
@@ -420,6 +422,7 @@ func (c *ChargeResponse) UnmarshalJSON(b []byte) error {
 		c.Refunded = raw.Refunded
 		c.SubscriptionID = raw.Subscription
 		c.Metadata = raw.Metadata
+		c.FeeRate = raw.FeeRate
 		return nil
 	}
 	rawError := errorResponse{}
