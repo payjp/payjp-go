@@ -34,15 +34,16 @@ type Charge struct {
 	Metadata    map[string]string // メタデータ
 }
 
-// Create はトークンID、カードを保有している顧客ID、カードオブジェクトのいずれかのパラメーターを指定して支払いを作成します。
-// 顧客IDを使って支払いを作成する場合は CustomerCardID に顧客の保有するカードのIDを指定でき、省略された場合はデフォルトカードとして登録されているものが利用されます。
-// テスト用のキーでは、本番用の決済ネットワークへは接続されず、実際の請求が行われることもありません。 本番用のキーでは、決済ネットワークで処理が行われ、実際の請求が行われます。
-//
-// 支払いを確定せずに、カードの認証と支払い額のみ確保する場合は、 Capture に false を指定してください。 このとき ExpireDays を指定することで、認証の期間を定めることができます。 ExpireDays はデフォルトで7日となっており、1日~60日の間で設定が可能です。
+// Create Deprecated: use CreateContext instead
 func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error) {
 	return c.CreateContext(context.Background(), amount, charge)
 }
 
+// CreateContext はトークンID、カードを保有している顧客ID、カードオブジェクトのいずれかのパラメーターを指定して支払いを作成します。
+// 顧客IDを使って支払いを作成する場合は CustomerCardID に顧客の保有するカードのIDを指定でき、省略された場合はデフォルトカードとして登録されているものが利用されます。
+// テスト用のキーでは、本番用の決済ネットワークへは接続されず、実際の請求が行われることもありません。 本番用のキーでは、決済ネットワークで処理が行われ、実際の請求が行われます。
+//
+// 支払いを確定せずに、カードの認証と支払い額のみ確保する場合は、 Capture に false を指定してください。 このとき ExpireDays を指定することで、認証の期間を定めることができます。 ExpireDays はデフォルトで7日となっており、1日~60日の間で設定が可能です。
 func (c ChargeService) CreateContext(ctx context.Context, amount int, charge Charge) (*ChargeResponse, error) {
 	var errorMessages []string
 	if amount < 50 || amount > 9999999 {
@@ -110,11 +111,12 @@ func (c ChargeService) CreateContext(ctx context.Context, amount int, charge Cha
 
 }
 
-// Retrieve charge object. 支払い情報を取得します。
+// Retrieve Deprecated: use RetrieveContext instead
 func (c ChargeService) Retrieve(chargeID string) (*ChargeResponse, error) {
 	return c.RetrieveContext(context.Background(), chargeID)
 }
 
+// RetrieveContext charge object. 支払い情報を取得します。
 func (c ChargeService) RetrieveContext(ctx context.Context, chargeID string) (*ChargeResponse, error) {
 	body, err := c.service.retrieve(ctx, "/charges/" + chargeID)
 	if err != nil {
@@ -137,11 +139,12 @@ func (c ChargeService) update(ctx context.Context, chargeID, description string,
 	return parseResponseError(c.service.Client.Do(request))
 }
 
-// Update は支払い情報のDescriptionを更新します。
+// Update Deprecated: use UpdateContext instead
 func (c ChargeService) Update(chargeID, description string, metadata ...map[string]string) (*ChargeResponse, error) {
 	return c.UpdateContext(context.Background(), chargeID, description, metadata...)
 }
 
+// UpdateContext は支払い情報のDescriptionを更新します。
 func (c ChargeService) UpdateContext(ctx context.Context, chargeID, description string, metadata ...map[string]string) (*ChargeResponse, error) {
 	var md map[string]string
 	switch len(metadata) {
@@ -173,12 +176,13 @@ func (c ChargeService) refund(ctx context.Context, id string, reason string, amo
 	return parseResponseError(c.service.Client.Do(request))
 }
 
-// Refund は支払い済みとなった処理を返金します。
-// Amount省略時は全額返金、指定時に金額の部分返金を行うことができます。
+// Refund Deprecated: use RefundContext instead
 func (c ChargeService) Refund(chargeID, reason string, amount ...int) (*ChargeResponse, error) {
 	return c.RefundContext(context.Background(), chargeID, reason, amount...)
 }
 
+// RefundContext は支払い済みとなった処理を返金します。
+// Amount省略時は全額返金、指定時に金額の部分返金を行うことができます。
 func (c ChargeService) RefundContext(ctx context.Context, chargeID, reason string, amount ...int) (*ChargeResponse, error) {
 	body, err := c.refund(ctx, chargeID, reason, amount)
 	if err != nil {
@@ -203,17 +207,18 @@ func (c ChargeService) capture(ctx context.Context, chargeID string, amount []in
 	return parseResponseError(c.service.Client.Do(request))
 }
 
-// Capture は認証状態となった処理待ちの支払い処理を確定させます。具体的には Captured="false" となった支払いが該当します。
+// Capture Deprecated: use CaptureContext instead
+func (c ChargeService) Capture(chargeID string, amount ...int) (*ChargeResponse, error) {
+	return c.CaptureContext(context.Background(), chargeID, amount...)
+}
+
+// CaptureContext は認証状態となった処理待ちの支払い処理を確定させます。具体的には Captured="false" となった支払いが該当します。
 //
 // amount をセットすることで、支払い生成時の金額と異なる金額の支払い処理を行うことができます。 ただし amount は、支払い生成時の金額よりも少額である必要があるためご注意ください。
 //
 // amount をセットした場合、AmountRefunded に認証時の amount との差額が入ります。
 //
 // 例えば、認証時に amount=500 で作成し、 amount=400 で支払い確定を行った場合、 AmountRefunded=100 となり、確定金額が400円に変更された状態で支払いが確定されます。
-func (c ChargeService) Capture(chargeID string, amount ...int) (*ChargeResponse, error) {
-	return c.CaptureContext(context.Background(), chargeID, amount...)
-}
-
 func (c ChargeService) CaptureContext(ctx context.Context, chargeID string, amount ...int) (*ChargeResponse, error) {
 	body, err := c.capture(ctx, chargeID, amount)
 	if err != nil {
@@ -281,11 +286,12 @@ func (c *ChargeListCaller) SubscriptionID(id string) *ChargeListCaller {
 	return c
 }
 
-// Do は指定されたクエリーを元に支払いのリストを配列で取得します。
+// Do Deprecated: use DoContext instead
 func (c *ChargeListCaller) Do() ([]*ChargeResponse, bool, error) {
 	return c.DoContext(context.Background())
 }
 
+// DoContext は指定されたクエリーを元に支払いのリストを配列で取得します。
 func (c *ChargeListCaller) DoContext(ctx context.Context) ([]*ChargeResponse, bool, error) {
 	body, err := c.service.queryList(ctx, "/charges", c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
 		result := false
@@ -351,11 +357,12 @@ type ChargeResponse struct {
 	service *Service
 }
 
-// Update は支払い情報のDescriptionとメタデータ(オプション)を更新します
+// Update Deprecated: use UpdateContext instead
 func (c *ChargeResponse) Update(description string, metadata ...map[string]string) error {
 	return c.UpdateContext(context.Background(), description, metadata...)
 }
 
+// UpdateContext は支払い情報のDescriptionとメタデータ(オプション)を更新します
 func (c *ChargeResponse) UpdateContext(ctx context.Context, description string, metadata ...map[string]string) error {
 	var md map[string]string
 	switch len(metadata) {
@@ -373,12 +380,13 @@ func (c *ChargeResponse) UpdateContext(ctx context.Context, description string, 
 	return err
 }
 
-// Refund 支払い済みとなった処理を返金します。
-// 全額返金、及び amount を指定することで金額の部分返金を行うことができます。ただし部分返金を最初に行った場合、2度目の返金は全額返金しか行うことができないため、ご注意ください。
+// Refund Deprecated: use RefundContext instead
 func (c *ChargeResponse) Refund(reason string, amount ...int) error {
 	return c.RefundContext(context.Background(), reason, amount...)
 }
 
+// RefundContext 支払い済みとなった処理を返金します。
+// 全額返金、及び amount を指定することで金額の部分返金を行うことができます。ただし部分返金を最初に行った場合、2度目の返金は全額返金しか行うことができないため、ご注意ください。
 func (c *ChargeResponse) RefundContext(ctx context.Context, reason string, amount ...int) error {
 	var body []byte
 	var err error
@@ -390,17 +398,18 @@ func (c *ChargeResponse) RefundContext(ctx context.Context, reason string, amoun
 	return err
 }
 
-// Capture は認証状態となった処理待ちの支払い処理を確定させます。具体的には Captured="false" となった支払いが該当します。
+// Capture Deprecated: use CaptureContext instead
+func (c *ChargeResponse) Capture(amount ...int) error {
+	return c.CaptureContext(context.Background(), amount...)
+}
+
+// CaptureContext は認証状態となった処理待ちの支払い処理を確定させます。具体的には Captured="false" となった支払いが該当します。
 //
 // amount をセットすることで、支払い生成時の金額と異なる金額の支払い処理を行うことができます。 ただし amount は、支払い生成時の金額よりも少額である必要があるためご注意ください。
 //
 // amount をセットした場合、AmountRefunded に認証時の amount との差額が入ります。
 //
 // 例えば、認証時に amount=500 で作成し、 amount=400 で支払い確定を行った場合、 AmountRefunded=100 となり、確定金額が400円に変更された状態で支払いが確定されます。
-func (c *ChargeResponse) Capture(amount ...int) error {
-	return c.CaptureContext(context.Background(), amount...)
-}
-
 func (c *ChargeResponse) CaptureContext(ctx context.Context, amount ...int) error {
 	body, err := c.service.Charge.capture(ctx, c.ID, amount)
 	if err != nil {

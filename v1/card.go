@@ -83,12 +83,13 @@ type cardResponseParser struct {
 	Metadata        map[string]string `json:"metadata"`
 }
 
-// Update メソッドはカードの内容を更新します
-// Customer情報から得られるカードでしか更新はできません
+// Update Deprecated: use UpdateContext instead
 func (c *CardResponse) Update(card Card) error {
 	return c.UpdateContext(context.Background(), card)
 }
 
+// UpdateContext メソッドはカードの内容を更新します
+// Customer情報から得られるカードでしか更新はできません
 func (c *CardResponse) UpdateContext(ctx context.Context, card Card) error {
 	if c.customerID == "" {
 		return errors.New("Token's card doens't support Update()")
@@ -97,12 +98,13 @@ func (c *CardResponse) UpdateContext(ctx context.Context, card Card) error {
 	return err
 }
 
-// Delete メソッドは顧客に登録されているカードを削除します
-// Customer情報から得られるカードでしか削除はできません
+// Delete Deprecated: use DeleteContext instead
 func (c *CardResponse) Delete() error {
 	return c.DeleteContext(context.Background())
 }
 
+// DeleteContext メソッドは顧客に登録されているカードを削除します
+// Customer情報から得られるカードでしか削除はできません
 func (c *CardResponse) DeleteContext(ctx context.Context) error {
 	if c.customerID == "" {
 		return errors.New("Token's card doens't support Delete()")

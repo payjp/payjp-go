@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -96,7 +97,7 @@ func TestCustomerAddCard(t *testing.T) {
 	mock, transport := NewMockClient(200, cardResponseJSON)
 	transport.AddResponse(200, cardResponseJSON)
 	service := New("api-key", mock)
-	card, err := service.Customer.AddCard("cus_121673955bd7aa144de5a8f6c262", Card{
+	card, err := service.Customer.AddCardContext(context.Background(), "cus_121673955bd7aa144de5a8f6c262", Card{
 		Number:   "4242424242424242",
 		ExpMonth: 2,
 		ExpYear:  2020,
@@ -127,7 +128,7 @@ func TestCustomerAddCard2(t *testing.T) {
 		t.Error("plan should not be nil")
 		return
 	}
-	card, err := customer.AddCard(Card{
+	card, err := customer.AddCardContext(context.Background(), Card{
 		Number:   "4242424242424242",
 		ExpMonth: "2",
 		ExpYear:  "2020",
@@ -171,15 +172,16 @@ func TestCustomerGetCard(t *testing.T) {
 }
 
 func TestCustomerGetCard2(t *testing.T) {
+	ctx := context.Background()
 	mock, transport := NewMockClient(200, customerResponseJSON)
 	transport.AddResponse(200, cardResponseJSON)
 	service := New("api-key", mock)
-	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
+	customer, err := service.Customer.RetrieveContext(ctx, "cus_121673955bd7aa144de5a8f6c262")
 	if customer == nil {
 		t.Error("plan should not be nil")
 		return
 	}
-	card, err := customer.GetCard("car_f7d9fa98594dc7c2e42bfcd641ff")
+	card, err := customer.GetCardContext(ctx, "car_f7d9fa98594dc7c2e42bfcd641ff")
 	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards/car_f7d9fa98594dc7c2e42bfcd641ff" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}
@@ -199,7 +201,7 @@ func TestCustomerGetCard2(t *testing.T) {
 func TestCustomerUpdateCard(t *testing.T) {
 	mock, transport := NewMockClient(200, cardResponseJSON)
 	service := New("api-key", mock)
-	card, err := service.Customer.UpdateCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff", Card{
+	card, err := service.Customer.UpdateCardContext(context.Background(),"cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff", Card{
 		Number:   "4242424242424242",
 		ExpMonth: 2,
 		ExpYear:  2020,
@@ -230,7 +232,7 @@ func TestCustomerUpdateCard2(t *testing.T) {
 		t.Error("plan should not be nil")
 		return
 	}
-	err = customer.Cards[0].Update(Card{
+	err = customer.Cards[0].UpdateContext(context.Background(), Card{
 		Number:   "4242424242424242",
 		ExpMonth: "2",
 		ExpYear:  "2020",
@@ -250,7 +252,7 @@ func TestCustomerUpdateCard2(t *testing.T) {
 func TestCustomerUpdateCardError(t *testing.T) {
 	mock, _ := NewMockClient(200, cardErrorResponseJSON)
 	service := New("api-key", mock)
-	card, err := service.Customer.UpdateCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff", Card{
+	card, err := service.Customer.UpdateCardContext(context.Background(), "cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff", Card{
 		Number:   "4242424242424242",
 		ExpMonth: 2,
 		ExpYear:  2020,
@@ -268,7 +270,7 @@ func TestCustomerDeleteCard(t *testing.T) {
 	mock, transport := NewMockClient(200, cardResponseJSON)
 	transport.AddResponse(200, cardDeleteResponseJSON)
 	service := New("api-key", mock)
-	err := service.Customer.DeleteCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff")
+	err := service.Customer.DeleteCardContext(context.Background(), "cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff")
 	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards/car_f7d9fa98594dc7c2e42bfcd641ff" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}
@@ -289,7 +291,7 @@ func TestCustomerDeleteCard2(t *testing.T) {
 		t.Error("card should not be nil")
 		return
 	}
-	err = customer.Cards[0].Delete()
+	err = customer.Cards[0].DeleteContext(context.Background())
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}

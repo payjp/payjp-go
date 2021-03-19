@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -238,7 +239,7 @@ func TestChargeUpdate2(t *testing.T) {
 		t.Error("plan should not be nil")
 		return
 	}
-	err = plan.Update("new description")
+	err = plan.UpdateContext(context.Background(), "new description")
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}
@@ -273,7 +274,7 @@ func TestChargeRefund2(t *testing.T) {
 		t.Error("plan should not be nil")
 		return
 	}
-	err = plan.Refund("reason")
+	err = plan.RefundContext(context.Background(), "reason")
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}
@@ -316,14 +317,15 @@ func TestServiceChargeCaptureChangeAmount(t *testing.T) {
 }
 
 func TestChargeCapture2(t *testing.T) {
+	ctx := context.Background()
 	mock, transport := NewMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
-	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
+	plan, err := service.Charge.RetrieveContext(ctx, "ch_fa990a4c10672a93053a774730b0a")
 	if plan == nil {
 		t.Error("plan should not be nil")
 		return
 	}
-	err = plan.Capture()
+	err = plan.CaptureContext(ctx)
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}
@@ -341,7 +343,7 @@ func TestChargeCaptureChangedAmount(t *testing.T) {
 	chargeID := "ch_fa990a4c10672a93053a774730b0a"
 	charge, err := service.Charge.Retrieve(chargeID)
 	newAmount := 100
-	err = charge.Capture(newAmount)
+	err = charge.CaptureContext(context.Background(), newAmount)
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}

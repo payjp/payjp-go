@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -374,7 +375,7 @@ func TestTransferChargeList(t *testing.T) {
 		Offset(15).
 		Since(time.Unix(1455328095, 0)).
 		Until(time.Unix(1455500895, 0)).
-		CustomerID("cus_b92b879e60f62b532d6756ae12af").Do()
+		CustomerID("cus_b92b879e60f62b532d6756ae12af").DoContext(context.Background())
 	if transport.URL != "https://api.pay.jp/v1/transfers/tr_8f0c0fe2c9f8a47f9d18f03959ba1/charges?customer=cus_b92b879e60f62b532d6756ae12af&limit=10&offset=15&since=1455328095&until=1455500895" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}

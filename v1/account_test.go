@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 )
@@ -62,7 +63,7 @@ func TestParseAccountResponseJSON(t *testing.T) {
 func TestAccountRetrieve(t *testing.T) {
 	mock, transport := NewMockClient(200, accountResponseJSON)
 	service := New("api-key", mock)
-	account, err := service.Account.Retrieve()
+	account, err := service.Account.RetrieveContext(context.Background())
 	if transport.URL != "https://api.pay.jp/v1/accounts" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}

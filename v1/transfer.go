@@ -53,11 +53,12 @@ func newTransferService(service *Service) *TransferService {
 	}
 }
 
-// Retrieve transfer object. 入金情報を取得します。
+// Retrieve Deprecated: use RetrieveContext instead
 func (t TransferService) Retrieve(transferID string) (*TransferResponse, error) {
 	return t.RetrieveContext(context.Background(), transferID)
 }
 
+// RetrieveContext transfer object. 入金情報を取得します。
 func (t TransferService) RetrieveContext(ctx context.Context, transferID string) (*TransferResponse, error) {
 	body, err := t.service.retrieve(ctx, "/transfers/" + transferID)
 	if err != nil {
@@ -120,11 +121,12 @@ func (c *TransferListCaller) Status(status TransferStatus) *TransferListCaller {
 	return c
 }
 
-// Do は指定されたクエリーを元に入金のリストを配列で取得します。
+// Do Deprecated: use DoCardContext instead
 func (c *TransferListCaller) Do() ([]*TransferResponse, bool, error) {
 	return c.DoContext(context.Background())
 }
 
+// DoContext は指定されたクエリーを元に入金のリストを配列で取得します。
 func (c *TransferListCaller) DoContext(ctx context.Context) ([]*TransferResponse, bool, error) {
 	body, err := c.service.queryList(ctx, "/transfers", c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
 		if c.status != noTransferStatus {
@@ -200,11 +202,12 @@ func (c *TransferChargeListCaller) CustomerID(ID string) *TransferChargeListCall
 	return c
 }
 
-// Do は指定されたクエリーを元に入金内訳のリストを配列で取得します。
+// Do Deprecated: use DoContext instead
 func (c *TransferChargeListCaller) Do() ([]*ChargeResponse, bool, error) {
 	return c.DoContext(context.Background())
 }
 
+// DoContext は指定されたクエリーを元に入金内訳のリストを配列で取得します。
 func (c *TransferChargeListCaller) DoContext(ctx context.Context) ([]*ChargeResponse, bool, error) {
 	path := "/transfers/" + c.transferID + "/charges"
 	body, err := c.service.queryList(ctx, path, c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {

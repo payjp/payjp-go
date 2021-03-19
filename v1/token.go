@@ -40,7 +40,12 @@ func parseToken(data []byte, err error) (*TokenResponse, error) {
 	return result, nil
 }
 
-// Create メソッドカード情報を指定して、トークンを生成します。
+// Create Deprecated: use CreateContext instead
+func (t TokenService) Create(card Card) (*TokenResponse, error) {
+	return t.CreateContext(context.Background(), card)
+}
+
+// CreateContext メソッドカード情報を指定して、トークンを生成します。
 //
 // トークンはサーバーサイドからのリクエストでも生成可能ですが、通常は チェックアウトや
 // payjp.js を利用して、ブラウザ経由でパブリックキーとカード情報を指定して生成します。
@@ -50,10 +55,6 @@ func parseToken(data []byte, err error) (*TokenResponse, error) {
 // カード情報のトークン化(https://pay.jp/docs/cardtoken)をご覧ください。
 //
 // Card構造体で引数を設定しますが、Number/ExpMonth/ExpYearが必須パラメータです。
-func (t TokenService) Create(card Card) (*TokenResponse, error) {
-	return t.CreateContext(context.Background(), card)
-}
-
 func (t TokenService) CreateContext(ctx context.Context, card Card) (*TokenResponse, error) {
 	var errors []string
 	if card.Number == nil {
@@ -81,11 +82,12 @@ func (t TokenService) CreateContext(ctx context.Context, card Card) (*TokenRespo
 	return parseToken(respToBody(t.service.Client.Do(request)))
 }
 
-// Retrieve token object. 特定のトークン情報を取得します。
+// Retrieve Deprecated: use RetrieveContext instead
 func (t TokenService) Retrieve(id string) (*TokenResponse, error) {
 	return t.RetrieveContext(context.Background(), id)
 }
 
+// RetrieveContext token object. 特定のトークン情報を取得します。
 func (t TokenService) RetrieveContext(ctx context.Context, id string) (*TokenResponse, error) {
 	return parseToken(t.service.retrieve(ctx, "/tokens/" + id))
 }

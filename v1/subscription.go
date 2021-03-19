@@ -66,16 +66,17 @@ type Subscription struct {
 	Metadata   map[string]string // メタデータ
 }
 
-// Subscribe は顧客IDとプランIDを指定して、定期課金を開始することができます。
+// Subscribe Deprecated: use SubscribeContext instead
+func (s SubscriptionService) Subscribe(customerID string, subscription Subscription) (*SubscriptionResponse, error) {
+	return s.SubscribeContext(context.Background(), customerID, subscription)
+}
+
+// SubscribeContext は顧客IDとプランIDを指定して、定期課金を開始することができます。
 // TrialEndを指定することで、プラン情報を上書きするトライアル設定も可能です。
 // 最初の支払いは定期課金作成時に実行されます。
 // 支払い実行日(BillingDay)が指定されているプランの場合は日割り設定(Prorate)を有効化しない限り、
 // 作成時よりもあとの支払い実行日に最初の課金が行われます。またトライアル設定がある場合は、
 // トライアル終了時に支払い処理が行われ、そこを基準にして定期課金が開始されます。
-func (s SubscriptionService) Subscribe(customerID string, subscription Subscription) (*SubscriptionResponse, error) {
-	return s.SubscribeContext(context.Background(), customerID, subscription)
-}
-
 func (s SubscriptionService) SubscribeContext(ctx context.Context, customerID string, subscription Subscription) (*SubscriptionResponse, error) {
 	var errors []string
 	planID, ok := subscription.PlanID.(string)
@@ -114,11 +115,12 @@ func (s SubscriptionService) SubscribeContext(ctx context.Context, customerID st
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
-// Retrieve subscription object. 特定の定期課金情報を取得します。
+// Retrieve Deprecated: use RetrieveContext instead
 func (s SubscriptionService) Retrieve(customerID, subscriptionID string) (*SubscriptionResponse, error) {
 	return s.RetrieveContext(context.Background(), customerID, subscriptionID)
 }
 
+// RetrieveContext subscription object. 特定の定期課金情報を取得します。
 func (s SubscriptionService) RetrieveContext(ctx context.Context, customerID, subscriptionID string) (*SubscriptionResponse, error) {
 	body, err := s.service.retrieve(ctx, "/customers/" + customerID + "/subscriptions/" + subscriptionID)
 	if err != nil {
@@ -151,7 +153,12 @@ func (s SubscriptionService) update(ctx context.Context, subscriptionID string, 
 	return parseResponseError(s.service.Client.Do(request))
 }
 
-// Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
+// Update Deprecated: use UpdateContext instead
+func (s SubscriptionService) Update(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
+	return s.UpdateContext(context.Background(), subscriptionID, subscription)
+}
+
+// UpdateContext はトライアル期間を新たに設定したり、プランの変更を行うことができます。
 //
 // トライアル期間を更新する場合、トライアル期間終了時に支払い処理が行われ、
 // そこを基準としてプランに沿った周期で定期課金が再開されます。
@@ -160,10 +167,6 @@ func (s SubscriptionService) update(ctx context.Context, subscriptionID string, 
 //
 // プランを変更する場合は、 PlanID に新しいプランのIDを指定してください。
 // 同時に Prorate=true とする事により、 日割り課金を有効化できます。
-func (s SubscriptionService) Update(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
-	return s.UpdateContext(context.Background(), subscriptionID, subscription)
-}
-
 func (s SubscriptionService) UpdateContext(ctx context.Context, subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
 	body, err := s.update(ctx, subscriptionID, subscription)
 	if err != nil {
@@ -172,13 +175,14 @@ func (s SubscriptionService) UpdateContext(ctx context.Context, subscriptionID s
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
-// Pause は引き落としの失敗やカードが不正である、また定期課金を停止したい場合はこのリクエストで定期購入を停止させます。
-//
-// 定期課金を停止させると、再開されるまで引き落とし処理は一切行われません。
+// Pause Deprecated: use PauseContext instead
 func (s SubscriptionService) Pause(subscriptionID string) (*SubscriptionResponse, error) {
 	return s.PauseContext(context.Background(), subscriptionID)
 }
 
+// PauseContext は引き落としの失敗やカードが不正である、また定期課金を停止したい場合はこのリクエストで定期購入を停止させます。
+//
+// 定期課金を停止させると、再開されるまで引き落とし処理は一切行われません。
 func (s SubscriptionService) PauseContext(ctx context.Context, subscriptionID string) (*SubscriptionResponse, error) {
 	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/pause", nil)
 	if err != nil {
@@ -192,7 +196,12 @@ func (s SubscriptionService) PauseContext(ctx context.Context, subscriptionID st
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
-// Resume は停止もしくはキャンセル状態の定期課金を再開させます。
+// Resume Deprecated: use ResumeContext instead
+func (s SubscriptionService) Resume(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
+	return s.ResumeContext(context.Background(), subscriptionID, subscription)
+}
+
+// ResumeContext は停止もしくはキャンセル状態の定期課金を再開させます。
 // トライアル日数が残っていて再開日がトライアル終了日時より前の場合、
 // トライアル状態で定期課金が再開されます。
 //
@@ -205,10 +214,6 @@ func (s SubscriptionService) PauseContext(ctx context.Context, subscriptionID st
 //
 // またProrate を指定することで、日割り課金を有効化することができます。 日割り課金が有効な場合は、
 // 再開日より課金日までの日数分で課金額を日割りします。
-func (s SubscriptionService) Resume(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
-	return s.ResumeContext(context.Background(), subscriptionID, subscription)
-}
-
 func (s SubscriptionService) ResumeContext(ctx context.Context, subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
 	var defaultTime time.Time
 	qb := newRequestBuilder()
@@ -229,15 +234,16 @@ func (s SubscriptionService) ResumeContext(ctx context.Context, subscriptionID s
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
-// Cancel は定期課金をキャンセルし、現在の周期の終了日をもって定期課金を終了させます。
-//
-// 終了日以前であれば、定期課金の再開リクエスト(Resume)を行うことで、
-// キャンセルを取り消すことができます。終了日をむかえた定期課金は、
-// 自動的に削除されますのでご注意ください。
+// Cancel Deprecated: use CancelContext instead
 func (s SubscriptionService) Cancel(subscriptionID string) (*SubscriptionResponse, error) {
 	return s.CancelContext(context.Background(), subscriptionID)
 }
 
+// CancelContext は定期課金をキャンセルし、現在の周期の終了日をもって定期課金を終了させます。
+//
+// 終了日以前であれば、定期課金の再開リクエスト(Resume)を行うことで、
+// キャンセルを取り消すことができます。終了日をむかえた定期課金は、
+// 自動的に削除されますのでご注意ください。
 func (s SubscriptionService) CancelContext(ctx context.Context, subscriptionID string) (*SubscriptionResponse, error) {
 	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/cancel", nil)
 	if err != nil {
@@ -251,12 +257,13 @@ func (s SubscriptionService) CancelContext(ctx context.Context, subscriptionID s
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
-// Delete は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
-// 再び戻すことができません。
+// Delete Deprecated: use DeleteContext instead
 func (s SubscriptionService) Delete(subscriptionID string) error {
 	return s.DeleteContext(context.Background(), subscriptionID)
 }
 
+// DeleteContext は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
+// 再び戻すことができません。
 func (s SubscriptionService) DeleteContext(ctx context.Context, subscriptionID string) error {
 	request, err := http.NewRequestWithContext(ctx, "DELETE", s.service.apiBase+"/subscriptions/"+subscriptionID, nil)
 	if err != nil {
@@ -328,11 +335,12 @@ type subscriptionResponseParser struct {
 	Metadata                map[string]string `json:"metadata"`
 }
 
-// Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
+// Update Deprecated: use UpdateContext instead
 func (s *SubscriptionResponse) Update(subscription Subscription) error {
 	return s.UpdateContext(context.Background(), subscription)
 }
 
+// UpdateContext はトライアル期間を新たに設定したり、プランの変更を行うことができます。
 func (s *SubscriptionResponse) UpdateContext(ctx context.Context, subscription Subscription) error {
 	body, err := s.service.Subscription.update(ctx, s.ID, subscription)
 	if err != nil {
@@ -342,11 +350,12 @@ func (s *SubscriptionResponse) UpdateContext(ctx context.Context, subscription S
 	return err
 }
 
-// Pause は引き落としの失敗やカードが不正である、また定期課金を停止したい場合はこのリクエストで定期購入を停止させます。
+// Pause Deprecated: use PauseContext instead
 func (s *SubscriptionResponse) Pause() error {
 	return s.PauseContext(context.Background())
 }
 
+// PauseContext は引き落としの失敗やカードが不正である、また定期課金を停止したい場合はこのリクエストで定期購入を停止させます。
 func (s *SubscriptionResponse) PauseContext(ctx context.Context) error {
 	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+s.ID+"/pause", nil)
 	if err != nil {
@@ -361,11 +370,12 @@ func (s *SubscriptionResponse) PauseContext(ctx context.Context) error {
 	return err
 }
 
-// Resume は停止もしくはキャンセル状態の定期課金を再開させます。
+// Resume Deprecated: use ResumeContext instead
 func (s *SubscriptionResponse) Resume(subscription Subscription) error {
 	return s.ResumeContext(context.Background(), subscription)
 }
 
+// ResumeContext は停止もしくはキャンセル状態の定期課金を再開させます。
 func (s *SubscriptionResponse) ResumeContext(ctx context.Context, subscription Subscription) error {
 	var defaultTime time.Time
 	qb := newRequestBuilder()
@@ -387,11 +397,12 @@ func (s *SubscriptionResponse) ResumeContext(ctx context.Context, subscription S
 	return err
 }
 
-// Cancel は定期課金をキャンセルし、現在の周期の終了日をもって定期課金を終了させます。
+// Cancel Deprecated: use CancelContext instead
 func (s *SubscriptionResponse) Cancel() error {
 	return s.CancelContext(context.Background())
 }
 
+// CancelContext は定期課金をキャンセルし、現在の周期の終了日をもって定期課金を終了させます。
 func (s *SubscriptionResponse) CancelContext(ctx context.Context) error {
 	request, err := http.NewRequestWithContext(ctx, "POST", s.service.apiBase+"/subscriptions/"+s.ID+"/cancel", nil)
 	if err != nil {
@@ -406,12 +417,13 @@ func (s *SubscriptionResponse) CancelContext(ctx context.Context) error {
 	return err
 }
 
-// Delete は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
-// 再び戻すことができません。
+// Delete Deprecated: use DeleteContext instead
 func (s *SubscriptionResponse) Delete() error {
 	return s.DeleteContext(context.Background())
 }
 
+// DeleteContext は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
+// 再び戻すことができません。
 func (s *SubscriptionResponse) DeleteContext(ctx context.Context) error {
 	request, err := http.NewRequestWithContext(ctx, "DELETE", s.service.apiBase+"/subscriptions/"+s.ID, nil)
 	if err != nil {
@@ -505,11 +517,12 @@ func (c *SubscriptionListCaller) PlanID(planID string) *SubscriptionListCaller {
 	return c
 }
 
-// Do は指定されたクエリーを元に顧客のリストを配列で取得します。
+// Do Deprecated: use DoContext instead
 func (c *SubscriptionListCaller) Do() ([]*SubscriptionResponse, bool, error) {
 	return c.DoContext(context.Background())
 }
 
+// DoContext は指定されたクエリーを元に顧客のリストを配列で取得します。
 func (c *SubscriptionListCaller) DoContext(ctx context.Context) ([]*SubscriptionResponse, bool, error) {
 	var url string
 	if c.customerID == "" {

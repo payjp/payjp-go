@@ -37,15 +37,16 @@ type Plan struct {
 	Metadata   map[string]string // メタデータ
 }
 
-// Create は金額や通貨などを指定して定期購入に利用するプランを生成します。
-//
-// トライアル日数を指定することで、トライアル付きのプランを生成することができます。
-//
-// また、支払いの実行日を指定すると、支払い日の固定されたプランを生成することができます。
+// Create Deprecated: use CreateContext instead
 func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
 	return p.CreateContext(context.Background(), plan)
 }
 
+// CreateContext は金額や通貨などを指定して定期購入に利用するプランを生成します。
+//
+// トライアル日数を指定することで、トライアル付きのプランを生成することができます。
+//
+// また、支払いの実行日を指定すると、支払い日の固定されたプランを生成することができます。
 func (p PlanService) CreateContext(ctx context.Context, plan Plan) (*PlanResponse, error) {
 	var errors []string
 	if plan.Amount < 50 || plan.Amount > 9999999 {
@@ -100,11 +101,12 @@ func (p PlanService) CreateContext(ctx context.Context, plan Plan) (*PlanRespons
 	return parsePlan(p.service, body, &PlanResponse{})
 }
 
-// Retrieve plan object. 特定のプラン情報を取得します。
+// Retrieve Deprecated: use RetrieveContext instead
 func (p PlanService) Retrieve(id string) (*PlanResponse, error) {
 	return p.RetrieveContext(context.Background(), id)
 }
 
+// RetrieveContext plan object. 特定のプラン情報を取得します。
 func (p PlanService) RetrieveContext(ctx context.Context, id string) (*PlanResponse, error) {
 	body, err := p.service.retrieve(ctx, "/plans/" + id)
 	if err != nil {
@@ -135,11 +137,13 @@ func (p PlanService) update(ctx context.Context, id, name string) ([]byte, error
 	return parseResponseError(p.service.Client.Do(request))
 }
 
-// Update はプラン情報を更新します。
+
+// Update Deprecated: use UpdateContext instead
 func (p PlanService) Update(id, name string) (*PlanResponse, error) {
 	return p.UpdateContext(context.Background(), id, name)
 }
 
+// UpdateContext はプラン情報を更新します。
 func (p PlanService) UpdateContext(ctx context.Context, id, name string) (*PlanResponse, error) {
 	body, err := p.update(ctx, id, name)
 	if err != nil {
@@ -148,11 +152,12 @@ func (p PlanService) UpdateContext(ctx context.Context, id, name string) (*PlanR
 	return parsePlan(p.service, body, &PlanResponse{})
 }
 
-// Delete はプランを削除します。
+// Delete Deprecated: use DeleteContext instead
 func (p PlanService) Delete(id string) error {
 	return p.DeleteContext(context.Background(), id)
 }
 
+// DeleteContext はプランを削除します。
 func (p PlanService) DeleteContext(ctx context.Context, id string) error {
 	return p.service.delete(ctx, "/plans/" + id)
 }
@@ -197,11 +202,12 @@ func (c *PlanListCaller) Until(until time.Time) *PlanListCaller {
 	return c
 }
 
-// Do は指定されたクエリーを元にプランのリストを配列で取得します。
+// Do Deprecated: use DoContext instead
 func (c *PlanListCaller) Do() ([]*PlanResponse, bool, error) {
 	return c.DoContext(context.Background())
 }
 
+// DoContext は指定されたクエリーを元にプランのリストを配列で取得します。
 func (c *PlanListCaller) DoContext(ctx context.Context) ([]*PlanResponse, bool, error) {
 	body, err := c.service.queryList(ctx, "/plans", c.limit, c.offset, c.since, c.until)
 	if err != nil {
@@ -252,11 +258,12 @@ type planResponseParser struct {
 	Metadata     map[string]string `json:"metadata"`
 }
 
-// Update はプラン情報を更新します。
+// Update Deprecated: use UpdateContext instead
 func (p *PlanResponse) Update(name string) error {
 	return p.UpdateContext(context.Background(), name)
 }
 
+// UpdateContext はプラン情報を更新します。
 func (p *PlanResponse) UpdateContext(ctx context.Context, name string) error {
 	body, err := p.service.Plan.update(ctx, p.ID, name)
 	if err != nil {

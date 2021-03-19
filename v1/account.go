@@ -17,11 +17,12 @@ func newAccountService(service *Service) *AccountService {
 	return &AccountService{service}
 }
 
-// Retrieve account object. あなたのアカウント情報を取得します。
+// Retrieve Deprecated: use RetrieveContext instead
 func (t *AccountService) Retrieve() (*AccountResponse, error) {
 	return t.RetrieveContext(context.Background())
 }
 
+// RetrieveContext retrieve account object. あなたのアカウント情報を取得します。
 func (t *AccountService) RetrieveContext(ctx context.Context) (*AccountResponse, error) {
 	request, err := http.NewRequestWithContext(ctx, "GET", t.service.apiBase+"/accounts", nil)
 	if err != nil {

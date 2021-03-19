@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -163,7 +164,7 @@ func TestParseSubscriptionResponseJSON(t *testing.T) {
 func TestCustomerGetSubscription(t *testing.T) {
 	mock, transport := NewMockClient(200, subscriptionResponseJSON)
 	service := New("api-key", mock)
-	subscription, err := service.Customer.GetSubscription("cus_121673955bd7aa144de5a8f6c262", "sub_567a1e44562932ec1a7682d746e0")
+	subscription, err := service.Customer.GetSubscriptionContext(context.Background(), "cus_121673955bd7aa144de5a8f6c262", "sub_567a1e44562932ec1a7682d746e0")
 	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/subscriptions/sub_567a1e44562932ec1a7682d746e0" {
 		t.Errorf("URL is wrong: %s", transport.URL)
 	}

@@ -70,11 +70,12 @@ func newEventService(service *Service) *EventService {
 	}
 }
 
-// Retrieve event object. 特定のイベント情報を取得します。
+// Retrieve Deprecated: use RetrieveContext instead
 func (e EventService) Retrieve(id string) (*EventResponse, error) {
 	return e.RetrieveContext(context.Background(), id)
 }
 
+// RetrieveContext event object. 特定のイベント情報を取得します。
 func (e EventService) RetrieveContext(ctx context.Context, id string) (*EventResponse, error) {
 	data, err := e.service.retrieve(ctx, "/events/" + id)
 	if err != nil {
@@ -149,11 +150,12 @@ func (e *EventListCaller) Until(until time.Time) *EventListCaller {
 	return e
 }
 
-// Do は指定されたクエリーを元にイベントのリストを配列で取得します。
+// Do Deprecated: use DoContext instead
 func (e *EventListCaller) Do() ([]*EventResponse, bool, error) {
 	return e.DoContext(context.Background())
 }
 
+// DoContext は指定されたクエリーを元にイベントのリストを配列で取得します。
 func (e *EventListCaller) DoContext(ctx context.Context) ([]*EventResponse, bool, error) {
 	body, err := e.service.queryList(ctx, "/events", e.limit, e.offset, e.since, e.until, func(values *url.Values) bool {
 		hasParam := false

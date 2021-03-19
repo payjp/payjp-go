@@ -45,17 +45,18 @@ func parseCustomer(service *Service, body []byte, result *CustomerResponse) (*Cu
 	return result, nil
 }
 
-// Create はメールアドレスやIDなどを指定して顧客を作成します。
+// Create Deprecated: use CreateContext instead
+func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
+	return c.CreateContext(context.Background(), customer)
+}
+
+// CreateContext はメールアドレスやIDなどを指定して顧客を作成します。
 //
 // 作成と同時にカード情報を登録する場合、トークンIDかカードオブジェクトのどちらかを指定します。
 //
 // 作成した顧客やカード情報はあとから更新・削除することができます。
 //
 // DefaultCardは更新時のみ設定が可能です
-func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
-	return c.CreateContext(context.Background(), customer)
-}
-
 func (c CustomerService) CreateContext(ctx context.Context, customer Customer) (*CustomerResponse, error) {
 	qb := newRequestBuilder()
 	if customer.Email != "" {
@@ -88,11 +89,12 @@ func (c CustomerService) CreateContext(ctx context.Context, customer Customer) (
 	return parseCustomer(c.service, body, &CustomerResponse{})
 }
 
-// Retrieve customer object. 顧客情報を取得します。
+// Retrieve Deprecated: use RetrieveContext instead
 func (c CustomerService) Retrieve(id string) (*CustomerResponse, error) {
 	return c.RetrieveContext(context.Background(), id)
 }
 
+// RetrieveContext customer object. 顧客情報を取得します。
 func (c CustomerService) RetrieveContext(ctx context.Context, id string) (*CustomerResponse, error) {
 	body, err := c.service.retrieve(ctx, "/customers/" + id)
 	if err != nil {
@@ -101,13 +103,14 @@ func (c CustomerService) RetrieveContext(ctx context.Context, id string) (*Custo
 	return parseCustomer(c.service, body, &CustomerResponse{})
 }
 
-// Update は生成した顧客情報を更新したり、新たなカードを顧客に追加します。
-//
-// また default_card に保持しているカードIDを指定することで、メイン利用のカードを変更することもできます。
+// Update Deprecated: use UpdateContext instead
 func (c CustomerService) Update(id string, customer Customer) (*CustomerResponse, error) {
 	return c.UpdateContext(context.Background(), id, customer)
 }
 
+// UpdateContext は生成した顧客情報を更新したり、新たなカードを顧客に追加します。
+//
+// また default_card に保持しているカードIDを指定することで、メイン利用のカードを変更することもできます。
 func (c CustomerService) UpdateContext(ctx context.Context, id string, customer Customer) (*CustomerResponse, error) {
 	body, err := c.update(ctx, id, customer)
 	if err != nil {
@@ -143,11 +146,12 @@ func (c CustomerService) update(ctx context.Context, id string, customer Custome
 	return parseResponseError(c.service.Client.Do(request))
 }
 
-// Delete は生成した顧客情報を削除します。削除した顧客情報は、もう一度生成することができないためご注意ください。
+// Delete Deprecated: use DeleteContext instead
 func (c CustomerService) Delete(id string) error {
 	return c.DeleteContext(context.Background(), id)
 }
 
+// DeleteContext は生成した顧客情報を削除します。削除した顧客情報は、もう一度生成することができないためご注意ください。
 func (c CustomerService) DeleteContext(ctx context.Context, id string) error {
 	return c.service.delete(ctx, "/customers/" + id)
 }
@@ -159,11 +163,12 @@ func (c CustomerService) List() *CustomerListCaller {
 	}
 }
 
-// AddCardToken はトークンIDを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
+// AddCardToken Deprecated: use AddCardTokenContext instead
 func (c CustomerService) AddCardToken(customerID, token string) (*CardResponse, error) {
 	return c.AddCardTokenContext(context.Background(), customerID, token)
 }
 
+// AddCardTokenContext はトークンIDを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
 func (c CustomerService) AddCardTokenContext(ctx context.Context, customerID, token string) (*CardResponse, error) {
 	qb := newRequestBuilder()
 	qb.Add("card", token)
@@ -200,20 +205,22 @@ func (c CustomerService) postCard(ctx context.Context, customerID, resourcePath 
 	return parseCard(c.service, body, result, customerID)
 }
 
-// AddCard はカード情報のパラメーターを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
+// AddCard Deprecated: use AddCardContext instead
 func (c CustomerService) AddCard(customerID string, card Card) (*CardResponse, error) {
 	return c.AddCardContext(context.Background(), customerID, card)
 }
 
+// AddCardContext はカード情報のパラメーターを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
 func (c CustomerService) AddCardContext(ctx context.Context, customerID string, card Card) (*CardResponse, error) {
 	return c.postCard(ctx, customerID, "", card, &CardResponse{})
 }
 
-// GetCard は顧客の特定のカード情報を取得します。
+// GetCard Deprecated: use GetCardContext instead
 func (c CustomerService) GetCard(customerID, cardID string) (*CardResponse, error) {
 	return c.GetCardContext(context.Background(), customerID, cardID)
 }
 
+// GetCardContext は顧客の特定のカード情報を取得します。
 func (c CustomerService) GetCardContext(ctx context.Context, customerID, cardID string) (*CardResponse, error) {
 	body, err := c.service.retrieve(ctx, "/customers/" + customerID + "/cards/" + cardID)
 	if err != nil {
@@ -222,11 +229,12 @@ func (c CustomerService) GetCardContext(ctx context.Context, customerID, cardID 
 	return parseCard(c.service, body, &CardResponse{}, customerID)
 }
 
-// UpdateCard は顧客の特定のカード情報を更新します。
+// UpdateCard Deprecated: use UpdateCardContext instead
 func (c CustomerService) UpdateCard(customerID, cardID string, card Card) (*CardResponse, error) {
 	return c.UpdateCardContext(context.Background(), customerID, cardID, card)
 }
 
+// UpdateCardContext は顧客の特定のカード情報を更新します。
 func (c CustomerService) UpdateCardContext(ctx context.Context, customerID, cardID string, card Card) (*CardResponse, error) {
 	result := &CardResponse{
 		customerID: customerID,
@@ -235,11 +243,12 @@ func (c CustomerService) UpdateCardContext(ctx context.Context, customerID, card
 	return c.postCard(ctx, customerID, "/"+cardID, card, result)
 }
 
-// DeleteCard は顧客の特定のカードを削除します。
+// DeleteCard Deprecated: use DeleteCardContext instead
 func (c CustomerService) DeleteCard(customerID, cardID string) error {
 	return c.DeleteCardContext(context.Background(), customerID, cardID)
 }
 
+// DeleteCardContext は顧客の特定のカードを削除します。
 func (c CustomerService) DeleteCardContext(ctx context.Context, customerID, cardID string) error {
 	return c.service.delete(ctx, "/customers/" + customerID + "/cards/" + cardID)
 }
@@ -252,11 +261,12 @@ func (c CustomerService) ListCard(customerID string) *CustomerCardListCaller {
 	}
 }
 
-// GetSubscription は顧客の特定の定期課金情報を取得します。
+// GetSubscription Deprecated: use GetSubscriptionContext instead
 func (c CustomerService) GetSubscription(customerID, subscriptionID string) (*SubscriptionResponse, error) {
 	return c.GetSubscriptionContext(context.Background(), customerID, subscriptionID)
 }
 
+// GetSubscriptionContext は顧客の特定の定期課金情報を取得します。
 func (c CustomerService) GetSubscriptionContext(ctx context.Context, customerID, subscriptionID string) (*SubscriptionResponse, error) {
 	return c.service.Subscription.RetrieveContext(ctx, customerID, subscriptionID)
 }
@@ -307,11 +317,12 @@ func (c *CustomerListCaller) Until(until time.Time) *CustomerListCaller {
 	return c
 }
 
-// Do は指定されたクエリーを元に顧客のリストを配列で取得します。
+// Do Deprecated: use DoContext instead
 func (c *CustomerListCaller) Do() ([]*CustomerResponse, bool, error) {
 	return c.DoContext(context.Background())
 }
 
+// DoContext は指定されたクエリーを元に顧客のリストを配列で取得します。
 func (c *CustomerListCaller) DoContext(ctx context.Context) ([]*CustomerResponse, bool, error) {
 	body, err := c.service.queryList(ctx, "/customers", c.limit, c.offset, c.since, c.until)
 	if err != nil {
@@ -372,11 +383,12 @@ func (c *CustomerCardListCaller) Until(until time.Time) *CustomerCardListCaller 
 	return c
 }
 
-// Do は指定されたクエリーを元に支払いのリストを配列で取得します。
+// Do Deprecated: use DoContext instead
 func (c *CustomerCardListCaller) Do() ([]*CardResponse, bool, error) {
 	return c.DoContext(context.Background())
 }
 
+// DoContext は指定されたクエリーを元に支払いのリストを配列で取得します。
 func (c *CustomerCardListCaller) DoContext(ctx context.Context) ([]*CardResponse, bool, error) {
 	body, err := c.service.queryList(ctx, "/customers/"+c.customerID+"/cards", c.limit, c.offset, c.since, c.until)
 	if err != nil {
@@ -424,13 +436,14 @@ type customerResponseParser struct {
 	Metadata      map[string]string  `json:"metadata"`
 }
 
-// Update は生成した顧客情報を更新したり、新たなカードを顧客に追加することができます。
-//
-// また default_card に保持しているカードIDを指定することで、メイン利用のカードを変更することもできます。
+// Update Deprecated: use UpdateContext instead
 func (c *CustomerResponse) Update(customer Customer) error {
 	return c.UpdateContext(context.Background(), customer)
 }
 
+// UpdateContext は生成した顧客情報を更新したり、新たなカードを顧客に追加することができます。
+//
+// また default_card に保持しているカードIDを指定することで、メイン利用のカードを変更することもできます。
 func (c *CustomerResponse) UpdateContext(ctx context.Context, customer Customer) error {
 	body, err := c.service.Customer.update(ctx, c.ID, customer)
 	if err != nil {
@@ -439,34 +452,64 @@ func (c *CustomerResponse) UpdateContext(ctx context.Context, customer Customer)
 	return json.Unmarshal(body, c)
 }
 
-// Delete は生成した顧客情報を削除します。削除した顧客情報は、もう一度生成することができないためご注意ください。
+// Delete Deprecated: use DeleteContext instead
 func (c *CustomerResponse) Delete() error {
-	return c.service.Customer.Delete(c.ID)
+	return c.DeleteContext(context.Background())
 }
 
-// AddCard はカード情報のパラメーターを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
+// DeleteContext は生成した顧客情報を削除します。削除した顧客情報は、もう一度生成することができないためご注意ください。
+func (c *CustomerResponse) DeleteContext(ctx context.Context) error {
+	return c.service.Customer.DeleteContext(ctx, c.ID)
+}
+
+// AddCard Deprecated: use AddCardContext instead
 func (c *CustomerResponse) AddCard(card Card) (*CardResponse, error) {
-	return c.service.Customer.AddCard(c.ID, card)
+	return c.AddCardContext(context.Background(), card)
 }
 
-// AddCardToken はトークンIDを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
+// AddCardContext はカード情報のパラメーターを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
+func (c *CustomerResponse) AddCardContext(ctx context.Context, card Card) (*CardResponse, error) {
+	return c.service.Customer.AddCardContext(ctx, c.ID, card)
+}
+
+// AddCardToken Deprecated: use AddCardTokenContext instead
 func (c *CustomerResponse) AddCardToken(token string) (*CardResponse, error) {
+	return c.AddCardTokenContext(context.Background(), token)
+}
+
+// AddCardTokenContext はトークンIDを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
+func (c *CustomerResponse) AddCardTokenContext(ctx context.Context, token string) (*CardResponse, error) {
 	return c.service.Customer.AddCardToken(c.ID, token)
 }
 
-// GetCard は顧客の特定のカード情報を取得します。
+// GetCard Deprecated: use GetCardContext instead
 func (c *CustomerResponse) GetCard(cardID string) (*CardResponse, error) {
+	return c.GetCardContext(context.Background(), cardID)
+}
+
+// GetCardContext は顧客の特定のカード情報を取得します。
+func (c *CustomerResponse) GetCardContext(ctx context.Context, cardID string) (*CardResponse, error) {
 	return c.service.Customer.GetCard(c.ID, cardID)
 }
 
-// UpdateCard は顧客の特定のカード情報を更新します。
+// UpdateCard Deprecated: use UpdateCardContext instead
 func (c CustomerResponse) UpdateCard(cardID string, card Card) (*CardResponse, error) {
-	return c.service.Customer.UpdateCard(c.ID, cardID, card)
+	return c.UpdateCardContext(context.Background(), cardID, card)
 }
 
-// DeleteCard は顧客の特定のカードを削除します。
+// UpdateCardContext は顧客の特定のカード情報を更新します。
+func (c CustomerResponse) UpdateCardContext(ctx context.Context, cardID string, card Card) (*CardResponse, error) {
+	return c.service.Customer.UpdateCardContext(ctx, c.ID, cardID, card)
+}
+
+// DeleteCard Deprecated: use DeleteCardContext instead
 func (c CustomerResponse) DeleteCard(cardID string) error {
-	return c.service.Customer.DeleteCard(c.ID, cardID)
+	return c.DeleteCardContext(context.Background(), cardID)
+}
+
+// DeleteCardContext は顧客の特定のカードを削除します。
+func (c CustomerResponse) DeleteCardContext(ctx context.Context, cardID string) error {
+	return c.service.Customer.DeleteCardContext(ctx, c.ID, cardID)
 }
 
 // ListCard は顧客の保持しているカードリストを取得します。リストは、直近で生成された順番に取得されます。
@@ -474,9 +517,14 @@ func (c *CustomerResponse) ListCard() *CustomerCardListCaller {
 	return c.service.Customer.ListCard(c.ID)
 }
 
-// GetSubscription は顧客の特定の定期課金情報を取得します。
+// GetSubscription Deprecated: use GetSubscriptionContext instead
 func (c *CustomerResponse) GetSubscription(subscriptionID string) (*SubscriptionResponse, error) {
-	return c.service.Customer.GetSubscription(c.ID, subscriptionID)
+	return c.service.Customer.GetSubscriptionContext(context.Background(), c.ID, subscriptionID)
+}
+
+// GetSubscriptionContext は顧客の特定の定期課金情報を取得します。
+func (c *CustomerResponse) GetSubscriptionContext(ctx context.Context, subscriptionID string) (*SubscriptionResponse, error) {
+	return c.service.Customer.GetSubscriptionContext(ctx, c.ID, subscriptionID)
 }
 
 // ListSubscription は顧客の定期課金リストを取得します。リストは、直近で生成された順番に取得されます。

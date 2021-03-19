@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -230,7 +231,7 @@ func TestCustomerUpdate2(t *testing.T) {
 		t.Error("plan should not be nil")
 		return
 	}
-	err = plan.Update(Customer{
+	err = plan.UpdateContext(context.Background(), Customer{
 		Email: "test@mail.com",
 	})
 	if err != nil {
@@ -267,7 +268,7 @@ func TestCustomerDelete2(t *testing.T) {
 		t.Error("plan should not be nil")
 		return
 	}
-	err = customer.Delete()
+	err = customer.DeleteContext(context.Background())
 	if err != nil {
 		t.Errorf("err should be nil, but %v", err)
 	}
