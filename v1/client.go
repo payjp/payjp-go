@@ -90,6 +90,14 @@ func (s Service) delete(resourceURL string) error {
 }
 
 func (s Service) queryList(resourcePath string, limit, offset, since, until int, callbacks ...func(*url.Values) bool) ([]byte, error) {
+	return s.queryListAll(resourcePath, limit, offset, since, until, 0, 0, callbacks...)
+}
+
+func (s Service) queryTransferList(resourcePath string, limit, offset, since, until, sinceSheduledDate, untilSheduledDate int, callbacks ...func(*url.Values) bool) ([]byte, error) {
+	return s.queryListAll(resourcePath, limit, offset, since, until, sinceSheduledDate, untilSheduledDate, callbacks...)
+}
+
+func (s Service) queryListAll(resourcePath string, limit, offset, since, until, sinceSheduledDate, untilSheduledDate int, callbacks ...func(*url.Values) bool) ([]byte, error) {
 	if limit < 0 || limit > 100 {
 		return nil, fmt.Errorf("method Limit() should be between 1 and 100, but %d", limit)
 	}
@@ -110,6 +118,14 @@ func (s Service) queryList(resourcePath string, limit, offset, since, until int,
 	}
 	if until != 0 {
 		values.Add("until", strconv.Itoa(until))
+		hasParam = true
+	}
+	if sinceSheduledDate != 0 {
+		values.Add("since_sheduled_date", strconv.Itoa(sinceSheduledDate))
+		hasParam = true
+	}
+	if untilSheduledDate != 0 {
+		values.Add("until_sheduled_date", strconv.Itoa(untilSheduledDate))
 		hasParam = true
 	}
 	// add extra parameters
