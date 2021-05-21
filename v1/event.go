@@ -48,7 +48,7 @@ var eventTypes = map[string]EventType{
 	"plan.deleted":          DeleteEvent,
 	"subscription.created":  SubscriptionEvent,
 	"subscription.updated":  SubscriptionEvent,
-	"subscription.deleted":  SubscriptionEvent,
+	"subscription.deleted":  DeleteEvent,
 	"subscription.paused":   SubscriptionEvent,
 	"subscription.resumed":  SubscriptionEvent,
 	"subscription.canceled": SubscriptionEvent,
