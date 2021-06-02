@@ -82,6 +82,8 @@ type TransferListCaller struct {
 	offset  int
 	since   int
 	until   int
+	sinceSheduledDate   int
+	untilSheduledDate   int
 	status  TransferStatus
 }
 
@@ -94,6 +96,18 @@ func (c *TransferListCaller) Limit(limit int) *TransferListCaller {
 // Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
 func (c *TransferListCaller) Offset(offset int) *TransferListCaller {
 	c.offset = offset
+	return c
+}
+
+// SinceSheduledDate は入金予定日がここに指定したタイムスタンプ以降のデータのみ取得します
+func (c *TransferListCaller) SinceSheduledDate(sinceSheduledDate time.Time) *TransferListCaller {
+	c.sinceSheduledDate = int(sinceSheduledDate.Unix())
+	return c
+}
+
+// UntilSheduledDate は入金予定日がここに指定したタイムスタンプ以前のデータのみ取得します
+func (c *TransferListCaller) UntilSheduledDate(untilSheduledDate time.Time) *TransferListCaller {
+	c.untilSheduledDate = int(untilSheduledDate.Unix())
 	return c
 }
 
@@ -117,7 +131,7 @@ func (c *TransferListCaller) Status(status TransferStatus) *TransferListCaller {
 
 // Do は指定されたクエリーを元に入金のリストを配列で取得します。
 func (c *TransferListCaller) Do() ([]*TransferResponse, bool, error) {
-	body, err := c.service.queryList("/transfers", c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
+	body, err := c.service.queryTransferList("/transfers", c.limit, c.offset, c.since, c.until, c.sinceSheduledDate, c.untilSheduledDate, func(values *url.Values) bool {
 		if c.status != noTransferStatus {
 			values.Add("status", c.status.status().(string))
 			return true
