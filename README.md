@@ -1,6 +1,6 @@
 # PAY.JP for Go
 
-[![Build Status](https://travis-ci.org/payjp/payjp-go.svg?branch=master)](https://travis-ci.org/payjp/payjp-go)
+[![Build Status](https://github.com/payjp/payjp-go/actions/workflows/build-test.yml/badge.svg?branch=master)](https://github.com/payjp/payjp-go/actions)
 
 ## Installation
 
