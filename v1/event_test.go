@@ -1,6 +1,7 @@
 package payjp
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 	"time"
@@ -114,6 +115,18 @@ func TestParseEventResponseJSON(t *testing.T) {
 	}
 	if event.ResultType != CustomerEvent {
 		t.Errorf("parse error: %v", event.ResultType)
+	}
+
+	marshaledJSON, err := json.Marshal(&event)
+	if err != nil {
+		t.Errorf("error should be nil, but %v", err)
+	}
+	compactedEventResponseJSON := bytes.NewBuffer([]byte{})
+	if err := json.Compact(compactedEventResponseJSON, eventResponseJSON); err != nil {
+		t.Errorf("error should be nil, but %v", err)
+	}
+	if string(marshaledJSON) != compactedEventResponseJSON.String() {
+		t.Errorf("marshaledJSON should be same with eventResponseJSON, but %s", string(marshaledJSON))
 	}
 
 	card, err := event.CardData()
