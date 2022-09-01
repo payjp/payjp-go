@@ -3,10 +3,15 @@ package payjp
 import (
 	"encoding/base64"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 )
+
+const tagName = "form"
 
 // Config 構造体はNewに渡すパラメータを設定するのに使用します。
 type Config struct {
@@ -68,24 +73,34 @@ func (s Service) APIBase() string {
 	return s.apiBase
 }
 
-func (s Service) retrieve(resourceURL string) ([]byte, error) {
-	request, err := http.NewRequest("GET", s.apiBase+resourceURL, nil)
+func (s Service) request(method, path string, body io.Reader) ([]byte, error) {
+	request, err := http.NewRequest(method, s.apiBase+path, body)
 	if err != nil {
 		return nil, err
 	}
 	request.Header.Add("Authorization", s.apiKey)
+	if method == "POST" && body != nil {
+		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	}
 
-	return respToBody(s.Client.Do(request))
+	resp, err := s.Client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return ioutil.ReadAll(resp.Body)
 }
 
-func (s Service) delete(resourceURL string) error {
-	request, err := http.NewRequest("DELETE", s.apiBase+resourceURL, nil)
+func (s Service) retrieve(path string) ([]byte, error) {
+	return s.request("GET", path, nil)
+}
+
+func (s Service) delete(path string) error {
+	body, err := s.request("DELETE", path, nil)
 	if err != nil {
 		return err
 	}
-	request.Header.Add("Authorization", s.apiKey)
-
-	_, err = parseResponseError(s.Client.Do(request))
+	_, err = parseError(body)
 	return err
 }
 
@@ -134,17 +149,48 @@ func (s Service) queryListAll(resourcePath string, limit, offset, since, until, 
 			hasParam = true
 		}
 	}
-	var requestURL string
+	requestURL := resourcePath
 	if hasParam {
-		requestURL = s.apiBase + resourcePath + "?" + values.Encode()
-	} else {
-		requestURL = s.apiBase + resourcePath
+		requestURL = requestURL + "?" + values.Encode()
 	}
-	request, err := http.NewRequest("GET", requestURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", s.apiKey)
+	return s.retrieve(requestURL)
+}
 
-	return respToBody(s.Client.Do(request))
+// 第二引数の構造体はListParamsを含む必要があり、かつメンバは全てポインタ型である必要があります
+func (s Service) getList(path string, c interface{}) ([]byte, error) {
+	values := url.Values{}
+	hasParam := false
+	rv := reflect.ValueOf(c)
+	if c != nil && rv.Kind() == reflect.Ptr && !rv.IsNil() {
+		v := rv.Elem()
+		t := v.Type()
+
+		for i := 0; i < t.NumField(); i++ {
+			rf := t.Field(i)
+			formName := rf.Tag.Get(tagName)
+
+			if formName == "-" {
+				continue
+			}
+			fieldV := v.Field(i)
+			if fieldV.IsZero() {
+				continue
+			}
+
+			fieldV = fieldV.Elem()
+			var value string
+			switch rf.Type.Elem().Kind() {
+		    case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
+				value = strconv.FormatInt(fieldV.Int(), 10)
+			default:
+				value = fieldV.String()
+			}
+			values.Add(formName, value)
+			hasParam = true
+		}
+	}
+	if hasParam {
+		return s.retrieve(path + "?" + values.Encode())
+	}
+	return s.retrieve(path)
 }

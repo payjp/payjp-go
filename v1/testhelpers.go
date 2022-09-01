@@ -25,12 +25,21 @@ type MockTransport struct {
 	index     int
 	URL       string
 	Method    string
+	Body      *string
+	Header    http.Header
 }
 
 // Implement http.RoundTripper
 func (t *MockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	t.URL = req.URL.String()
 	t.Method = req.Method
+	t.Header = req.Header
+	t.Body = nil
+	if req.Body != nil {
+		b, _ := ioutil.ReadAll(req.Body)
+		s := string(b)
+		t.Body = &s
+	}
 	// Create mocked http.Response
 	responseSet := t.responses[t.index]
 	t.index++

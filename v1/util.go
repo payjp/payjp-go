@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strconv"
 )
@@ -75,14 +73,6 @@ func (qb *requestBuilder) AddMetadata(metadata map[string]string) {
 
 func (qb *requestBuilder) Reader() io.Reader {
 	return qb.buffer
-}
-
-func respToBody(resp *http.Response, err error) ([]byte, error) {
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
 }
 
 type listResponseParser struct {
