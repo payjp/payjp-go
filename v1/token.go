@@ -3,7 +3,6 @@ package payjp
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 )
@@ -66,14 +65,7 @@ func (t TokenService) Create(card Card) (*TokenResponse, error) {
 	qb := newRequestBuilder()
 	qb.AddCard(card)
 
-	request, err := http.NewRequest("POST", t.service.apiBase+"/tokens", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", t.service.apiKey)
-
-	return parseToken(respToBody(t.service.Client.Do(request)))
+	return parseToken(t.service.request("POST", "/tokens", qb.Reader()))
 }
 
 // Retrieve token object. 特定のトークン情報を取得します。

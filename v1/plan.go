@@ -3,9 +3,7 @@ package payjp
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -28,7 +26,7 @@ func newPlanService(service *Service) *PlanService {
 type Plan struct {
 	Amount     int               // 必須: 金額。50~9,999,999の整数
 	Currency   string            // 3文字のISOコード(現状 “jpy” のみサポート)
-	Interval   string            // month のみ指定可能
+	Interval   string            // 月次など
 	ID         string            // プランID
 	Name       string            // プランの名前
 	TrialDays  int               // トライアル日数
@@ -42,32 +40,21 @@ type Plan struct {
 //
 // また、支払いの実行日を指定すると、支払い日の固定されたプランを生成することができます。
 func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
-	var errors []string
-	if plan.Amount < 50 || plan.Amount > 9999999 {
-		errors = append(errors, fmt.Sprintf("Amount should be between 50 and 9,999,999, but %d.", plan.Amount))
-	}
-	if plan.Currency == "" {
-		plan.Currency = "jpy"
-	} else if plan.Currency != "jpy" {
-		// todo: if pay.jp supports other currency, fix this condition
-		errors = append(errors, fmt.Sprintf("Only supports 'jpy' as currency, but '%s'.", plan.Currency))
-	}
-	if plan.Interval == "" {
-		plan.Interval = "month"
-	} else if plan.Interval != "month" {
-		// todo: if pay.jp supports other interval options, fix this condition
-		errors = append(errors, fmt.Sprintf("Only supports 'month' as interval, but '%s'.", plan.Interval))
-	}
 	if plan.BillingDay < 0 || plan.BillingDay > 31 {
-		errors = append(errors, fmt.Sprintf("BillingDay should be between 1 and 31, but %d.", plan.BillingDay))
-	}
-	if len(errors) != 0 {
-		return nil, fmt.Errorf("payjp.Plan.Create() parameter error: %s", strings.Join(errors, ", "))
+		return nil, fmt.Errorf("BillingDay should be between 1 and 31, but %d.", plan.BillingDay)
 	}
 	qb := newRequestBuilder()
 	qb.Add("amount", strconv.Itoa(plan.Amount))
-	qb.Add("currency", plan.Currency)
-	qb.Add("interval", plan.Interval)
+	if plan.Currency == "" {
+		qb.Add("currency", "jpy")
+	} else  {
+		qb.Add("currency", plan.Currency)
+	}
+	if plan.Interval == "" {
+		qb.Add("interval", "month")
+	} else  {
+		qb.Add("interval", plan.Interval)
+	}
 	if plan.ID != "" {
 		qb.Add("id", plan.ID)
 	}
@@ -81,14 +68,8 @@ func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
 		qb.Add("billing_day", strconv.Itoa(plan.BillingDay))
 	}
 	qb.AddMetadata(plan.Metadata)
-	request, err := http.NewRequest("POST", p.service.apiBase+"/plans", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", p.service.apiKey)
 
-	body, err := respToBody(p.service.Client.Do(request))
+	body, err := p.service.request("POST", "/plans", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -113,22 +94,12 @@ func parsePlan(service *Service, body []byte, result *PlanResponse) (*PlanRespon
 	return result, nil
 }
 
-func (p PlanService) update(id, name string) ([]byte, error) {
-	qb := newRequestBuilder()
-	qb.Add("name", name)
-	request, err := http.NewRequest("POST", p.service.apiBase+"/plans/"+id, qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", p.service.apiKey)
-
-	return parseResponseError(p.service.Client.Do(request))
-}
-
 // Update はプラン情報を更新します。
-func (p PlanService) Update(id, name string) (*PlanResponse, error) {
-	body, err := p.update(id, name)
+func (p PlanService) Update(id string, plan Plan) (*PlanResponse, error) {
+	qb := newRequestBuilder()
+	qb.Add("name", plan.Name)
+	qb.AddMetadata(plan.Metadata)
+	body, err := p.service.request("POST", "/plans/"+id, qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -149,40 +120,42 @@ func (p PlanService) List() *PlanListCaller {
 
 // PlanListCaller はプランのリスト取得に使用する構造体です。
 type PlanListCaller struct {
-	service *Service
-	limit   int
-	offset  int
-	since   int
-	until   int
+	service *Service `form:"-"`
+	limit      *int `form:"limit"`
+	offset     *int `form:"offset"`
+	since      *int `form:"since"`
+	until      *int `form:"until"`
 }
 
 // Limit はリストの要素数の最大値を設定します(1-100)
 func (c *PlanListCaller) Limit(limit int) *PlanListCaller {
-	c.limit = limit
+	c.limit = &limit
 	return c
 }
 
 // Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
 func (c *PlanListCaller) Offset(offset int) *PlanListCaller {
-	c.offset = offset
+	c.offset = &offset
 	return c
 }
 
 // Since はここに指定したタイムスタンプ以降に作成されたデータを取得します
 func (c *PlanListCaller) Since(since time.Time) *PlanListCaller {
-	c.since = int(since.Unix())
+	i := int(since.Unix())
+	c.since = &i
 	return c
 }
 
 // Until はここに指定したタイムスタンプ以前に作成されたデータを取得します
 func (c *PlanListCaller) Until(until time.Time) *PlanListCaller {
-	c.until = int(until.Unix())
+	i := int(until.Unix())
+	c.until = &i
 	return c
 }
 
 // Do は指定されたクエリーを元にプランのリストを配列で取得します。
 func (c *PlanListCaller) Do() ([]*PlanResponse, bool, error) {
-	body, err := c.service.queryList("/plans", c.limit, c.offset, c.since, c.until)
+	body, err := c.service.getList("/plans", c)
 	if err != nil {
 		return nil, false, err
 	}
@@ -231,13 +204,17 @@ type planResponseParser struct {
 	Metadata     map[string]string `json:"metadata"`
 }
 
-// Update はプラン情報を更新します。
-func (p *PlanResponse) Update(name string) error {
-	body, err := p.service.Plan.update(p.ID, name)
+func (s *PlanResponse) updateResponse(r *PlanResponse, err error) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(body, p)
+	*s = *r
+	return nil
+}
+
+// Update はプラン情報を更新します。
+func (p *PlanResponse) Update(plan Plan) error {
+	return p.updateResponse(p.service.Plan.Update(p.ID, plan))
 }
 
 // Delete はプランを削除します。

@@ -94,7 +94,6 @@ func TestParseCardResponseJSON(t *testing.T) {
 
 func TestCustomerAddCard(t *testing.T) {
 	mock, transport := NewMockClient(200, cardResponseJSON)
-	transport.AddResponse(200, cardResponseJSON)
 	service := New("api-key", mock)
 	card, err := service.Customer.AddCard("cus_121673955bd7aa144de5a8f6c262", Card{
 		Number:   "4242424242424242",
@@ -265,8 +264,7 @@ func TestCustomerUpdateCardError(t *testing.T) {
 }
 
 func TestCustomerDeleteCard(t *testing.T) {
-	mock, transport := NewMockClient(200, cardResponseJSON)
-	transport.AddResponse(200, cardDeleteResponseJSON)
+	mock, transport := NewMockClient(200, cardDeleteResponseJSON)
 	service := New("api-key", mock)
 	err := service.Customer.DeleteCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff")
 	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards/car_f7d9fa98594dc7c2e42bfcd641ff" {

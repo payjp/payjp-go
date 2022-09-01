@@ -3,7 +3,6 @@ package payjp
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -90,14 +89,7 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 	qb.Add("expiry_days", charge.ExpireDays)
 	qb.AddMetadata(charge.Metadata)
 
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	body, err := respToBody(c.service.Client.Do(request))
+	body, err := c.service.request("POST", "/charges", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -118,14 +110,7 @@ func (c ChargeService) update(chargeID, description string, metadata map[string]
 	qb := newRequestBuilder()
 	qb.Add("description", description)
 	qb.AddMetadata(metadata)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID, qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	return parseResponseError(c.service.Client.Do(request))
+	return c.service.request("POST", "/charges/"+chargeID, qb.Reader())
 }
 
 // Update は支払い情報のDescriptionを更新します。
@@ -151,13 +136,8 @@ func (c ChargeService) refund(id string, reason string, amount []int) ([]byte, e
 		qb.Add("amount", amount[0])
 	}
 	qb.Add("refund_reason", reason)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+id+"/refund", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", c.service.apiKey)
 
-	return parseResponseError(c.service.Client.Do(request))
+	return c.service.request("POST", "/charges/"+id+"/refund", qb.Reader())
 }
 
 // Refund は支払い済みとなった処理を返金します。
@@ -177,13 +157,7 @@ func (c ChargeService) capture(chargeID string, amount []int) ([]byte, error) {
 	if len(amount) > 0 {
 		qb.Add("amount", amount[0])
 	}
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID+"/capture", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	return parseResponseError(c.service.Client.Do(request))
+	return c.service.request("POST", "/charges/"+chargeID+"/capture", qb.Reader())
 }
 
 // Capture は認証状態となった処理待ちの支払い処理を確定させます。具体的には Captured="false" となった支払いが該当します。
