@@ -131,7 +131,7 @@ func TestParseChargeErrorResponseJSON(t *testing.T) {
 }
 
 func TestChargeCreate(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	charge, err := service.Charge.Create(1000, Charge{
 		Card: Card{
@@ -158,7 +158,7 @@ func TestChargeCreate(t *testing.T) {
 }
 
 func TestChargeCreateByNonDefaultard(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	charge, err := service.Charge.Create(1000, Charge{
 		CustomerID:     "cus_xxxxxxxxx",
@@ -180,7 +180,7 @@ func TestChargeCreateByNonDefaultard(t *testing.T) {
 }
 
 func TestChargeRetrieve(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
 	if transport.URL != "https://api.pay.jp/v1/charges/ch_fa990a4c10672a93053a774730b0a" {
@@ -200,7 +200,7 @@ func TestChargeRetrieve(t *testing.T) {
 }
 
 func TestChargeGetError(t *testing.T) {
-	mock, _ := NewMockClient(200, chargeErrorResponseJSON)
+	mock, _ := newMockClient(200, chargeErrorResponseJSON)
 	service := New("api-key", mock)
 	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
 	if err == nil {
@@ -212,7 +212,7 @@ func TestChargeGetError(t *testing.T) {
 }
 
 func TestChargeUpdate(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	plan, err := service.Charge.Update("ch_fa990a4c10672a93053a774730b0a", "new description")
 	if transport.URL != "https://api.pay.jp/v1/charges/ch_fa990a4c10672a93053a774730b0a" {
@@ -233,7 +233,7 @@ func TestChargeUpdate(t *testing.T) {
 }
 
 func TestChargeUpdate2(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
 	if plan == nil {
@@ -253,7 +253,7 @@ func TestChargeUpdate2(t *testing.T) {
 }
 
 func TestChargeRefund(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	_, err := service.Charge.Refund("ch_fa990a4c10672a93053a774730b0a", "reason")
 	if transport.URL != "https://api.pay.jp/v1/charges/ch_fa990a4c10672a93053a774730b0a/refund" {
@@ -268,7 +268,7 @@ func TestChargeRefund(t *testing.T) {
 }
 
 func TestChargeRefund2(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
 	if plan == nil {
@@ -288,7 +288,7 @@ func TestChargeRefund2(t *testing.T) {
 }
 
 func TestChargeCapture(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	_, err := service.Charge.Capture("ch_fa990a4c10672a93053a774730b0a")
 	if transport.URL != "https://api.pay.jp/v1/charges/ch_fa990a4c10672a93053a774730b0a/capture" {
@@ -303,7 +303,7 @@ func TestChargeCapture(t *testing.T) {
 }
 
 func TestServiceChargeCaptureChangeAmount(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	_, err := service.Charge.Capture("ch_fa990a4c10672a93053a774730b0a", 300)
 	if transport.URL != "https://api.pay.jp/v1/charges/ch_fa990a4c10672a93053a774730b0a/capture" {
@@ -318,7 +318,7 @@ func TestServiceChargeCaptureChangeAmount(t *testing.T) {
 }
 
 func TestChargeCapture2(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	plan, err := service.Charge.Retrieve("ch_fa990a4c10672a93053a774730b0a")
 	if plan == nil {
@@ -338,7 +338,7 @@ func TestChargeCapture2(t *testing.T) {
 }
 
 func TestChargeCaptureChangedAmount(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, transport := newMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
 	chargeID := "ch_fa990a4c10672a93053a774730b0a"
 	charge, err := service.Charge.Retrieve(chargeID)
@@ -356,7 +356,7 @@ func TestChargeCaptureChangedAmount(t *testing.T) {
 }
 
 func TestChargeList(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeListResponseJSON)
+	mock, transport := newMockClient(200, chargeListResponseJSON)
 	service := New("api-key", mock)
 	plans, hasMore, err := service.Charge.List().
 		Limit(10).

@@ -44,7 +44,7 @@ func TestAPIBase(t *testing.T) {
 }
 
 func TestRequests(t *testing.T) {
-	mock, transport := NewMockClient(400, errorJSON)
+	mock, transport := newMockClient(400, errorJSON)
 	transport.AddResponse(400, errorJSON)
 	transport.AddResponse(400, errorJSON)
 	service := New("api-key", mock)
@@ -72,7 +72,7 @@ func TestRequests(t *testing.T) {
 }
 
 func TestGetList(t *testing.T) {
-	mock, transport := NewMockClient(400, errorJSON)
+	mock, transport := newMockClient(400, errorJSON)
 	transport.AddResponse(400, errorJSON)
 	service := New("api-key", mock)
 

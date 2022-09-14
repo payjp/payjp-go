@@ -93,7 +93,7 @@ func TestParseCardResponseJSON(t *testing.T) {
 }
 
 func TestCustomerAddCard(t *testing.T) {
-	mock, transport := NewMockClient(200, cardResponseJSON)
+	mock, transport := newMockClient(200, cardResponseJSON)
 	service := New("api-key", mock)
 	card, err := service.Customer.AddCard("cus_121673955bd7aa144de5a8f6c262", Card{
 		Number:   "4242424242424242",
@@ -118,7 +118,7 @@ func TestCustomerAddCard(t *testing.T) {
 }
 
 func TestCustomerAddCard2(t *testing.T) {
-	mock, transport := NewMockClient(200, customerResponseJSON)
+	mock, transport := newMockClient(200, customerResponseJSON)
 	transport.AddResponse(200, cardResponseJSON)
 	service := New("api-key", mock)
 	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
@@ -150,7 +150,7 @@ func TestCustomerAddCard2(t *testing.T) {
 }
 
 func TestCustomerGetCard(t *testing.T) {
-	mock, transport := NewMockClient(200, cardResponseJSON)
+	mock, transport := newMockClient(200, cardResponseJSON)
 	service := New("api-key", mock)
 	card, err := service.Customer.GetCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff")
 	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards/car_f7d9fa98594dc7c2e42bfcd641ff" {
@@ -170,7 +170,7 @@ func TestCustomerGetCard(t *testing.T) {
 }
 
 func TestCustomerGetCard2(t *testing.T) {
-	mock, transport := NewMockClient(200, customerResponseJSON)
+	mock, transport := newMockClient(200, customerResponseJSON)
 	transport.AddResponse(200, cardResponseJSON)
 	service := New("api-key", mock)
 	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
@@ -196,7 +196,7 @@ func TestCustomerGetCard2(t *testing.T) {
 }
 
 func TestCustomerUpdateCard(t *testing.T) {
-	mock, transport := NewMockClient(200, cardResponseJSON)
+	mock, transport := newMockClient(200, cardResponseJSON)
 	service := New("api-key", mock)
 	card, err := service.Customer.UpdateCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff", Card{
 		Number:   "4242424242424242",
@@ -221,7 +221,7 @@ func TestCustomerUpdateCard(t *testing.T) {
 }
 
 func TestCustomerUpdateCard2(t *testing.T) {
-	mock, transport := NewMockClient(200, customerResponseJSON)
+	mock, transport := newMockClient(200, customerResponseJSON)
 	transport.AddResponse(200, cardResponseJSON)
 	service := New("api-key", mock)
 	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
@@ -247,7 +247,7 @@ func TestCustomerUpdateCard2(t *testing.T) {
 }
 
 func TestCustomerUpdateCardError(t *testing.T) {
-	mock, _ := NewMockClient(200, cardErrorResponseJSON)
+	mock, _ := newMockClient(200, cardErrorResponseJSON)
 	service := New("api-key", mock)
 	card, err := service.Customer.UpdateCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff", Card{
 		Number:   "4242424242424242",
@@ -264,7 +264,7 @@ func TestCustomerUpdateCardError(t *testing.T) {
 }
 
 func TestCustomerDeleteCard(t *testing.T) {
-	mock, transport := NewMockClient(200, cardDeleteResponseJSON)
+	mock, transport := newMockClient(200, cardDeleteResponseJSON)
 	service := New("api-key", mock)
 	err := service.Customer.DeleteCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff")
 	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards/car_f7d9fa98594dc7c2e42bfcd641ff" {
@@ -279,7 +279,7 @@ func TestCustomerDeleteCard(t *testing.T) {
 }
 
 func TestCustomerDeleteCard2(t *testing.T) {
-	mock, transport := NewMockClient(200, customerResponseJSON)
+	mock, transport := newMockClient(200, customerResponseJSON)
 	transport.AddResponse(200, cardDeleteResponseJSON)
 	service := New("api-key", mock)
 	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
@@ -300,7 +300,7 @@ func TestCustomerDeleteCard2(t *testing.T) {
 }
 
 func TestCustomerListCard(t *testing.T) {
-	mock, transport := NewMockClient(200, cardListResponseJSON)
+	mock, transport := newMockClient(200, cardListResponseJSON)
 	service := New("api-key", mock)
 	cards, hasMore, err := service.Customer.ListCard("cus_121673955bd7aa144de5a8f6c262").
 		Limit(10).

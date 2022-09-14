@@ -134,7 +134,7 @@ func TestParseEventResponseJSON(t *testing.T) {
 }
 
 func TestEventRetrieve(t *testing.T) {
-	mock, transport := NewMockClient(200, eventResponseJSON)
+	mock, transport := newMockClient(200, eventResponseJSON)
 	service := New("api-key", mock)
 	event, err := service.Event.Retrieve("evnt_54db4d63c7886256acdbc784ccf")
 	if transport.URL != "https://api.pay.jp/v1/events/evnt_54db4d63c7886256acdbc784ccf" {
@@ -154,7 +154,7 @@ func TestEventRetrieve(t *testing.T) {
 }
 
 func TestEventList(t *testing.T) {
-	mock, transport := NewMockClient(200, eventListResponseJSON)
+	mock, transport := newMockClient(200, eventListResponseJSON)
 	service := New("api-key", mock)
 	events, hasMore, err := service.Event.List().
 		Limit(10).

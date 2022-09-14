@@ -55,7 +55,7 @@ func TestParsePlanResponseJSON(t *testing.T) {
 }
 
 func TestPlanCreate(t *testing.T) {
-	mock, transport := NewMockClient(200, planResponseJSON)
+	mock, transport := newMockClient(200, planResponseJSON)
 	service := New("api-key", mock)
 	plan, err := service.Plan.Create(Plan{
 		Amount:   500,
@@ -73,7 +73,7 @@ func TestPlanCreate(t *testing.T) {
 }
 
 func TestPlanRetrieve(t *testing.T) {
-	mock, transport := NewMockClient(200, planResponseJSON)
+	mock, transport := newMockClient(200, planResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 
@@ -91,7 +91,7 @@ func TestPlanRetrieve(t *testing.T) {
 }
 
 func TestPlanUpdate(t *testing.T) {
-	mock, transport := NewMockClient(200, planResponseJSON)
+	mock, transport := newMockClient(200, planResponseJSON)
 	transport.AddResponse(200, planNewResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
@@ -125,7 +125,7 @@ func TestPlanUpdate(t *testing.T) {
 }
 
 func TestPlanDelete(t *testing.T) {
-	mock, transport := NewMockClient(200, []byte(`{}`))
+	mock, transport := newMockClient(200, []byte(`{}`))
 	service := New("api-key", mock)
 
 	err := service.Plan.Delete("pln_45dd3268a18b2837d52861716260")
@@ -136,7 +136,7 @@ func TestPlanDelete(t *testing.T) {
 }
 
 func TestPlanResponseDelete(t *testing.T) {
-	mock, transport := NewMockClient(200, planResponseJSON)
+	mock, transport := newMockClient(200, planResponseJSON)
 	transport.AddResponse(200, []byte(`{}`))
 	service := New("api-key", mock)
 	plan, err := service.Plan.Retrieve("pln_45dd3268a18b2837d52861716260")
@@ -149,7 +149,7 @@ func TestPlanResponseDelete(t *testing.T) {
 }
 
 func TestPlanList(t *testing.T) {
-	mock, transport := NewMockClient(200, planListResponseJSON)
+	mock, transport := newMockClient(200, planListResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 	p := service.Plan.List().
