@@ -144,7 +144,7 @@ func TestParseTransferStatusResponseJSON(t *testing.T) {
 }
 
 func TestTransferRetrieve(t *testing.T) {
-	mock, transport := NewMockClient(200, transferResponseJSON)
+	mock, transport := newMockClient(200, transferResponseJSON)
 	service := New("api-key", mock)
 	transfer, err := service.Transfer.Retrieve("tr_8f0c0fe2c9f8a47f9d18f03959ba1")
 	if transport.URL != "https://api.pay.jp/v1/transfers/tr_8f0c0fe2c9f8a47f9d18f03959ba1" {
@@ -164,7 +164,7 @@ func TestTransferRetrieve(t *testing.T) {
 }
 
 func TestTransferList(t *testing.T) {
-	mock, transport := NewMockClient(200, transferListResponseJSON)
+	mock, transport := newMockClient(200, transferListResponseJSON)
 	service := New("api-key", mock)
 	subscriptions, hasMore, err := service.Transfer.List().
 		Limit(10).
@@ -190,7 +190,7 @@ func TestTransferList(t *testing.T) {
 }
 
 func TestTransferChargeList(t *testing.T) {
-	mock, transport := NewMockClient(200, transferChargeListResponseJSON)
+	mock, transport := newMockClient(200, transferChargeListResponseJSON)
 	service := New("api-key", mock)
 	subscriptions, hasMore, err := service.Transfer.ChargeList("tr_8f0c0fe2c9f8a47f9d18f03959ba1").
 		Limit(10).

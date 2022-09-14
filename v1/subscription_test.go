@@ -149,7 +149,7 @@ func TestParseSubscriptionResponseJSON(t *testing.T) {
 }
 
 func TestCustomerGetSubscription(t *testing.T) {
-	mock, transport := NewMockClient(200, subscriptionResponseJSON)
+	mock, transport := newMockClient(200, subscriptionResponseJSON)
 	service := New("api-key", mock)
 
 	subscription, err := service.Customer.GetSubscription("cus_xxx", "sub_req")
@@ -163,7 +163,7 @@ func TestCustomerGetSubscription(t *testing.T) {
 }
 
 func TestCustomerListSubscription(t *testing.T) {
-	mock, transport := NewMockClient(200, subscriptionListResponseJSON)
+	mock, transport := newMockClient(200, subscriptionListResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 
@@ -185,7 +185,7 @@ func TestCustomerListSubscription(t *testing.T) {
 }
 
 func TestSubscriptionCreate(t *testing.T) {
-	mock, transport := NewMockClient(200, subscriptionResponseJSON)
+	mock, transport := newMockClient(200, subscriptionResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 
@@ -213,7 +213,7 @@ func TestSubscriptionCreateParamError(t *testing.T) {
 
 	subscription, err := service.Subscription.Subscribe("cus_xxx", Subscription{})
 	assert.Nil(t, subscription)
-	expected := fmt.Errorf("PlanID is required, but empty.")
+	expected := fmt.Errorf("plan is required, but empty")
 	assert.Equal(t, expected, err)
 
 	subscription, err = service.Subscription.Subscribe("cus_xxx", Subscription{
@@ -222,12 +222,12 @@ func TestSubscriptionCreateParamError(t *testing.T) {
 		TrialEndAt: time.Now().AddDate(1, 0, 0),
 	})
 	assert.Nil(t, subscription)
-	expected = fmt.Errorf("TrialEndAt and SkipTrial are exclusive.")
+	expected = fmt.Errorf("only either trial_end or SkipTrial is available")
 	assert.Equal(t, expected, err)
 }
 
 func TestSubscriptionRetrieve(t *testing.T) {
-	mock, transport := NewMockClient(200, subscriptionResponseJSON)
+	mock, transport := newMockClient(200, subscriptionResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 
@@ -243,7 +243,7 @@ func TestSubscriptionRetrieve(t *testing.T) {
 }
 
 func TestSubscriptionUpdate(t *testing.T) {
-	mock, transport := NewMockClient(200, subscriptionResponseJSON)
+	mock, transport := newMockClient(200, subscriptionResponseJSON)
 	transport.AddResponse(200, nextCyclePlanNullResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
@@ -288,7 +288,7 @@ func TestSubscriptionUpdate(t *testing.T) {
 }
 
 func TestSubscriptionPause(t *testing.T) {
-	mock, transport := NewMockClient(200, subscriptionResponseJSON)
+	mock, transport := newMockClient(200, subscriptionResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 
@@ -310,7 +310,7 @@ func TestSubscriptionPause(t *testing.T) {
 }
 
 func TestSubscriptionResume(t *testing.T) {
-	mock, transport := NewMockClient(200, subscriptionResponseJSON)
+	mock, transport := newMockClient(200, subscriptionResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 
@@ -337,7 +337,7 @@ func TestSubscriptionResume(t *testing.T) {
 }
 
 func TestSubscriptionCancel(t *testing.T) {
-	mock, transport := NewMockClient(200, subscriptionResponseJSON)
+	mock, transport := newMockClient(200, subscriptionResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 
@@ -359,7 +359,7 @@ func TestSubscriptionCancel(t *testing.T) {
 }
 
 func TestSubscriptionDelete(t *testing.T) {
-	mock, transport := NewMockClient(200, []byte(`{}`))
+	mock, transport := newMockClient(200, []byte(`{}`))
 	service := New("api-key", mock)
 
 	err := service.Subscription.Delete("sub_req")
@@ -370,7 +370,7 @@ func TestSubscriptionDelete(t *testing.T) {
 }
 
 func TestSubscriptionResponseDelete(t *testing.T) {
-	mock, transport := NewMockClient(200, subscriptionResponseJSON)
+	mock, transport := newMockClient(200, subscriptionResponseJSON)
 	transport.AddResponse(200, []byte(`{}`))
 	service := New("api-key", mock)
 	subscription, err := service.Subscription.Retrieve("cus_xxx", "sub_req")
@@ -383,7 +383,7 @@ func TestSubscriptionResponseDelete(t *testing.T) {
 }
 
 func TestSubscriptionList(t *testing.T) {
-	mock, transport := NewMockClient(200, subscriptionListResponseJSON)
+	mock, transport := newMockClient(200, subscriptionListResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 	s := service.Subscription.List().

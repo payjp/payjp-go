@@ -3,12 +3,25 @@ name: Build Test
 on: push
 
 jobs:
-  build-test:
+  lint:
+    name: Lint
 
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: lint
+        run: |
+          go get -u golang.org/x/lint/golint &&
+          $HOME/go/bin/golint ./v1
+
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: [ '1.16', '1.15', '1.14', '1.13', '1.12', '1.11', '1.10', '1.9' ]
+        go: [ '1.16', '1.15', '1.14', '1.13' ]
+    name: "Test: go v${{ matrix.go }}"
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
@@ -21,3 +34,24 @@ jobs:
 #        run: golint ./v1
       - name: Execute Test
         run: go test -v ./v1
+      - name: Compile
+        run: go build ./...
+
+  compile-only:
+     runs-on: ubuntu-latest
+     strategy:
+       matrix:
+         go:
+           - '1.12'
+           - '1.11'
+           - '1.10'
+           - '1.9'
+     name: "Compile: go v${{ matrix.go }}"
+     steps:
+       - uses: actions/checkout@v2
+       - name: Set up Go
+         uses: actions/setup-go@v2
+         with:
+           go-version: ${{ matrix.go }}
+       - name: Compile
+         run: go build ./v1/*.go

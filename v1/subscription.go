@@ -72,7 +72,7 @@ type Subscription struct {
 func (s SubscriptionService) Subscribe(customerID string, subscription Subscription) (*SubscriptionResponse, error) {
 	planID, ok := subscription.PlanID.(string)
 	if !ok || planID == "" {
-		return nil, fmt.Errorf("PlanID is required, but empty.")
+		return nil, fmt.Errorf("plan is required, but empty")
 	}
 	trialEnd, err := subscription.getTrialEnd()
 	if err != nil {
@@ -210,7 +210,7 @@ func (subscription Subscription) getTrialEnd() (*string, error) {
 	var isZero time.Time
 	skipTrial, ok := subscription.SkipTrial.(bool)
 	if subscription.TrialEndAt != isZero && ok {
-		return nil, fmt.Errorf("TrialEndAt and SkipTrial are exclusive.")
+		return nil, fmt.Errorf("only either trial_end or SkipTrial is available")
 	}
 	if subscription.TrialEndAt != isZero {
 		trialEnd := strconv.Itoa(int(subscription.TrialEndAt.Unix()))
@@ -284,31 +284,32 @@ func (s *SubscriptionResponse) updateResponse(r *SubscriptionResponse, err error
 	return nil
 }
 
-// SubscriptionResponseからUpdate を実行します。
+// Update をSubscriptionResponseから実行します。
 func (s *SubscriptionResponse) Update(subscription Subscription) error {
 	return s.updateResponse(s.service.Subscription.Update(s.ID, subscription))
 }
 
-// SubscriptionResponseからPause を実行します。
+// Pause をSubscriptionResponseから実行します。
 func (s *SubscriptionResponse) Pause() error {
 	return s.updateResponse(s.service.Subscription.Pause(s.ID))
 }
 
-// SubscriptionResponseからResume を実行します。
+// Resume をSubscriptionResponseから実行します。
 func (s *SubscriptionResponse) Resume(subscription Subscription) error {
 	return s.updateResponse(s.service.Subscription.Resume(s.ID, subscription))
 }
 
-// SubscriptionResponseからCancel を実行します。
+// Cancel をSubscriptionResponseから実行します。
 func (s *SubscriptionResponse) Cancel() error {
 	return s.updateResponse(s.service.Subscription.Cancel(s.ID))
 }
 
-// SubscriptionResponseからDelete を実行します。
+// Delete をSubscriptionResponseから実行します。
 func (s *SubscriptionResponse) Delete() error {
 	return s.service.Subscription.Delete(s.ID)
 }
 
+// UnmarshalJSON はJSONパース用の内部APIです。
 func (s *SubscriptionResponse) UnmarshalJSON(b []byte) error {
 	raw := subscriptionResponseParser{}
 	err := json.Unmarshal(b, &raw)

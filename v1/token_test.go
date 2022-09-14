@@ -48,7 +48,7 @@ func TestParseTokenResponseJSON(t *testing.T) {
 }
 
 func TestTokenCreate(t *testing.T) {
-	mock, transport := NewMockClient(200, tokenResponseJSON)
+	mock, transport := newMockClient(200, tokenResponseJSON)
 	service := New("api-key", mock)
 	token, err := service.Token.Create(Card{
 		Number:   "4242424242424242",
@@ -73,7 +73,7 @@ func TestTokenCreate(t *testing.T) {
 }
 
 func TestTokenRetrieve(t *testing.T) {
-	mock, transport := NewMockClient(200, tokenResponseJSON)
+	mock, transport := newMockClient(200, tokenResponseJSON)
 	service := New("api-key", mock)
 	token, err := service.Token.Retrieve("tok_5ca06b51685e001723a2c3b4aeb4")
 	if transport.URL != "https://api.pay.jp/v1/tokens/tok_5ca06b51685e001723a2c3b4aeb4" {

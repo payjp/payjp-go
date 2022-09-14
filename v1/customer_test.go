@@ -141,7 +141,7 @@ func TestParseCustomerResponseJson(t *testing.T) {
 }
 
 func TestCustomerCreate(t *testing.T) {
-	mock, transport := NewMockClient(200, customerResponseJSON)
+	mock, transport := newMockClient(200, customerResponseJSON)
 	service := New("api-key", mock)
 	customer, err := service.Customer.Create(Customer{
 		Description: "test",
@@ -164,7 +164,7 @@ func TestCustomerCreate(t *testing.T) {
 }
 
 func TestCustomerCreateError(t *testing.T) {
-	mock, _ := NewMockClient(400, customerErrorResponseJSON)
+	mock, _ := newMockClient(400, customerErrorResponseJSON)
 	service := New("api-key", mock)
 	customer, err := service.Customer.Create(Customer{
 		Description: "test",
@@ -178,7 +178,7 @@ func TestCustomerCreateError(t *testing.T) {
 }
 
 func TestCustomerRetrieve(t *testing.T) {
-	mock, transport := NewMockClient(200, customerResponseJSON)
+	mock, transport := newMockClient(200, customerResponseJSON)
 	service := New("api-key", mock)
 	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
 	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262" {
@@ -200,7 +200,7 @@ func TestCustomerRetrieve(t *testing.T) {
 }
 
 func TestCustomerUpdate(t *testing.T) {
-	mock, transport := NewMockClient(200, customerResponseJSON)
+	mock, transport := newMockClient(200, customerResponseJSON)
 	service := New("api-key", mock)
 	customer, err := service.Customer.Update("cus_121673955bd7aa144de5a8f6c262", Customer{
 		Email: "test@mail.com",
@@ -223,7 +223,7 @@ func TestCustomerUpdate(t *testing.T) {
 }
 
 func TestCustomerUpdate2(t *testing.T) {
-	mock, transport := NewMockClient(200, customerResponseJSON)
+	mock, transport := newMockClient(200, customerResponseJSON)
 	service := New("api-key", mock)
 	plan, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
 	if plan == nil {
@@ -245,7 +245,7 @@ func TestCustomerUpdate2(t *testing.T) {
 }
 
 func TestCustomerDelete(t *testing.T) {
-	mock, transport := NewMockClient(200, customerResponseJSON)
+	mock, transport := newMockClient(200, customerResponseJSON)
 	service := New("api-key", mock)
 	err := service.Customer.Delete("cus_121673955bd7aa144de5a8f6c262")
 	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262" {
@@ -260,7 +260,7 @@ func TestCustomerDelete(t *testing.T) {
 }
 
 func TestCustomerDelete2(t *testing.T) {
-	mock, transport := NewMockClient(200, customerResponseJSON)
+	mock, transport := newMockClient(200, customerResponseJSON)
 	service := New("api-key", mock)
 	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
 	if customer == nil {
@@ -280,7 +280,7 @@ func TestCustomerDelete2(t *testing.T) {
 }
 
 func TestCustomerList(t *testing.T) {
-	mock, transport := NewMockClient(200, customerListResponseJSON)
+	mock, transport := newMockClient(200, customerListResponseJSON)
 	service := New("api-key", mock)
 	plans, hasMore, err := service.Customer.List().
 		Limit(10).
