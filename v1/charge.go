@@ -67,7 +67,7 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 		errorMessages = append(errorMessages, fmt.Sprintf("Only supports 'jpy' as currency, but '%s'.", charge.Currency))
 	}
 	expireDays, ok := charge.ExpireDays.(int)
-	if ok && (expireDays < -1 || expireDays > 60) {
+	if ok && (expireDays < 1 || expireDays > 60) {
 		errorMessages = append(errorMessages, fmt.Sprintf("ExpireDays should be between 1 and 60, but %d.", expireDays))
 	}
 	if len(errorMessages) > 0 {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+	"strings"
 )
 
 var chargeResponseJSON = []byte(`
@@ -154,6 +155,19 @@ func TestChargeCreate(t *testing.T) {
 		t.Error("charge should not be nil")
 	} else if charge.Amount != 3500 {
 		t.Errorf("charge.Amount should be 3500, but %d.", charge.Amount)
+	}
+}
+
+func TestChargeCannotCreateWithInvalidExpireDays(t *testing.T) {
+	mock, transport := NewMockClient(200, chargeResponseJSON)
+	service := New("api-key", mock)
+	charge, err := service.Charge.Create(1000, Charge{
+		Capture: false,
+		ExpireDays: 0,
+	})
+	if !strings.Contains(fmt.Sprint(err), "ExpireDays should be between 1 and 60, but 0") {
+		t.Errorf("err should not be nil")
+		return
 	}
 }
 
