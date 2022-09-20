@@ -160,9 +160,9 @@ func TestChargeCreate(t *testing.T) {
 }
 
 func TestChargeCannotCreateWithInvalidExpireDays(t *testing.T) {
-	mock, transport := NewMockClient(200, chargeResponseJSON)
+	mock, _ := NewMockClient(200, chargeResponseJSON)
 	service := New("api-key", mock)
-	charge, err := service.Charge.Create(1000, Charge{
+	_, err := service.Charge.Create(1000, Charge{
 		Capture: false,
 		ExpireDays: 0,
 	})
