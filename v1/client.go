@@ -173,7 +173,8 @@ func (s Service) getList(path string, c interface{}) ([]byte, error) {
 				continue
 			}
 			fieldV := v.Field(i)
-			if fieldV.IsZero() {
+			// if fieldV.Kind() != reflect.Ptr || fieldV.IsZero() { // todo golang >= 1.13
+			if fieldV.Kind() != reflect.Ptr || fieldV.IsNil() {
 				continue
 			}
 
