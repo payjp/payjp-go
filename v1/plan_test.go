@@ -52,6 +52,7 @@ func TestParsePlanResponseJSON(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.True(t, 1433127983 == plan.CreatedAt.Unix())
+	assert.Equal(t, 0, plan.BillingDay)
 }
 
 func TestPlanCreate(t *testing.T) {
