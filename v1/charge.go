@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strings"
 	"time"
 )
 
@@ -22,71 +21,64 @@ func newChargeService(service *Service) *ChargeService {
 // Charge 構造体はCharge.Createのパラメータを設定するのに使用します
 type Charge struct {
 	Currency    string            // 必須: 3文字のISOコード(現状 “jpy” のみサポート)
+	Product     interface{}       // プロダクトID (指定された場合、amountとcurrencyは無視されます)
 	CustomerID  string            // 顧客ID (CardかCustomerのどちらかは必須パラメータ)
-	Card        Card              // カードオブジェクト(cardかcustomerのどちらかは必須)
 	CardToken   string            // トークンID (CardかCustomerのどちらかは必須パラメータ)
 	CustomerCardID	string        // 顧客のカードID
 	Capture     bool              // 支払い処理を確定するかどうか (falseの場合、カードの認証と支払い額の確保のみ行う)
-	Description string            // 	概要
+	Description string            // 概要
 	ExpireDays  interface{}       // デフォルトで7日となっており、1日~60日の間で設定が可能
+	ThreeDSecure interface{}      // 3DSecureを実施するか否か (bool)
 	Metadata    map[string]string // メタデータ
 }
 
-// Create はトークンID、カードを保有している顧客ID、カードオブジェクトのいずれかのパラメーターを指定して支払いを作成します。
+// Create はトークンID、カードを保有している顧客IDのいずれかのパラメーターを指定して支払いを作成します。
 // 顧客IDを使って支払いを作成する場合は CustomerCardID に顧客の保有するカードのIDを指定でき、省略された場合はデフォルトカードとして登録されているものが利用されます。
 // テスト用のキーでは、本番用の決済ネットワークへは接続されず、実際の請求が行われることもありません。 本番用のキーでは、決済ネットワークで処理が行われ、実際の請求が行われます。
 //
 // 支払いを確定せずに、カードの認証と支払い額のみ確保する場合は、 Capture に false を指定してください。 このとき ExpireDays を指定することで、認証の期間を定めることができます。 ExpireDays はデフォルトで7日となっており、1日~60日の間で設定が可能です。
 func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error) {
-	var errorMessages []string
-	if amount < 50 || amount > 9999999 {
-		errorMessages = append(errorMessages, fmt.Sprintf("Amount should be between 50 and 9,999,999, but %d.", amount))
-	}
-	counter := 0
-	if charge.CustomerID != "" {
-		counter++
-	}
-	if charge.CardToken != "" {
-		counter++
-	}
-	if charge.Card.valid() {
-		counter++
-	}
-	switch counter {
-	case 0:
-		errorMessages = append(errorMessages, "One of the following parameters is required: CustomerID, CardToken, Card")
-	case 1:
-	case 2, 3:
-		errorMessages = append(errorMessages, "The following parameters are exclusive: CustomerID, CardToken, Card")
-	}
-	if charge.Currency == "" {
-		charge.Currency = "jpy"
-	} else if charge.Currency != "jpy" {
-		// todo: if pay.jp supports other currency, fix this condition
-		errorMessages = append(errorMessages, fmt.Sprintf("Only supports 'jpy' as currency, but '%s'.", charge.Currency))
-	}
-	expireDays, ok := charge.ExpireDays.(int)
-	if ok && (expireDays < -1 || expireDays > 60) {
-		errorMessages = append(errorMessages, fmt.Sprintf("ExpireDays should be between 1 and 60, but %d.", expireDays))
-	}
-	if len(errorMessages) > 0 {
-		return nil, fmt.Errorf("Charge.Create() parameter error: %s", strings.Join(errorMessages, ", "))
-	}
 	qb := newRequestBuilder()
-	qb.Add("amount", amount)
-	qb.Add("currency", charge.Currency)
+	product, ok := charge.Product.(string)
+	if ok {
+		qb.Add("product", product)
+	} else {
+		qb.Add("amount", amount)
+		if charge.Currency == "" {
+			qb.Add("currency", "jpy")
+		} else  {
+			qb.Add("currency", charge.Currency)
+		}
+	}
 	if charge.CustomerID != "" {
+	    if charge.CardToken != "" {
+	    	return nil, fmt.Errorf("The following parameters are exclusive: CustomerID, CardToken.")
+	    }
 		qb.Add("customer", charge.CustomerID)
 		if charge.CustomerCardID != "" {
 			qb.Add("card", charge.CustomerCardID)
 		}
 	} else if charge.CardToken != "" {
 		qb.Add("card", charge.CardToken)
+	} else {
+		return nil, fmt.Errorf("One of the following parameters is required: CustomerID or CardToken")
 	}
-	qb.AddCard(charge.Card)
-	qb.Add("description", charge.Description)
+
 	qb.Add("capture", charge.Capture)
-	qb.Add("expiry_days", charge.ExpireDays)
+	expireDays, ok := charge.ExpireDays.(int)
+	if ok {
+		if expireDays < 1 || expireDays > 60 {
+			return nil, fmt.Errorf("ExpireDays should be between 1 and 60.")
+		}
+		qb.Add("expiry_days", expireDays)
+	}
+	if charge.Description != "" {
+		qb.Add("description", charge.Description)
+	}
+	ThreeDSecure, ok := charge.ThreeDSecure.(bool)
+	if ok {
+		qb.Add("three_d_secure", ThreeDSecure)
+	}
 	qb.AddMetadata(charge.Metadata)
 
 	body, err := c.service.request("POST", "/charges", qb.Reader())
@@ -169,6 +161,16 @@ func (c ChargeService) capture(chargeID string, amount []int) ([]byte, error) {
 // 例えば、認証時に amount=500 で作成し、 amount=400 で支払い確定を行った場合、 AmountRefunded=100 となり、確定金額が400円に変更された状態で支払いが確定されます。
 func (c ChargeService) Capture(chargeID string, amount ...int) (*ChargeResponse, error) {
 	body, err := c.capture(chargeID, amount)
+	if err != nil {
+		return nil, err
+	}
+	return parseCharge(c.service, body, &ChargeResponse{})
+}
+
+// TdsFinish は3Dセキュア認証が終了した支払いに対し、決済を行います。
+// https://pay.jp/docs/api/#3d%E3%82%BB%E3%82%AD%E3%83%A5%E3%82%A2%E3%83%95%E3%83%AD%E3%83%BC%E3%82%92%E5%AE%8C%E4%BA%86%E3%81%99%E3%82%8B
+func (c ChargeService) TdsFinish(id string) (*ChargeResponse, error) {
+	body, err := c.service.request("POST", "/charges/"+id+"/tds_finish", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -297,8 +299,17 @@ type ChargeResponse struct {
 	SubscriptionID string            // sub_から始まる定期課金のID
 	Metadata       map[string]string // メタデータ
 	FeeRate        string            // 決済手数料率
+	ThreeDSecureStatus *string       // 3Dセキュアの実施状況
 
 	service *Service
+}
+
+func (c *ChargeResponse) updateResponse(r *ChargeResponse, err error) error {
+	if err != nil {
+		return err
+	}
+	*c = *r
+	return nil
 }
 
 // Update は支払い情報のDescriptionとメタデータ(オプション)を更新します
@@ -348,6 +359,11 @@ func (c *ChargeResponse) Capture(amount ...int) error {
 	return err
 }
 
+// TdsFinish をChrgeResponseから実行します。
+func (c *ChargeResponse) TdsFinish() error {
+	return c.updateResponse(c.service.Charge.TdsFinish(c.ID))
+}
+
 type chargeResponseParser struct {
 	Amount         int               `json:"amount"`
 	AmountRefunded int               `json:"amount_refunded"`
@@ -370,6 +386,7 @@ type chargeResponseParser struct {
 	Subscription   string            `json:"subscription"`
 	Metadata       map[string]string `json:"metadata"`
 	FeeRate        string            `json:"fee_rate"`
+	ThreeDSecureStatus *string       `json:"three_d_secure_status"`
 }
 
 // UnmarshalJSON はJSONパース用の内部APIです。
@@ -397,6 +414,7 @@ func (c *ChargeResponse) UnmarshalJSON(b []byte) error {
 		c.SubscriptionID = raw.Subscription
 		c.Metadata = raw.Metadata
 		c.FeeRate = raw.FeeRate
+		c.ThreeDSecureStatus = raw.ThreeDSecureStatus
 		return nil
 	}
 	rawError := errorResponse{}
