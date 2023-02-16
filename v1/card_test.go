@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+	"github.com/stretchr/testify/assert"
 )
 
 var cardResponseJSON = []byte(`
@@ -25,6 +26,7 @@ var cardResponseJSON = []byte(`
   "last4": "4242",
   "livemode": false,
   "name": null,
+  "three_d_secure_status": null,
   "object": "card"
 }
 `)
@@ -51,6 +53,7 @@ var cardListResponseJSON = []byte(`
       "last4": "4242",
       "livemode": false,
       "name": null,
+      "three_d_secure_status": "verified",
       "object": "card"
     }
   ],
@@ -68,24 +71,14 @@ var cardDeleteResponseJSON = []byte(`
 }
 `)
 
-var cardErrorResponseJSON = []byte(`
-{
-  "error": {
-    "message": "There is no card with ID: dummy",
-    "param": "id",
-    "status": 404,
-    "type": "client_error"
-  }
-}
-`)
-
 func TestParseCardResponseJSON(t *testing.T) {
 	card := &CardResponse{}
-	json.Unmarshal(cardResponseJSON, card)
+	err := json.Unmarshal(cardResponseJSON, card)
 
-	if card.ID != "car_f7d9fa98594dc7c2e42bfcd641ff" {
-		t.Errorf("card.Id should be 'car_f7d9fa98594dc7c2e42bfcd641ff', but '%s'", card.ID)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "car_f7d9fa98594dc7c2e42bfcd641ff", card.ID)
+	assert.Nil(t, card.ThreeDSecureStatus)
+
 	createdAt := card.CreatedAt.UTC().Format("2006-01-02 15:04:05")
 	if createdAt != "2015-06-01 03:06:23" {
 		t.Errorf("card.CreatedAt() should be '2015-06-01 03:06:23' but '%s'", createdAt)
@@ -223,44 +216,33 @@ func TestCustomerUpdateCard(t *testing.T) {
 func TestCustomerUpdateCard2(t *testing.T) {
 	mock, transport := newMockClient(200, customerResponseJSON)
 	transport.AddResponse(200, cardResponseJSON)
+    transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
-	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
-	if customer == nil {
-		t.Error("plan should not be nil")
-		return
-	}
-	err = customer.Cards[0].Update(Card{
-		Number:   "4242424242424242",
-		ExpMonth: "2",
-		ExpYear:  "2020",
-		CVC:      "000",
-	})
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-	}
-	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards/car_f7d9fa98594dc7c2e42bfcd641ff" {
-		t.Errorf("URL is wrong: %s", transport.URL)
-	}
-	if transport.Method != "POST" {
-		t.Errorf("Method should be POST, but %s", transport.Method)
-	}
-}
 
-func TestCustomerUpdateCardError(t *testing.T) {
-	mock, _ := newMockClient(200, cardErrorResponseJSON)
-	service := New("api-key", mock)
+	customer, err := service.Customer.Retrieve("cus_121673955bd7aa144de5a8f6c262")
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.NotNil(t, customer)
+
+	err = customer.Cards[0].Update(Card{
+		ExpMonth: "2",
+		ExpYear:  "2025",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards/car_f7d9fa98594dc7c2e42bfcd641ff", transport.URL)
+	assert.Equal(t, "POST", transport.Method)
+	assert.Equal(t, "Basic YXBpLWtleTo=", transport.Header.Get("Authorization"))
+	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
+	assert.Equal(t, "card[exp_month]=2&card[exp_year]=2025", *transport.Body)
+
 	card, err := service.Customer.UpdateCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff", Card{
-		Number:   "4242424242424242",
 		ExpMonth: 2,
 		ExpYear:  2020,
 	})
-	if err == nil {
-		t.Error("err should not be nil")
-		return
-	}
-	if card != nil {
-		t.Errorf("card should be nil, but %v", card)
-	}
+	assert.Nil(t, card)
+	assert.IsType(t, &Error{}, err)
+	assert.Equal(t, errorStr, err.Error())
 }
 
 func TestCustomerDeleteCard(t *testing.T) {
@@ -301,26 +283,23 @@ func TestCustomerDeleteCard2(t *testing.T) {
 
 func TestCustomerListCard(t *testing.T) {
 	mock, transport := newMockClient(200, cardListResponseJSON)
+	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
+
 	cards, hasMore, err := service.Customer.ListCard("cus_121673955bd7aa144de5a8f6c262").
 		Limit(10).
 		Offset(15).
 		Since(time.Unix(1455328095, 0)).
 		Until(time.Unix(1455500895, 0)).Do()
-	if transport.URL != "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards?limit=10&offset=15&since=1455328095&until=1455500895" {
-		t.Errorf("URL is wrong: %s", transport.URL)
-	}
-	if transport.Method != "GET" {
-		t.Errorf("Method should be GET, but %s", transport.Method)
-	}
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-		return
-	}
-	if !hasMore {
-		t.Error("parse error: hasMore")
-	}
-	if len(cards) != 1 {
-		t.Error("parse error: plans")
-	}
+	assert.NoError(t, err)
+    assert.Equal(t, "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards?limit=10&offset=15&since=1455328095&until=1455500895", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.True(t, hasMore)
+	assert.Equal(t, len(cards), 1)
+	assert.Equal(t, "verified", *cards[0].ThreeDSecureStatus)
+
+	_, hasMore, err = service.Customer.ListCard("cus_121673955bd7aa144de5a8f6c262").Do()
+	assert.False(t, hasMore)
+	assert.IsType(t, &Error{}, err)
+	assert.Equal(t, errorStr, err.Error())
 }

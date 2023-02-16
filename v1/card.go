@@ -56,6 +56,7 @@ type CardResponse struct {
 	AddressLine1    string            // 番地など
 	AddressLine2    string            // 建物名など
 	Metadata        map[string]string // メタデータ
+	ThreeDSecureStatus *string        // 3Dセキュアの実施状況
 
 	customerID string
 	service    *Service
@@ -80,6 +81,7 @@ type cardResponseParser struct {
 	Name            string            `json:"name"`
 	Object          string            `json:"object"`
 	Metadata        map[string]string `json:"metadata"`
+    ThreeDSecureStatus *string        `json:"three_d_secure_status"`
 }
 
 // Update メソッドはカードの内容を更新します
@@ -123,6 +125,7 @@ func (c *CardResponse) UnmarshalJSON(b []byte) error {
 		c.Last4 = raw.Last4
 		c.Name = raw.Name
 		c.Metadata = raw.Metadata
+		c.ThreeDSecureStatus = raw.ThreeDSecureStatus
 		return nil
 	}
 	rawError := errorResponse{}
