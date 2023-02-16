@@ -67,9 +67,6 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 	qb.Add("capture", charge.Capture)
 	expireDays, ok := charge.ExpireDays.(int)
 	if ok {
-		if expireDays < 1 || expireDays > 60 {
-			return nil, fmt.Errorf("ExpireDays should be between 1 and 60.")
-		}
 		qb.Add("expiry_days", expireDays)
 	}
 	if charge.Description != "" {

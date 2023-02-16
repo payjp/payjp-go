@@ -190,22 +190,6 @@ func TestChargeCreateError(t *testing.T) {
 	assert.Nil(t, charge)
 	expected = fmt.Errorf("The following parameters are exclusive: CustomerID, CardToken.")
 	assert.Equal(t, expected, err)
-
-	charge, err = service.Charge.Create(1000, Charge{
-		CardToken: "tok_err",
-		ExpireDays: 0,
-	})
-	assert.Nil(t, charge)
-	expected = fmt.Errorf("ExpireDays should be between 1 and 60.")
-	assert.Equal(t, expected, err)
-
-	charge, err = service.Charge.Create(1000, Charge{
-		CardToken: "tok_err",
-		ExpireDays: 61,
-	})
-	assert.Nil(t, charge)
-	expected = fmt.Errorf("ExpireDays should be between 1 and 60.")
-	assert.Equal(t, expected, err)
 }
 
 func TestChargeRetrieve(t *testing.T) {
