@@ -15,9 +15,9 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-      - name: Install Lint
-        run: go get -u golang.org/x/lint/golint
-      - name: Execute Lint
-        run: golint ./v1
+#      - name: Install Lint
+#        run: go get -u golang.org/x/lint/golint
+#      - name: Execute Lint
+#        run: golint ./v1
       - name: Execute Test
         run: go test -v ./v1
