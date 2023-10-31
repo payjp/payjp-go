@@ -17,10 +17,12 @@ const (
 	TransferPaid
 	// TransferFailed は支払い失敗のステータスを表す定数
 	TransferFailed
-	// TransferCanceled は支払いキャンセルのステータスを表す定数
-	TransferCanceled
 	// TransferRecombination は組戻ステータスを表す定数
 	TransferRecombination
+	// TransferCarriedOver は入金繰り越しを表す定数
+	TransferCarriedOver
+	// TransferStop は入金停止を表す定数
+	TransferStop
 )
 
 func (t TransferStatus) status() interface{} {
@@ -31,10 +33,12 @@ func (t TransferStatus) status() interface{} {
 		return "paid"
 	case TransferFailed:
 		return "failed"
-	case TransferCanceled:
-		return "canceled"
 	case TransferRecombination:
 		return "recombination"
+	case TransferCarriedOver:
+		return "carried_over"
+	case TransferStop:
+		return "stop"
 	}
 	return nil
 }
@@ -77,14 +81,14 @@ func (t TransferService) List() *TransferListCaller {
 
 // TransferListCaller は支払いのリスト取得に使用する構造体です。
 type TransferListCaller struct {
-	service *Service
-	limit   int
-	offset  int
-	since   int
-	until   int
-	sinceSheduledDate   int
-	untilSheduledDate   int
-	status  TransferStatus
+	service           *Service
+	limit             int
+	offset            int
+	since             int
+	until             int
+	sinceSheduledDate int
+	untilSheduledDate int
+	status            TransferStatus
 }
 
 // Limit はリストの要素数の最大値を設定します(1-100)
@@ -246,15 +250,15 @@ type TransferResponse struct {
 	Charges        []*ChargeResponse // この入金に含まれる支払いのリスト
 	ScheduledDate  string            // 入金予定日
 	Summary        struct {
-		ChargeCount  int // 支払い総数
-		ChargeFee    int // 支払い手数料
-		ChargeGross  int // 総売上
-		Net          int // 差引額
-		RefundAmount int // 返金総額
-		RefundCount  int // 返金総数
+		ChargeCount   int // 支払い総数
+		ChargeFee     int // 支払い手数料
+		ChargeGross   int // 総売上
+		Net           int // 差引額
+		RefundAmount  int // 返金総額
+		RefundCount   int // 返金総数
 		DisputeAmount int // チャージバックにより相殺された金額の合計
 		DisputeCount  int // チャージバック対象となったchargeの個数
-	} // この入金に関する集計情報
+	}                        // この入金に関する集計情報
 	Description    string    // 概要
 	TermStartAt    time.Time // 集計期間開始時のタイムスタンプ
 	TermEndAt      time.Time // 集計期間終了時のタイムスタンプ
@@ -277,12 +281,12 @@ type transferResponseParser struct {
 	ScheduledDate  string             `json:"scheduled_date"`
 	Status         string             `json:"status"`
 	Summary        struct {
-		ChargeCount  int `json:"charge_count"`
-		ChargeFee    int `json:"charge_fee"`
-		ChargeGross  int `json:"charge_gross"`
-		Net          int `json:"net"`
-		RefundAmount int `json:"refund_amount"`
-		RefundCount  int `json:"refund_count"`
+		ChargeCount   int `json:"charge_count"`
+		ChargeFee     int `json:"charge_fee"`
+		ChargeGross   int `json:"charge_gross"`
+		Net           int `json:"net"`
+		RefundAmount  int `json:"refund_amount"`
+		RefundCount   int `json:"refund_count"`
 		DisputeAmount int `json:"dispute_amount"`
 		DisputeCount  int `json:"dispute_count"`
 	} `json:"summary"`
@@ -314,10 +318,12 @@ func (t *TransferResponse) UnmarshalJSON(b []byte) error {
 			t.Status = TransferPaid
 		case "failed":
 			t.Status = TransferFailed
-		case "canceled":
-			t.Status = TransferCanceled
 		case "recombination":
 			t.Status = TransferRecombination
+		case "carried_over":
+			t.Status = TransferCarriedOver
+		case "stop":
+			t.Status = TransferStop
 		}
 		t.Summary.ChargeCount = raw.Summary.ChargeCount
 		t.Summary.ChargeFee = raw.Summary.ChargeFee
