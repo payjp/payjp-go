@@ -6,240 +6,7 @@ import (
 	"time"
 )
 
-var transferResponseJSON = []byte(`
-{
-  "amount": 1000,
-  "carried_balance": null,
-  "charges": {
-    "count": 1,
-    "data": [
-      {
-        "amount": 1000,
-        "amount_refunded": 0,
-        "captured": true,
-        "captured_at": 1441706750,
-        "card": {
-          "address_city": null,
-          "address_line1": null,
-          "address_line2": null,
-          "address_state": null,
-          "address_zip": null,
-          "address_zip_check": "unchecked",
-          "brand": "Visa",
-          "country": null,
-          "created": 1441706750,
-          "cvc_check": "unchecked",
-          "exp_month": 5,
-          "exp_year": 2018,
-          "fingerprint": "e1d8225886e3a7211127df751c86787f",
-          "id": "car_93e59e9a9714134ef639865e2b9e",
-          "last4": "4242",
-          "name": null,
-          "object": "card"
-        },
-        "created": 1441706750,
-        "currency": "jpy",
-        "customer": "cus_b92b879e60f62b532d6756ae12af",
-        "description": null,
-        "expired_at": null,
-        "failure_code": null,
-        "failure_message": null,
-        "id": "ch_60baaf2dc8f3e35684ebe2031a6e0",
-        "object": "charge",
-        "paid": true,
-        "refund_reason": null,
-        "refunded": false,
-        "subscription": null
-      }
-    ],
-    "has_more": false,
-    "object": "list",
-    "url": "/v1/transfers/tr_8f0c0fe2c9f8a47f9d18f03959ba1/charges"
-  },
-  "created": 1438354800,
-  "currency": "jpy",
-  "description": null,
-  "id": "tr_8f0c0fe2c9f8a47f9d18f03959ba1",
-  "livemode": false,
-  "object": "transfer",
-  "scheduled_date": "2015-09-16",
-  "status": "pending",
-  "summary": {
-    "charge_count": 1,
-    "charge_fee": 0,
-    "charge_gross": 1000,
-    "net": 1000,
-    "refund_amount": 0,
-    "refund_count": 0,
-    "dispute_amount": 0,
-    "dispute_count": 0
-  },
-  "term_end": 1439650800,
-  "term_start": 1438354800,
-  "transfer_amount": null,
-  "transfer_date": null
-}
-`)
-
-var recombinationTransferResponseJSON = []byte(`
-{
-  "amount": 1000,
-  "carried_balance": null,
-  "charges": {
-    "count": 1,
-    "data": [
-      {
-        "amount": 1000,
-        "amount_refunded": 0,
-        "captured": true,
-        "captured_at": 1441706750,
-        "card": {
-          "address_city": null,
-          "address_line1": null,
-          "address_line2": null,
-          "address_state": null,
-          "address_zip": null,
-          "address_zip_check": "unchecked",
-          "brand": "Visa",
-          "country": null,
-          "created": 1441706750,
-          "cvc_check": "unchecked",
-          "exp_month": 5,
-          "exp_year": 2018,
-          "fingerprint": "e1d8225886e3a7211127df751c86787f",
-          "id": "car_93e59e9a9714134ef639865e2b9e",
-          "last4": "4242",
-          "name": null,
-          "object": "card"
-        },
-        "created": 1441706750,
-        "currency": "jpy",
-        "customer": "cus_b92b879e60f62b532d6756ae12af",
-        "description": null,
-        "expired_at": null,
-        "failure_code": null,
-        "failure_message": null,
-        "id": "ch_60baaf2dc8f3e35684ebe2031a6e0",
-        "object": "charge",
-        "paid": true,
-        "refund_reason": null,
-        "refunded": false,
-        "subscription": null
-      }
-    ],
-    "has_more": false,
-    "object": "list",
-    "url": "/v1/transfers/tr_8f0c0fe2c9f8a47f9d18f03959ba1/charges"
-  },
-  "created": 1438354800,
-  "currency": "jpy",
-  "description": null,
-  "id": "tr_8f0c0fe2c9f8a47f9d18f03959ba1",
-  "livemode": false,
-  "object": "transfer",
-  "scheduled_date": "2015-09-16",
-  "status": "recombination",
-  "summary": {
-    "charge_count": 1,
-    "charge_fee": 0,
-    "charge_gross": 1000,
-    "net": 1000,
-    "refund_amount": 0,
-    "refund_count": 0,
-    "dispute_amount": 0,
-    "dispute_count": 0
-  },
-  "term_end": 1439650800,
-  "term_start": 1438354800,
-  "transfer_amount": null,
-  "transfer_date": null
-}
-`)
-
-var transferListResponseJSON = []byte(`
-{
-  "count": 1,
-  "data": [
-    {
-      "amount": 1000,
-      "carried_balance": null,
-      "charges": {
-        "count": 1,
-        "data": [
-          {
-            "amount": 1000,
-            "amount_refunded": 0,
-            "captured": true,
-            "captured_at": 1441706750,
-            "card": {
-              "address_city": null,
-              "address_line1": null,
-              "address_line2": null,
-              "address_state": null,
-              "address_zip": null,
-              "address_zip_check": "unchecked",
-              "brand": "Visa",
-              "country": null,
-              "created": 1441706750,
-              "cvc_check": "unchecked",
-              "exp_month": 5,
-              "exp_year": 2018,
-              "fingerprint": "e1d8225886e3a7211127df751c86787f",
-              "id": "car_93e59e9a9714134ef639865e2b9e",
-              "last4": "4242",
-              "name": null,
-              "object": "card"
-            },
-            "created": 1441706750,
-            "currency": "jpy",
-            "customer": "cus_b92b879e60f62b532d6756ae12af",
-            "description": null,
-            "expired_at": null,
-            "failure_code": null,
-            "failure_message": null,
-            "id": "ch_60baaf2dc8f3e35684ebe2031a6e0",
-            "object": "charge",
-            "paid": true,
-            "refund_reason": null,
-            "refunded": false,
-            "subscription": null
-          }
-        ],
-        "has_more": false,
-        "object": "list",
-        "url": "/v1/transfers/tr_8f0c0fe2c9f8a47f9d18f03959ba1/charges"
-      },
-      "created": 1438354800,
-      "currency": "jpy",
-      "description": null,
-      "id": "tr_8f0c0fe2c9f8a47f9d18f03959ba1",
-      "livemode": false,
-      "object": "transfer",
-      "scheduled_date": "2015-09-16",
-      "status": "pending",
-      "summary": {
-        "charge_count": 1,
-        "charge_fee": 0,
-        "charge_gross": 1000,
-        "net": 1000,
-        "refund_amount": 0,
-        "refund_count": 0,
-        "dispute_amount": 0,
-        "dispute_count": 0
-      },
-      "term_end": 1439650800,
-      "term_start": 1438354800,
-      "transfer_amount": null,
-      "transfer_date": null
-    }
-  ],
-  "has_more": false,
-  "object": "list",
-  "url": "/v1/transfers"
-}
-`)
-
-var transferChargeListResponseJSON = []byte(`
+var chargeListJSONStr = `
 {
   "count": 1,
   "data": [
@@ -287,8 +54,54 @@ var transferChargeListResponseJSON = []byte(`
   "has_more": false,
   "object": "list",
   "url": "/v1/transfers/tr_8f0c0fe2c9f8a47f9d18f03959ba1/charges"
+}`
+var transferChargeListResponseJSON = []byte(chargeListJSONStr)
+
+func makeTransferJSONStr(t TransferStatus) string {
+	return `
+{
+  "amount": 1000,
+  "carried_balance": null,
+  "charges": ` + chargeListJSONStr + `,
+  "created": 1438354800,
+  "currency": "jpy",
+  "description": null,
+  "id": "tr_8f0c0fe2c9f8a47f9d18f03959ba1",
+  "livemode": false,
+  "object": "transfer",
+  "scheduled_date": "2015-09-16",
+  "status": "` + t.status().(string) + `",
+  "summary": {
+    "charge_count": 1,
+    "charge_fee": 0,
+    "charge_gross": 1000,
+    "net": 1000,
+    "refund_amount": 0,
+    "refund_count": 0,
+    "dispute_amount": 0,
+    "dispute_count": 0
+  },
+  "term_end": 1439650800,
+  "term_start": 1438354800,
+  "transfer_amount": null,
+  "transfer_date": null
+}`
 }
-`)
+
+var transferJSONStr = makeTransferJSONStr(TransferPending)
+
+var transferResponseJSON = []byte(transferJSONStr)
+
+var transferListJSONStr = `
+{
+  "count": 1,
+  "data": [` + transferJSONStr +
+	`],
+  "has_more": false,
+  "object": "list",
+  "url": "/v1/transfers"
+}`
+var transferListResponseJSON = []byte(transferListJSONStr)
 
 func TestParseTransferResponseJSON(t *testing.T) {
 	transfer := &TransferResponse{}
@@ -308,15 +121,25 @@ func TestParseTransferResponseJSON(t *testing.T) {
 	}
 }
 
-func TestParseRecombinationTransferResponseJSON(t *testing.T) {
-	recombinationTransfer := &TransferResponse{}
-	err := json.Unmarshal(recombinationTransferResponseJSON, recombinationTransfer)
+func TestParseTransferStatusResponseJSON(t *testing.T) {
+	transfer := &TransferResponse{}
 
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
+	response := []byte(makeTransferJSONStr(TransferRecombination))
+	err := json.Unmarshal(response, transfer)
+	if err != nil && transfer.Status.status() != "recombination" {
+		t.Errorf("bad value: err=%v,status=%v", err, transfer.Status.status())
 	}
-	if recombinationTransfer.Status.status() != "recombination" {
-		t.Errorf("transfer.Status should be 'recombination', but '%s'", recombinationTransfer.Status.status())
+
+	response = []byte(makeTransferJSONStr(TransferCarriedOver))
+	err = json.Unmarshal(response, transfer)
+	if err != nil && transfer.Status.status() != "carried_over" {
+		t.Errorf("bad value: err=%v,status=%v", err, transfer.Status.status())
+	}
+
+	response = []byte(makeTransferJSONStr(TransferStop))
+	err = json.Unmarshal(response, transfer)
+	if err != nil || transfer.Status.status() != "stop" {
+		t.Errorf("bad value: err=%v,status=%v", err, transfer.Status.status())
 	}
 }
 
