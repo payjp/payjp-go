@@ -40,7 +40,8 @@ var accountResponseJSON = []byte(`
     "site_published": null,
     "url": null
   },
-  "object": "account"
+  "object": "account",
+  "team_id": "example-team-id"
 }
 `)
 
@@ -56,6 +57,9 @@ func TestParseAccountResponseJSON(t *testing.T) {
 	}
 	if account.Merchant.DefaultCurrency != "jpy" {
 		t.Errorf("defaultCurrency should be 'jpy', but %s", account.Merchant.DefaultCurrency)
+	}
+	if account.TeamID != "example-team-id" {
+		t.Errorf("account.TeamID should be 'example-team-id', but %s", account.TeamID)
 	}
 }
 
@@ -76,5 +80,7 @@ func TestAccountRetrieve(t *testing.T) {
 		t.Error("plan should not be nil")
 	} else if account.Email != "liveaccount@mail.com" {
 		t.Errorf("parse error: account.Email should be 'liveaccount@mail.com', but %s.", account.Email)
+	} else if account.TeamID != "example-team-id" {
+		t.Errorf("parse error: account.TeamID should be 'example-team-id', but %s.", account.TeamID)
 	}
 }

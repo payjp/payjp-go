@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/payjp/payjp-go/v1"
-	"time"
 	"strings"
+	"time"
+
+	"github.com/payjp/payjp-go/v1"
 )
 
 func main() {
@@ -31,4 +32,5 @@ func main() {
 	fmt.Println("    ProductName:", account.Merchant.ProductName)
 	fmt.Println("    SitePublished:", account.Merchant.SitePublished)
 	fmt.Println("    URL:", account.Merchant.URL)
+	fmt.Println("  TeamId: ", account.TeamID)
 }
