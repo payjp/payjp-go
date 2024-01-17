@@ -64,6 +64,7 @@ type AccountResponse struct {
 		URL       string    // 申請対象サイトのURL
 		CreatedAt time.Time // 作成時のタイムスタンプ
 	} // マーチャントアカウントの詳細情報
+	TeamID string // アカウントに紐付くチームID
 }
 
 type accountResponseParser struct {
@@ -92,6 +93,7 @@ type accountResponseParser struct {
 		URL                    string   `json:"url"`
 	} `json:"merchant"`
 	Object string `json:"object"`
+	TeamID string `json:"team_id"`
 }
 
 // UnmarshalJSON はJSONパース用の内部APIです。
@@ -122,6 +124,7 @@ func (a *AccountResponse) UnmarshalJSON(b []byte) error {
 		m.ProductType = rm.ProductType
 		m.SitePublished = rm.SitePublished
 		m.URL = rm.URL
+		a.TeamID = raw.TeamID
 		return nil
 	}
 	rawError := errorResponse{}
