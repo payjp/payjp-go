@@ -279,8 +279,6 @@ type eventResponseParser struct {
 	Object          string          `json:"object"`
 	PendingWebHooks int             `json:"pending_webhooks"`
 	Type            string          `json:"type"`
-
-	CreatedAt time.Time
 }
 
 // UnmarshalJSON はJSONパース用の内部APIです。
@@ -305,6 +303,19 @@ func (e *EventResponse) UnmarshalJSON(b []byte) error {
 	}
 
 	return nil
+}
+
+// MarshalJSON はリクエストボディをAPI仕様のJson形式で返します。
+func (e *EventResponse) MarshalJSON() ([]byte, error) {
+	raw := eventResponseParser{}
+	raw.Object = "event"
+	raw.CreatedEpoch = int(e.CreatedAt.Unix())
+	raw.Data = e.data
+	raw.ID = e.ID
+	raw.LiveMode = e.LiveMode
+	raw.PendingWebHooks = e.PendingWebHooks
+	raw.Type = e.Type
+	return json.Marshal(&raw)
 }
 
 // DeleteResponse はイベントの種類がDeleteEventの時にDeleteData()が返す構造体です。
