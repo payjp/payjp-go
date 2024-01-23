@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/payjp/payjp-go/v1"
+	payjp "github.com/payjp/payjp-go/v1"
 	"time"
-
-	//"time"
 )
 
 func main() {
@@ -14,20 +12,23 @@ func main() {
 	fmt.Println("start Subscription scenario")
 	// 支払い能力のある顧客を用意する。
 	// このシナリオでは既に定期課金を持つ顧客を使う。
-	subscriptions, _, err := s.Subscription.List().
-		SubscriptionStatus(payjp.SubscriptionActive).
-		Limit(1).
-		Do()
+	status := payjp.SubscriptionActive
+	subscriptions, _, err := s.Subscription.All(&payjp.SubscriptionListParams{
+		ListParams: payjp.ListParams{
+			Limit: payjp.Int(1),
+		},
+		Status: &status,
+	})
 	if err != nil {
 		fmt.Println("cannot get subscription list:", err)
 		return
 	}
 	fmt.Println("got subscription =", subscriptions[0].ID)
-	fmt.Println("using customer =", subscriptions[0].CustomerID)
+	fmt.Println("using customer =", subscriptions[0].Customer)
 
 	// planを作成する
 	plan, err := s.Plan.Create(payjp.Plan{
-		Amount: 1000,
+		Amount:   1000,
 		Currency: "jpy",
 		Interval: "month",
 	})
@@ -38,7 +39,7 @@ func main() {
 	fmt.Println("created plan =", plan)
 
 	// subscriptionする
-	subscription, err := s.Subscription.Subscribe(subscriptions[0].CustomerID, payjp.Subscription{
+	subscription, err := s.Subscription.Subscribe(subscriptions[0].Customer, payjp.Subscription{
 		PlanID: plan.ID,
 		Metadata: map[string]string{
 			"test": "created",
@@ -80,7 +81,7 @@ func main() {
 
 	// subscriptionをトライアル解除して再開する
 	err = subscription.Resume(payjp.Subscription{
-		Prorate: true,
+		Prorate:   true,
 		SkipTrial: true,
 	})
 	if err != nil {
@@ -90,10 +91,10 @@ func main() {
 	fmt.Printf("%s is %s with prorate %t\n", subscription.ID, subscription.Status, subscription.Prorate)
 
 	// subscriptionをリスト検索で見つける(plan+customerで一意)
-	customerID := subscription.CustomerID
-	subscriptionListCaller := s.Subscription.List().PlanID(plan.ID)
-	subscriptionListCaller.Customer = &customerID
-	listedSubscriptions, hasMore, err := subscriptionListCaller.Do()
+	listedSubscriptions, hasMore, err := s.Subscription.All(&payjp.SubscriptionListParams{
+		Plan:     payjp.String(plan.ID),
+		Customer: payjp.String(subscription.Customer),
+	})
 	if err != nil || hasMore {
 		fmt.Println("cannot search subscriptions:", err)
 		return
@@ -103,7 +104,7 @@ func main() {
 	// subscriptionを更新する
 	// next_cycle_planを用意する
 	nextCyclePlan, err := s.Plan.Create(payjp.Plan{
-		Amount: 2000,
+		Amount:   2000,
 		Currency: "jpy",
 		Interval: "month",
 	})
@@ -117,8 +118,8 @@ func main() {
 	err = subscription.Update(payjp.Subscription{
 		NextCyclePlanID: nextCyclePlan.ID,
 		Metadata: map[string]string{
-            "test": "updated",
-        },
+			"test": "updated",
+		},
 	})
 	if err != nil {
 		fmt.Println("subscription update error:", err)
@@ -136,18 +137,18 @@ func main() {
 	fmt.Println("subscription deleted. so error occured by search.")
 
 	// subscriptionを検索する
-	_, err = s.Subscription.Retrieve(customerID, subscription.ID)
+	_, err = s.Subscription.Retrieve(subscription.Customer, subscription.ID)
 	fmt.Println(err)
 
 	// 使われなくなったplanを削除する
 	err = plan.Delete()
 	if err != nil {
-		fmt.Println(plan.ID + " delete error:", err)
+		fmt.Println(plan.ID+" delete error:", err)
 		return
 	}
 	err = nextCyclePlan.Delete()
 	if err != nil {
-		fmt.Println(plan.ID + " delete error:", err)
+		fmt.Println(plan.ID+" delete error:", err)
 		return
 	}
 }

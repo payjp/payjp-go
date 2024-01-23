@@ -3,13 +3,13 @@ package payjp
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"strconv"
 	"testing"
 	"time"
-    "github.com/stretchr/testify/assert"
 )
 
-var subscriptionResponseJSON = []byte(`
+var subscriptionResponseJSONStr = `
 {
   "canceled_at": null,
   "created": 1433127983,
@@ -52,7 +52,8 @@ var subscriptionResponseJSON = []byte(`
   "metadata": {},
   "prorate": false
 }
-`)
+`
+var subscriptionResponseJSON = []byte(subscriptionResponseJSONStr)
 
 var nextCyclePlanNullResponseJSON = []byte(`
 {
@@ -131,7 +132,10 @@ var subscriptionListResponseJSON = []byte(`
 `)
 
 func TestParseSubscriptionResponseJSON(t *testing.T) {
-	subscription := &SubscriptionResponse{}
+	service := &Service{}
+	subscription := &SubscriptionResponse{
+		service: service,
+	}
 	err := json.Unmarshal(subscriptionResponseJSON, subscription)
 
 	assert.NoError(t, err)
@@ -146,6 +150,7 @@ func TestParseSubscriptionResponseJSON(t *testing.T) {
 	assert.Equal(t, "next plan", subscription.NextCyclePlan.Name)
 	assert.Equal(t, 0, subscription.NextCyclePlan.TrialDays)
 	assert.NotNil(t, subscription.NextCyclePlan.Metadata)
+	assert.Equal(t, service, subscription.service)
 }
 
 func TestCustomerGetSubscription(t *testing.T) {
@@ -190,7 +195,7 @@ func TestSubscriptionCreate(t *testing.T) {
 	service := New("api-key", mock)
 
 	subscription, err := service.Subscription.Subscribe("cus_xxx", Subscription{
-		PlanID: "pln_yyy",
+		PlanID:  "pln_yyy",
 		Prorate: true,
 	})
 	assert.NoError(t, err)
@@ -211,18 +216,12 @@ func TestSubscriptionCreate(t *testing.T) {
 func TestSubscriptionCreateParamError(t *testing.T) {
 	service := New("api-key", nil)
 
-	subscription, err := service.Subscription.Subscribe("cus_xxx", Subscription{})
-	assert.Nil(t, subscription)
-	expected := fmt.Errorf("plan is required, but empty")
-	assert.Equal(t, expected, err)
-
-	subscription, err = service.Subscription.Subscribe("cus_xxx", Subscription{
-		PlanID: "pln_xxx",
-		SkipTrial: true,
+	subscription, err := service.Subscription.Subscribe("cus_xxx", Subscription{
+		SkipTrial:  true,
 		TrialEndAt: time.Now().AddDate(1, 0, 0),
 	})
 	assert.Nil(t, subscription)
-	expected = fmt.Errorf("only either trial_end or SkipTrial is available")
+	expected := fmt.Errorf("only either trial_end or SkipTrial is available")
 	assert.Equal(t, expected, err)
 }
 
@@ -249,7 +248,7 @@ func TestSubscriptionUpdate(t *testing.T) {
 	service := New("api-key", mock)
 
 	subscription, err := service.Subscription.Update("sub_req", Subscription{
-		PlanID: "pln_xxx",
+		PlanID:          "pln_xxx",
 		NextCyclePlanID: "next_plan",
 		Metadata: map[string]string{
 			"hoge": "fuga",
@@ -265,7 +264,7 @@ func TestSubscriptionUpdate(t *testing.T) {
 
 	err = subscription.Update(Subscription{
 		NextCyclePlanID: "",
-		Prorate: "true",
+		Prorate:         "true",
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_response1", transport.URL)
@@ -276,7 +275,7 @@ func TestSubscriptionUpdate(t *testing.T) {
 	// next_cycle_plan未設定時はゼロ値ではなくrequest bodyに含まれないことをテスト
 	err = subscription.Update(Subscription{
 		Metadata: map[string]string{
-		    "hoge": "piyo",
+			"hoge": "piyo",
 		},
 	})
 	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_response2", transport.URL)
@@ -323,7 +322,7 @@ func TestSubscriptionResume(t *testing.T) {
 	assert.Equal(t, "POST", transport.Method)
 	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
 	nextYearStr := strconv.Itoa(int(nextYear.Unix()))
-	assert.Equal(t, "trial_end=" + nextYearStr, *transport.Body)
+	assert.Equal(t, "trial_end="+nextYearStr, *transport.Body)
 	assert.NotNil(t, subscription)
 
 	err = subscription.Resume(Subscription{})
@@ -359,19 +358,21 @@ func TestSubscriptionCancel(t *testing.T) {
 }
 
 func TestSubscriptionDelete(t *testing.T) {
-	mock, transport := newMockClient(200, []byte(`{}`))
+	mock, transport := newMockClient(200, []byte(deleteResponseJSONStr))
 	service := New("api-key", mock)
 
-	err := service.Subscription.Delete("sub_req")
+	err := service.Subscription.Delete("sub_req", SubscriptionDelete{
+		Prorate: String("false"),
+	})
 	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_req", transport.URL)
+	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_req?prorate=false", transport.URL)
 	assert.Equal(t, "DELETE", transport.Method)
 	assert.Equal(t, "", transport.Header.Get("Content-Type"))
 }
 
 func TestSubscriptionResponseDelete(t *testing.T) {
 	mock, transport := newMockClient(200, subscriptionResponseJSON)
-	transport.AddResponse(200, []byte(`{}`))
+	transport.AddResponse(200, []byte(deleteResponseJSONStr))
 	service := New("api-key", mock)
 	subscription, err := service.Subscription.Retrieve("cus_xxx", "sub_req")
 
@@ -384,27 +385,39 @@ func TestSubscriptionResponseDelete(t *testing.T) {
 
 func TestSubscriptionList(t *testing.T) {
 	mock, transport := newMockClient(200, subscriptionListResponseJSON)
+	transport.AddResponse(200, subscriptionListResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
-	s := service.Subscription.List().
+	subscriptions, hasMore, err := service.Subscription.List().
 		Limit(1).
-		Offset(0).
-		PlanID("pln_xxx").
-		SubscriptionStatus(SubscriptionActive)
-	customer := "cus_xxx"
-	plan := "pln_yyy"
-	s.Customer = &customer
-	s.Plan = &plan
-	subscriptions, hasMore, err := s.Do()
+		Offset(0).Do()
 
 	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/subscriptions?customer=cus_xxx&limit=1&offset=0&plan=pln_yyy&status=active", transport.URL)
+	assert.Equal(t, "https://api.pay.jp/v1/subscriptions?limit=1&offset=0", transport.URL)
 	assert.Equal(t, "GET", transport.Method)
 	assert.True(t, hasMore)
 	assert.Equal(t, len(subscriptions), 1)
 	assert.Nil(t, subscriptions[0].NextCyclePlan)
 
-	_, hasMore, err = s.Do()
+	status := SubscriptionActive
+	params := &SubscriptionListParams{
+		ListParams: ListParams{
+			Limit:  Int(1),
+			Offset: Int(0),
+		},
+		Plan:     String("pln_xxx"),
+		Status:   &status,
+		Customer: String("cus_xxx"),
+	}
+	subscriptions, hasMore, err = service.Subscription.All(params)
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/subscriptions?customer=cus_xxx&limit=1&offset=0&plan=pln_xxx&status=active", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.True(t, hasMore)
+	assert.Equal(t, len(subscriptions), 1)
+	assert.Nil(t, subscriptions[0].NextCyclePlan)
+
+	_, hasMore, err = service.Subscription.List().Do()
 	assert.False(t, hasMore)
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())

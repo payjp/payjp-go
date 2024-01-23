@@ -2,12 +2,13 @@ package payjp
 
 import (
 	"encoding/base64"
-	"fmt"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
+	"runtime"
 	"strconv"
 )
 
@@ -25,14 +26,15 @@ type Service struct {
 	apiKey  string
 	apiBase string
 
-	Charge       *ChargeService       // 支払いに関するAPI
-	Customer     *CustomerService     // 顧客情報に関するAPI
-	Plan         *PlanService         // プランに関するAPI
-	Subscription *SubscriptionService // 定期課金に関するAPI
-	Token        *TokenService        // トークンに関するAPI
-	Transfer     *TransferService     // 入金に関するAPI
-	Event        *EventService        // イベント情報に関するAPI
-	Account      *AccountService      // アカウント情報に関するAPI
+	Charge       *ChargeService
+	Customer     *CustomerService
+	Plan         *PlanService
+	Subscription *SubscriptionService
+	Token        *TokenService
+	Transfer     *TransferService
+	Statement    *StatementService
+	Event        *EventService
+	Account      *AccountService
 }
 
 // New はPAY.JPのAPIを初期化する関数です。
@@ -63,9 +65,38 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 	service.Account = newAccountService(service)
 	service.Token = newTokenService(service)
 	service.Transfer = newTransferService(service)
+	service.Statement = newStatementService(service)
 	service.Event = newEventService(service)
 
 	return service
+}
+
+// String returns a pointer to the string value passed in.
+func String(v string) *string {
+	return &v
+}
+
+// StringValue returns the value of the string pointer passed in or
+// "" if the pointer is nil.
+func StringValue(v *string) string {
+	if v != nil {
+		return *v
+	}
+	return ""
+}
+
+// Int returns a pointer to the int64 value passed in.
+func Int(v int) *int {
+	return &v
+}
+
+// IntValue returns the value of the int64 pointer passed in or
+// 0 if the pointer is nil.
+func IntValue(v *int) int64 {
+	if v != nil {
+		return int64(*v)
+	}
+	return 0
 }
 
 // APIBase はPAY.JPのエントリーポイントの基底部分のURLを返します。
@@ -79,8 +110,12 @@ func (s Service) request(method, path string, body io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	request.Header.Add("Authorization", s.apiKey)
+	request.Header.Add("X-Payjp-Client-User-Agent", "payjp-go("+runtime.Version()+",os:"+runtime.GOOS+",arch:"+runtime.GOARCH+")")
 	if method == "POST" && body != nil {
 		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		if path == "/tokens" {
+			request.Header.Add("X-Payjp-Direct-Token-Generate", "true")
+		}
 	}
 
 	resp, err := s.Client.Do(request)
@@ -91,107 +126,61 @@ func (s Service) request(method, path string, body io.Reader) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-func (s Service) retrieve(path string) ([]byte, error) {
-	return s.request("GET", path, nil)
-}
-
 func (s Service) delete(path string) error {
 	body, err := s.request("DELETE", path, nil)
-	if err != nil {
-		return err
+	var res DeleteResponse
+	err = json.Unmarshal(body, &res)
+	if err == nil && res.Deleted {
+		return nil
 	}
-	_, err = parseError(body)
-	return err
+	return parseError(body)
 }
 
-func (s Service) queryList(resourcePath string, limit, offset, since, until int, callbacks ...func(*url.Values) bool) ([]byte, error) {
-	return s.queryListAll(resourcePath, limit, offset, since, until, 0, 0, callbacks...)
+type ListParams struct {
+	Limit  *int `form:"limit"`
+	Offset *int `form:"offset"`
+	Since  *int `form:"since"`
+	Until  *int `form:"until"`
 }
 
-func (s Service) queryTransferList(resourcePath string, limit, offset, since, until, sinceSheduledDate, untilSheduledDate int, callbacks ...func(*url.Values) bool) ([]byte, error) {
-	return s.queryListAll(resourcePath, limit, offset, since, until, sinceSheduledDate, untilSheduledDate, callbacks...)
-}
-
-func (s Service) queryListAll(resourcePath string, limit, offset, since, until, sinceSheduledDate, untilSheduledDate int, callbacks ...func(*url.Values) bool) ([]byte, error) {
-	if limit < 0 || limit > 100 {
-		return nil, fmt.Errorf("method Limit() should be between 1 and 100, but %d", limit)
-	}
-
-	values := url.Values{}
-	hasParam := false
-	if limit != 0 {
-		values.Add("limit", strconv.Itoa(limit))
-		hasParam = true
-	}
-	if offset != 0 {
-		values.Add("offset", strconv.Itoa(offset))
-		hasParam = true
-	}
-	if since != 0 {
-		values.Add("since", strconv.Itoa(since))
-		hasParam = true
-	}
-	if until != 0 {
-		values.Add("until", strconv.Itoa(until))
-		hasParam = true
-	}
-	if sinceSheduledDate != 0 {
-		values.Add("since_sheduled_date", strconv.Itoa(sinceSheduledDate))
-		hasParam = true
-	}
-	if untilSheduledDate != 0 {
-		values.Add("until_sheduled_date", strconv.Itoa(untilSheduledDate))
-		hasParam = true
-	}
-	// add extra parameters
-	for _, callback := range callbacks {
-		if callback(&values) {
-			hasParam = true
+func (s Service) makeEncoder(v reflect.Value, values url.Values) {
+	t := v.Type()
+	for i := 0; i < t.NumField(); i++ {
+		rf := t.Field(i)
+		formName := rf.Tag.Get(tagName)
+		if formName == "" || formName == "-" {
+			continue
 		}
+		fieldV := v.Field(i)
+		if fieldV.Kind() != reflect.Ptr || fieldV.IsNil() { // todo golang >= 1.13 wanna use fieldV.IsZero()
+			if fieldV.Kind() == reflect.Struct {
+				s.makeEncoder(fieldV, values)
+			}
+			continue
+		}
+		fieldV = fieldV.Elem()
+		var value string
+		switch rf.Type.Elem().Kind() {
+		case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
+			value = strconv.FormatInt(fieldV.Int(), 10)
+		default:
+			value = fieldV.String()
+		}
+		values.Add(formName, value)
 	}
-	requestURL := resourcePath
-	if hasParam {
-		requestURL = requestURL + "?" + values.Encode()
-	}
-	return s.retrieve(requestURL)
 }
 
-// 第二引数の構造体はListParamsを含む必要があり、かつメンバは全てポインタ型である必要があります
-func (s Service) getList(path string, c interface{}) ([]byte, error) {
-	values := url.Values{}
-	hasParam := false
+// 引数の構造体はメンバが全てポインタ型である必要があります
+func (s Service) getQuery(c interface{}) string {
 	rv := reflect.ValueOf(c)
 	if c != nil && rv.Kind() == reflect.Ptr && !rv.IsNil() {
 		v := rv.Elem()
-		t := v.Type()
-
-		for i := 0; i < t.NumField(); i++ {
-			rf := t.Field(i)
-			formName := rf.Tag.Get(tagName)
-
-			if formName == "-" {
-				continue
-			}
-			fieldV := v.Field(i)
-			// if fieldV.Kind() != reflect.Ptr || fieldV.IsZero() { // todo golang >= 1.13
-			if fieldV.Kind() != reflect.Ptr || fieldV.IsNil() {
-				continue
-			}
-
-			fieldV = fieldV.Elem()
-			var value string
-			switch rf.Type.Elem().Kind() {
-		    case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
-				value = strconv.FormatInt(fieldV.Int(), 10)
-			default:
-				value = fieldV.String()
-			}
-			values.Add(formName, value)
-			hasParam = true
+		values := url.Values{}
+		s.makeEncoder(v, values)
+		query := values.Encode()
+		if query != "" {
+			return "?" + query
 		}
 	}
-	if hasParam {
-		return s.retrieve(path + "?" + values.Encode())
-	}
-	return s.retrieve(path)
+	return ""
 }

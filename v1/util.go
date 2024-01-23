@@ -22,25 +22,28 @@ func newRequestBuilder() *requestBuilder {
 }
 
 func (qb *requestBuilder) Add(key string, value interface{}) {
-	if value == nil {
-		return
-	}
 	var valueString string
-	s, ok := value.(string)
-	if ok {
-		valueString = url.QueryEscape(s)
-	} else {
-		b, ok := value.(bool)
-		if ok {
-			if b {
-				valueString = "true"
-			} else {
-				valueString = "false"
-			}
+	switch v := value.(type) {
+	case nil:
+		return
+	case int:
+		valueString = strconv.Itoa(v)
+	case *int:
+		valueString = strconv.Itoa(*v)
+	case string:
+		valueString = url.QueryEscape(v)
+	case *string:
+		valueString = url.QueryEscape(*v)
+	case bool:
+		if v {
+			valueString = "true"
 		} else {
-			valueString = strconv.Itoa(value.(int))
+			valueString = "false"
 		}
+	default:
+		panic(`invalid parameter type of '` + key + `'`)
 	}
+
 	if qb.hasValue {
 		qb.buffer.WriteByte(qb.delimiter)
 	}
@@ -48,21 +51,6 @@ func (qb *requestBuilder) Add(key string, value interface{}) {
 	qb.buffer.WriteString(key)
 	qb.buffer.WriteByte('=')
 	qb.buffer.WriteString(valueString)
-}
-
-func (qb *requestBuilder) AddCard(card Card) {
-	qb.Add("card[number]", card.Number)
-	qb.Add("card[exp_month]", card.ExpMonth)
-	qb.Add("card[exp_year]", card.ExpYear)
-	qb.Add("card[cvc]", card.CVC)
-	qb.Add("card[address_state]", card.AddressState)
-	qb.Add("card[address_city]", card.AddressCity)
-	qb.Add("card[address_line1]", card.AddressLine1)
-	qb.Add("card[address_line2]", card.AddressLine2)
-	qb.Add("card[address_zip]", card.AddressZip)
-	qb.Add("card[country]", card.Country)
-	qb.Add("card[name]", card.Name)
-	qb.AddMetadata(card.Metadata)
 }
 
 func (qb *requestBuilder) AddMetadata(metadata map[string]string) {
@@ -73,6 +61,13 @@ func (qb *requestBuilder) AddMetadata(metadata map[string]string) {
 
 func (qb *requestBuilder) Reader() io.Reader {
 	return qb.buffer
+}
+
+// DeleteResponse
+type DeleteResponse struct {
+	Deleted  bool   `json:"deleted"`
+	ID       string `json:"id"`
+	LiveMode bool   `json:"livemode"`
 }
 
 type listResponseParser struct {
@@ -92,11 +87,44 @@ func (p *listResponseParser) UnmarshalJSON(b []byte) error {
 		*p = listResponseParser(raw)
 		return nil
 	}
-	rawError := errorResponse{}
-	err = json.Unmarshal(b, &rawError)
-	if err == nil && rawError.Error.Status != 0 {
-		return &rawError.Error
-	}
+	return parseError(b)
+}
 
+type payjpResponse struct {
+	Object  *string `json:"object"`
+	Deleted *bool   `json:"deleted"`
+	Parser  interface{}
+}
+
+func (e *payjpResponse) UnmarshalJSON(b []byte) error {
+	type payjpParser payjpResponse
+	var raw payjpParser
+	err := json.Unmarshal(b, &raw)
+	if err != nil {
+		return parseError(b)
+	} else if raw.Deleted != nil && *(raw.Deleted) {
+		e.Parser = DeleteResponse{}
+		return nil
+	}
+	switch *(raw.Object) {
+	case "token":
+		e.Parser = TokenResponse{}
+	case "charge":
+		e.Parser = ChargeResponse{}
+	case "customer":
+		e.Parser = CustomerResponse{}
+	case "card":
+		e.Parser = CardResponse{}
+	case "plan":
+		e.Parser = PlanResponse{}
+	case "subscription":
+		e.Parser = SubscriptionResponse{}
+	case "transfer":
+		e.Parser = TransferResponse{}
+	case "statement":
+		e.Parser = StatementResponse{}
+	default:
+		return nil
+	}
 	return nil
 }

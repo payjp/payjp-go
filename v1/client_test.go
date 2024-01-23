@@ -1,15 +1,14 @@
 package payjp
 
 import (
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
-
-    "github.com/stretchr/testify/assert"
 )
 
 type TestListParams struct {
 	service *Service `form:"-"`
-	Param *string `form:"param"`
+	Param   *string  `form:"param"`
 }
 
 func TestNew(t *testing.T) {
@@ -55,20 +54,9 @@ func TestRequests(t *testing.T) {
 	assert.Equal(t, "https://api.pay.jp/v1/test", transport.URL)
 	assert.Equal(t, "POST", transport.Method)
 	assert.Equal(t, "Basic YXBpLWtleTo=", transport.Header.Get("Authorization"))
+	assert.Regexp(t, "^payjp-go\\(go[0-9.]+,os\\:.+,arch\\:.+\\)$", transport.Header.Get("X-Payjp-Client-User-Agent"))
 	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
 	assert.Equal(t, errorJSONStr, string(body))
-
-	_, err = service.retrieve("/test")
-	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/test", transport.URL)
-	assert.Equal(t, "GET", transport.Method)
-	assert.Equal(t, "", transport.Header.Get("Content-Type"))
-
-	err = service.delete("/test")
-	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/test", transport.URL)
-	assert.Equal(t, "DELETE", transport.Method)
-	assert.Equal(t, "", transport.Header.Get("Content-Type"))
 }
 
 func TestGetList(t *testing.T) {
@@ -77,16 +65,13 @@ func TestGetList(t *testing.T) {
 	service := New("api-key", mock)
 
 	l := &TestListParams{}
-	body, err := service.getList("/test", l)
-	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/test", transport.URL)
-	assert.Equal(t, errorJSONStr, string(body))
+	q := service.getQuery(l)
+	assert.Equal(t, "", q)
 
 	str := "str"
 	l2 := &TestListParams{
 		Param: &str,
 	}
-	_, err = service.getList("/test", l2)
-	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/test?param=str", transport.URL)
+	q = service.getQuery(l2)
+	assert.Equal(t, "?param=str", q)
 }

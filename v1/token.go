@@ -2,22 +2,20 @@ package payjp
 
 import (
 	"encoding/json"
-	"fmt"
-	"strings"
 	"time"
 )
 
 // TokenService はカード情報を代替するトークンオブジェクトを扱います。
-//
-// トークンは、カード番号やCVCなどのセキュアなデータを隠しつつも、カードと同じように扱うことができます。
-//
-// 顧客にカードを登録するときや、支払い処理を行うときにカード代わりとして使用します。
-//
-// 一度使用したトークンは再び使用することはできませんが、
-// 顧客にカードを登録すれば、顧客IDを支払い手段として用いることで、
-// 何度でも同じカードで支払い処理ができるようになります。
 type TokenService struct {
 	service *Service
+}
+
+type Token struct {
+	Card
+	Number   interface{} // カード番号
+	ExpMonth interface{} // 有効期限月
+	ExpYear  interface{} // 有効期限年
+	CVC      interface{} // CVCコード
 }
 
 func newTokenService(service *Service) *TokenService {
@@ -32,83 +30,58 @@ func parseToken(data []byte, err error) (*TokenResponse, error) {
 	}
 	result := &TokenResponse{}
 	err = json.Unmarshal(data, result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return result, err
 }
 
-// Create メソッドカード情報を指定して、トークンを生成します。
-//
-// トークンはサーバーサイドからのリクエストでも生成可能ですが、通常は チェックアウトや
-// payjp.js を利用して、ブラウザ経由でパブリックキーとカード情報を指定して生成します。
-// トークンは二度以上使用することができません。
-//
-// チェックアウトやpayjp.jsを使ったトークン化の実装方法については チュートリアル -
-// カード情報のトークン化(https://pay.jp/docs/cardtoken)をご覧ください。
-//
-// Card構造体で引数を設定しますが、Number/ExpMonth/ExpYearが必須パラメータです。
-func (t TokenService) Create(card Card) (*TokenResponse, error) {
-	var errors []string
-	if card.Number == nil {
-		errors = append(errors, "Number is required")
-	}
-	if card.ExpMonth == nil {
-		errors = append(errors, "ExpMonth is required")
-	}
-	if card.ExpYear == nil {
-		errors = append(errors, "ExpYear is required")
-	}
-	if len(errors) != 0 {
-		return nil, fmt.Errorf("payjp.Token.Create() parameter error: %s", strings.Join(errors, ", "))
-	}
+// Create はテストモードのみ利用可能で、トークンを生成します。
+func (t TokenService) Create(card Token) (*TokenResponse, error) {
 	qb := newRequestBuilder()
-	qb.AddCard(card)
+	qb.Add("card[number]", card.Number)
+	qb.Add("card[exp_month]", card.ExpMonth)
+	qb.Add("card[exp_year]", card.ExpYear)
+	qb.Add("card[cvc]", card.CVC)
+	qb.Add("card[address_state]", card.AddressState)
+	qb.Add("card[address_city]", card.AddressCity)
+	qb.Add("card[address_line1]", card.AddressLine1)
+	qb.Add("card[address_line2]", card.AddressLine2)
+	qb.Add("card[address_zip]", card.AddressZip)
+	qb.Add("card[country]", card.Country)
+	qb.Add("card[name]", card.Name)
 
 	return parseToken(t.service.request("POST", "/tokens", qb.Reader()))
 }
 
 // Retrieve token object. 特定のトークン情報を取得します。
 func (t TokenService) Retrieve(id string) (*TokenResponse, error) {
-	return parseToken(t.service.retrieve("/tokens/" + id))
+	return parseToken(t.service.request("GET", "/tokens/"+id, nil))
 }
 
 // TokenResponse はToken.Create(), Token.Retrieve()が返す構造体です。
 type TokenResponse struct {
-	Card      CardResponse // クレジットカードの情報
-	CreatedAt time.Time    // このトークン作成時間
-	ID        string       // tok_で始まる一意なオブジェクトを示す文字列
-	LiveMode  bool         // 本番環境かどうか
-	Used      bool         // トークンが使用済みかどうか
-}
+	CreatedAt time.Time       // このトークン作成時間
+	RawCard   json.RawMessage `json:"card"`
+	Card      CardResponse    // クレジットカードの情報
+	Created   *int            `json:"created"`
+	ID        string          `json:"id"`
+	LiveMode  bool            `json:"livemode"`
+	Object    string          `json:"object"`
+	Used      bool            `json:"used"`
 
-type tokenResponseParser struct {
-	Card         json.RawMessage `json:"card"`
-	CreatedEpoch int             `json:"created"`
-	ID           string          `json:"id"`
-	LiveMode     bool            `json:"livemode"`
-	Object       string          `json:"object"`
-	Used         bool            `json:"used"`
-	CreatedAt    time.Time
+	service *Service
 }
 
 // UnmarshalJSON はJSONパース用の内部APIです。
 func (t *TokenResponse) UnmarshalJSON(b []byte) error {
-	raw := tokenResponseParser{}
+	type tokenResponseParser TokenResponse
+	var raw tokenResponseParser
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "token" {
-		json.Unmarshal(raw.Card, &t.Card)
-		t.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
-		t.ID = raw.ID
-		t.LiveMode = raw.LiveMode
-		t.Used = raw.Used
+		json.Unmarshal(raw.RawCard, &raw.Card)
+		raw.CreatedAt = time.Unix(IntValue(raw.Created), 0)
+
+		raw.service = t.service
+		*t = TokenResponse(raw)
 		return nil
 	}
-	rawError := errorResponse{}
-	err = json.Unmarshal(b, &rawError)
-	if err == nil && rawError.Error.Status != 0 {
-		return &rawError.Error
-	}
-
-	return nil
+	return parseError(b)
 }

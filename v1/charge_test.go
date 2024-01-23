@@ -2,10 +2,9 @@ package payjp
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
-	"fmt"
-	"github.com/stretchr/testify/assert"
 )
 
 var chargeResponseJSON = []byte(`
@@ -35,7 +34,7 @@ var chargeResponseJSON = []byte(`
   },
   "created": 1433127983,
   "currency": "jpy",
-  "customer": null,
+  "customer": "cus_xxx",
   "description": null,
   "expired_at": null,
   "failure_code": null,
@@ -103,7 +102,7 @@ var chargeListResponseJSON = []byte(`
 {
   "count": 1,
   "data": [` + chargeNewResponseJSONStr +
-  `],
+	`],
   "has_more": true,
   "object": "list",
   "url": "/v1/charges"
@@ -111,14 +110,47 @@ var chargeListResponseJSON = []byte(`
 `)
 
 func TestParseChargeResponseJSON(t *testing.T) {
-	charge := &ChargeResponse{}
-	err := json.Unmarshal(chargeResponseJSON, charge)
+	service := &Service{}
+	s := &ChargeResponse{
+		service: service,
+	}
+	err := json.Unmarshal(chargeResponseJSON, s)
 
 	assert.NoError(t, err)
-	assert.Equal(t, "ch_fa990a4c10672a93053a774730b0a", charge.ID)
-	assert.Nil(t, charge.ThreeDSecureStatus)
-	assert.Equal(t, "", charge.FailureMessage)
-	assert.Nil(t, charge.Metadata)
+	assert.Equal(t, "ch_fa990a4c10672a93053a774730b0a", s.ID)
+	assert.False(t, s.LiveMode)
+	assert.Equal(t, 1433127983, *s.Created)
+	assert.IsType(t, time.Unix(0, 0), s.CreatedAt)
+	assert.Equal(t, 3500, s.Amount)
+	assert.Equal(t, "jpy", s.Currency)
+	assert.True(t, s.Paid)
+	assert.Nil(t, s.RawExpiredAt)
+	assert.IsType(t, time.Unix(0, 0), s.ExpiredAt)
+	assert.Equal(t, 1433127983, *s.RawCapturedAt)
+	assert.IsType(t, time.Unix(0, 0), s.CapturedAt)
+	assert.True(t, s.Captured)
+	assert.Equal(t, "car_d0e44730f83b0a19ba6caee04160", s.Card.ID)
+	// assert.Nil(t, s.Card.RawName)
+	assert.Equal(t, "", s.Card.Name)
+	assert.Equal(t, "cus_xxx", *s.Customer)
+	assert.Equal(t, "cus_xxx", s.CustomerID)
+	assert.Nil(t, s.RawDescription)
+	assert.Equal(t, "", s.Description)
+	assert.Nil(t, s.RawFailureCode)
+	assert.Nil(t, s.RawFailureMessage)
+	assert.Equal(t, "", s.FailureCode)
+	assert.Equal(t, "", s.FailureMessage)
+	assert.False(t, s.Refunded)
+	assert.Equal(t, 0, s.AmountRefunded)
+	assert.Nil(t, s.RawRefundReason)
+	assert.Equal(t, "", s.RefundReason)
+	assert.Nil(t, s.Subscription)
+	assert.Equal(t, "", s.SubscriptionID)
+	assert.Nil(t, s.Metadata)
+	assert.Equal(t, "3.00", s.FeeRate)
+	assert.Nil(t, s.ThreeDSecureStatus)
+	assert.Equal(t, "charge", s.Object)
+	assert.Equal(t, service, s.service)
 }
 
 func TestChargeCreate(t *testing.T) {
@@ -141,13 +173,11 @@ func TestChargeCreate(t *testing.T) {
 	assert.Equal(t, 3500, charge.Amount)
 
 	charge, err = service.Charge.Create(3500, Charge{
-		Product: "prd_req1",
-		CustomerID: "cus_req1",
+		Product:        "prd_req1",
+		CustomerID:     "cus_req1",
 		CustomerCardID: "car_req1",
-		Description: "desc",
-		Capture: true,
-		ExpireDays: "ignored",
-		ThreeDSecure: "ignored",
+		Description:    "desc",
+		Capture:        true,
 		Metadata: map[string]string{
 			"hoge": "fuga",
 		},
@@ -159,9 +189,9 @@ func TestChargeCreate(t *testing.T) {
 	assert.NotNil(t, charge)
 
 	charge, err = service.Charge.Create(3500, Charge{
-		Product: "prd_req1",
-		CardToken: "tok_req1",
-		ExpireDays: 1,
+		Product:      "prd_req1",
+		CardToken:    "tok_req1",
+		ExpireDays:   1,
 		ThreeDSecure: false,
 	})
 	assert.NoError(t, err)
@@ -169,27 +199,12 @@ func TestChargeCreate(t *testing.T) {
 	assert.NotNil(t, charge)
 
 	_, err = service.Charge.Create(1000, Charge{
-		CardToken: "tok_error",
+		ExpireDays:   "invalid",
+		ThreeDSecure: "invalid",
 	})
 	assert.IsType(t, &Error{}, err)
+	assert.Equal(t, "amount=1000&currency=jpy&capture=false&expiry_days=invalid&three_d_secure=invalid", *transport.Body)
 	assert.Equal(t, errorStr, err.Error())
-}
-
-func TestChargeCreateError(t *testing.T) {
-	service := New("api-key", nil)
-
-	charge, err := service.Charge.Create(1000, Charge{})
-	assert.Nil(t, charge)
-	expected := fmt.Errorf("One of the following parameters is required: CustomerID or CardToken")
-	assert.Equal(t, expected, err)
-
-	charge, err = service.Charge.Create(1000, Charge{
-		CardToken: "tok_err",
-		CustomerID: "cus_err",
-	})
-	assert.Nil(t, charge)
-	expected = fmt.Errorf("The following parameters are exclusive: CustomerID, CardToken.")
-	assert.Equal(t, expected, err)
 }
 
 func TestChargeRetrieve(t *testing.T) {
@@ -363,22 +378,55 @@ func TestChargeTdsFinish(t *testing.T) {
 	assert.NotNil(t, charge)
 }
 
+func TestChargeCaptureChangedAmount(t *testing.T) {
+	mock, transport := newMockClient(200, chargeResponseJSON)
+	service := New("api-key", mock)
+	chargeID := "ch_fa990a4c10672a93053a774730b0a"
+	charge, err := service.Charge.Retrieve(chargeID)
+	newAmount := 100
+	err = charge.Capture(newAmount)
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/charges/"+chargeID+"/capture", transport.URL)
+	assert.Equal(t, "POST", transport.Method)
+	assert.Equal(t, "amount=100", *transport.Body)
+}
+
 func TestChargeList(t *testing.T) {
 	mock, transport := newMockClient(200, chargeListResponseJSON)
+	transport.AddResponse(200, chargeListResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 	charges, hasMore, err := service.Charge.List().
 		Limit(10).
-		Offset(15).
+		Offset(0).
 		Since(time.Unix(1455328095, 0)).
 		Until(time.Unix(1455500895, 0)).Do()
 
 	assert.NoError(t, err)
-    assert.Equal(t, "https://api.pay.jp/v1/charges?limit=10&offset=15&since=1455328095&until=1455500895", transport.URL)
+	assert.Equal(t, "https://api.pay.jp/v1/charges?limit=10&offset=0&since=1455328095&until=1455500895", transport.URL)
 	assert.Equal(t, "GET", transport.Method)
 	assert.True(t, hasMore)
 	assert.Equal(t, len(charges), 1)
 	assert.Equal(t, 1000, charges[0].Amount)
+	assert.Equal(t, service, charges[0].service)
+
+	params := &ChargeListParams{
+		ListParams: ListParams{
+			Limit:  Int(10),
+			Offset: Int(0),
+		},
+		Customer:     String("a"),
+		Subscription: String("b"),
+		Tenant:       String("c"),
+	}
+	charges, hasMore, err = service.Charge.All(params)
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/charges?customer=a&limit=10&offset=0&subscription=b&tenant=c", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.True(t, hasMore)
+	assert.Equal(t, len(charges), 1)
+	assert.Equal(t, 1000, charges[0].Amount)
+	assert.Equal(t, service, charges[0].service)
 
 	_, hasMore, err = service.Charge.List().Do()
 	assert.False(t, hasMore)

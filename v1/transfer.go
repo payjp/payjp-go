@@ -2,50 +2,55 @@ package payjp
 
 import (
 	"encoding/json"
-	"net/url"
 	"time"
 )
 
 // TransferStatus は入金状態を示すステータスです
-type TransferStatus int
+type TransferStatus string
 
 const (
-	noTransferStatus TransferStatus = iota
 	// TransferPending は支払い前のステータスを表す定数
-	TransferPending
+	TransferPending = TransferStatus("pending")
 	// TransferPaid は支払い済みのステータスを表す定数
-	TransferPaid
+	TransferPaid = TransferStatus("paid")
 	// TransferFailed は支払い失敗のステータスを表す定数
-	TransferFailed
+	TransferFailed = TransferStatus("failed")
 	// TransferRecombination は組戻ステータスを表す定数
-	TransferRecombination
+	TransferRecombination = TransferStatus("recombination")
 	// TransferCarriedOver は入金繰り越しを表す定数
-	TransferCarriedOver
+	TransferCarriedOver = TransferStatus("carried_over")
 	// TransferStop は入金停止を表す定数
-	TransferStop
+	TransferStop = TransferStatus("stop")
 )
 
 func (t TransferStatus) status() interface{} {
-	switch t {
-	case TransferPending:
-		return "pending"
-	case TransferPaid:
-		return "paid"
-	case TransferFailed:
-		return "failed"
-	case TransferRecombination:
-		return "recombination"
-	case TransferCarriedOver:
-		return "carried_over"
-	case TransferStop:
-		return "stop"
-	}
-	return nil
+	return string(t)
+}
+
+type TransferListParams struct {
+	ListParams        `form:"*"`
+	SinceSheduledDate *int            `form:"since_scheduled_date"`
+	UntilSheduledDate *int            `form:"until_scheduled_date"`
+	Status            *TransferStatus `form:"status"`
+}
+
+// TransferChargeListParams は入金内訳のリスト取得に使用する構造体です。
+type TransferChargeListParams struct {
+	ListParams `form:"*"`
+	Customer   *string `form:"customer"`
+}
+
+type transferListCaller struct {
+	service TransferService
+	TransferListParams
+}
+
+type TransferChargeListCaller struct {
+	caller *TransferResponse
+	TransferChargeListParams
 }
 
 // TransferService は入金に関するサービスです。
-//
-// 入金は毎月15日と月末に締め、翌月15日と月末に入金されます。入金は、締め日までのデータがそれぞれ生成されます。
 type TransferService struct {
 	service *Service
 }
@@ -58,7 +63,7 @@ func newTransferService(service *Service) *TransferService {
 
 // Retrieve transfer object. 入金情報を取得します。
 func (t TransferService) Retrieve(transferID string) (*TransferResponse, error) {
-	body, err := t.service.retrieve("/transfers/" + transferID)
+	body, err := t.service.request("GET", "/transfers/"+transferID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -71,77 +76,12 @@ func (t TransferService) Retrieve(transferID string) (*TransferResponse, error) 
 	return result, nil
 }
 
-// List は入金リストを取得します。リストは、直近で生成された順番に取得されます。
-func (t TransferService) List() *TransferListCaller {
-	return &TransferListCaller{
-		status:  noTransferStatus,
-		service: t.service,
+func (c TransferService) All(params ...*TransferListParams) ([]*TransferResponse, bool, error) {
+	p := &TransferListParams{}
+	if len(params) > 0 {
+		p = params[0]
 	}
-}
-
-// TransferListCaller は支払いのリスト取得に使用する構造体です。
-type TransferListCaller struct {
-	service           *Service
-	limit             int
-	offset            int
-	since             int
-	until             int
-	sinceSheduledDate int
-	untilSheduledDate int
-	status            TransferStatus
-}
-
-// Limit はリストの要素数の最大値を設定します(1-100)
-func (c *TransferListCaller) Limit(limit int) *TransferListCaller {
-	c.limit = limit
-	return c
-}
-
-// Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
-func (c *TransferListCaller) Offset(offset int) *TransferListCaller {
-	c.offset = offset
-	return c
-}
-
-// SinceSheduledDate は入金予定日がここに指定したタイムスタンプ以降のデータのみ取得します
-func (c *TransferListCaller) SinceSheduledDate(sinceSheduledDate time.Time) *TransferListCaller {
-	c.sinceSheduledDate = int(sinceSheduledDate.Unix())
-	return c
-}
-
-// UntilSheduledDate は入金予定日がここに指定したタイムスタンプ以前のデータのみ取得します
-func (c *TransferListCaller) UntilSheduledDate(untilSheduledDate time.Time) *TransferListCaller {
-	c.untilSheduledDate = int(untilSheduledDate.Unix())
-	return c
-}
-
-// Since はここに指定したタイムスタンプ以降に作成されたデータを取得します
-func (c *TransferListCaller) Since(since time.Time) *TransferListCaller {
-	c.since = int(since.Unix())
-	return c
-}
-
-// Until はここに指定したタイムスタンプ以前に作成されたデータを取得します
-func (c *TransferListCaller) Until(until time.Time) *TransferListCaller {
-	c.until = int(until.Unix())
-	return c
-}
-
-// Status はここで指定されたステータスのデータを取得します
-func (c *TransferListCaller) Status(status TransferStatus) *TransferListCaller {
-	c.status = status
-	return c
-}
-
-// Do は指定されたクエリーを元に入金のリストを配列で取得します。
-func (c *TransferListCaller) Do() ([]*TransferResponse, bool, error) {
-	body, err := c.service.queryTransferList("/transfers", c.limit, c.offset, c.since, c.until, c.sinceSheduledDate, c.untilSheduledDate, func(values *url.Values) bool {
-		if c.status != noTransferStatus {
-			values.Add("status", c.status.status().(string))
-			return true
-		}
-		return false
-	})
+	body, err := c.service.request("GET", "/transfers"+c.service.getQuery(p), nil)
 	if err != nil {
 		return nil, false, err
 	}
@@ -151,74 +91,126 @@ func (c *TransferListCaller) Do() ([]*TransferResponse, bool, error) {
 		return nil, false, err
 	}
 	result := make([]*TransferResponse, len(raw.Data))
-	for i, rawCharge := range raw.Data {
-		charge := &TransferResponse{}
-		json.Unmarshal(rawCharge, charge)
-		charge.service = c.service
-		result[i] = charge
+	for i, raw := range raw.Data {
+		json.Unmarshal(raw, &result[i])
+		result[i].service = c.service
 	}
 	return result, raw.HasMore, nil
 }
 
-// ChargeList は支払いは入金内訳リストを取得します。リストは、直近で生成された順番に取得されます。
-func (t TransferService) ChargeList(transferID string) *TransferChargeListCaller {
-	return &TransferChargeListCaller{
-		service:    t.service,
-		transferID: transferID,
+// Deprecated
+func (t TransferService) List() *transferListCaller {
+	return &transferListCaller{
+		service: t,
 	}
 }
 
-// TransferChargeListCaller は入金内訳のリスト取得に使用する構造体です。
-type TransferChargeListCaller struct {
-	service    *Service
-	transferID string
-	limit      int
-	offset     int
-	since      int
-	until      int
-	customerID string
+// Limit はリストの要素数の最大値を設定します(1-100)
+func (c *transferListCaller) Limit(limit int) *transferListCaller {
+	c.TransferListParams.ListParams.Limit = &limit
+	return c
+}
+
+// Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
+func (c *transferListCaller) Offset(offset int) *transferListCaller {
+	c.TransferListParams.ListParams.Offset = &offset
+	return c
+}
+
+// SinceSheduledDate は入金予定日がここに指定したタイムスタンプ以降のデータのみ取得します
+func (c *transferListCaller) SinceSheduledDate(sinceSheduledDate time.Time) *transferListCaller {
+	p := int(sinceSheduledDate.Unix())
+	c.TransferListParams.SinceSheduledDate = &p
+	return c
+}
+
+// UntilSheduledDate は入金予定日がここに指定したタイムスタンプ以前のデータのみ取得します
+func (c *transferListCaller) UntilSheduledDate(untilSheduledDate time.Time) *transferListCaller {
+	p := int(untilSheduledDate.Unix())
+	c.TransferListParams.UntilSheduledDate = &p
+	return c
+}
+
+// Since はここに指定したタイムスタンプ以降に作成されたデータを取得します
+func (c *transferListCaller) Since(since time.Time) *transferListCaller {
+	p := int(since.Unix())
+	c.TransferListParams.ListParams.Since = &p
+	return c
+}
+
+// Until はここに指定したタイムスタンプ以前に作成されたデータを取得します
+func (c *transferListCaller) Until(until time.Time) *transferListCaller {
+	p := int(until.Unix())
+	c.TransferListParams.ListParams.Until = &p
+	return c
+}
+
+// Status はここで指定されたステータスのデータを取得します
+func (c *transferListCaller) Status(status TransferStatus) *transferListCaller {
+	c.TransferListParams.Status = &status
+	return c
+}
+
+// Do は指定されたクエリーを元に入金のリストを配列で取得します。
+func (c *transferListCaller) Do() ([]*TransferResponse, bool, error) {
+	return c.service.All(&c.TransferListParams)
+}
+
+// ChargeList は支払いは入金内訳リストを取得します。リストは、直近で生成された順番に取得されます。
+func (t TransferService) ChargeList(id string) *TransferChargeListCaller {
+	tr, err := t.Retrieve(id)
+	if err != nil {
+		return nil
+	}
+	return &TransferChargeListCaller{
+		caller: tr,
+	}
 }
 
 // Limit はリストの要素数の最大値を設定します(1-100)
 func (c *TransferChargeListCaller) Limit(limit int) *TransferChargeListCaller {
-	c.limit = limit
+	c.TransferChargeListParams.ListParams.Limit = &limit
 	return c
 }
 
 // Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
 func (c *TransferChargeListCaller) Offset(offset int) *TransferChargeListCaller {
-	c.offset = offset
+	c.TransferChargeListParams.ListParams.Offset = &offset
 	return c
 }
 
 // Since はここに指定したタイムスタンプ以降に作成されたデータを取得します
 func (c *TransferChargeListCaller) Since(since time.Time) *TransferChargeListCaller {
-	c.since = int(since.Unix())
+	p := int(since.Unix())
+	c.TransferChargeListParams.ListParams.Since = &p
 	return c
 }
 
 // Until はここに指定したタイムスタンプ以前に作成されたデータを取得します
 func (c *TransferChargeListCaller) Until(until time.Time) *TransferChargeListCaller {
-	c.until = int(until.Unix())
+	p := int(until.Unix())
+	c.TransferChargeListParams.ListParams.Until = &p
 	return c
 }
 
 // CustomerID はここに指定した顧客IDを持つデータを取得します
 func (c *TransferChargeListCaller) CustomerID(ID string) *TransferChargeListCaller {
-	c.customerID = ID
+	c.TransferChargeListParams.Customer = &ID
 	return c
 }
 
 // Do は指定されたクエリーを元に入金内訳のリストを配列で取得します。
 func (c *TransferChargeListCaller) Do() ([]*ChargeResponse, bool, error) {
-	path := "/transfers/" + c.transferID + "/charges"
-	body, err := c.service.queryList(path, c.limit, c.offset, c.since, c.until, func(values *url.Values) bool {
-		if c.customerID != "" {
-			values.Add("customer", c.customerID)
-			return true
-		}
-		return false
-	})
+	return c.caller.All(&c.TransferChargeListParams)
+}
+
+func (c *TransferResponse) All(params ...*TransferChargeListParams) ([]*ChargeResponse, bool, error) {
+	p := &TransferChargeListParams{}
+	if len(params) > 0 {
+		p = params[0]
+	}
+	path := "/transfers/" + c.ID + "/charges" + c.service.getQuery(p)
+	body, err := c.service.request("GET", path, nil)
 	if err != nil {
 		return nil, false, err
 	}
@@ -228,11 +220,9 @@ func (c *TransferChargeListCaller) Do() ([]*ChargeResponse, bool, error) {
 		return nil, false, err
 	}
 	result := make([]*ChargeResponse, len(raw.Data))
-	for i, rawCharge := range raw.Data {
-		transfer := &ChargeResponse{}
-		json.Unmarshal(rawCharge, transfer)
-		transfer.service = c.service
-		result[i] = transfer
+	for i, r := range raw.Data {
+		json.Unmarshal(r, &result[i])
+		result[i].service = c.service
 	}
 	return result, raw.HasMore, nil
 }
@@ -240,117 +230,63 @@ func (c *TransferChargeListCaller) Do() ([]*ChargeResponse, bool, error) {
 // TransferResponse はTransferService.Get、TransferService.Listによって返される、
 // 入金状態を示す構造体です。
 type TransferResponse struct {
-	ID             string            // tr_で始まる一意なオブジェクトを示す文字列
-	LiveMode       bool              // 本番環境かどうか
-	CreatedAt      time.Time         // この入金作成時のタイムスタンプ
-	Amount         int               // 入金予定額
-	CarriedBalance int               // 繰越金
-	Currency       string            // 3文字のISOコード(現状 “jpy” のみサポート)
-	Status         TransferStatus    // この入金の処理状態
-	Charges        []*ChargeResponse // この入金に含まれる支払いのリスト
-	ScheduledDate  string            // 入金予定日
-	Summary        struct {
-		ChargeCount   int // 支払い総数
-		ChargeFee     int // 支払い手数料
-		ChargeGross   int // 総売上
-		Net           int // 差引額
-		RefundAmount  int // 返金総額
-		RefundCount   int // 返金総数
-		DisputeAmount int // チャージバックにより相殺された金額の合計
-		DisputeCount  int // チャージバック対象となったchargeの個数
-	}                        // この入金に関する集計情報
-	Description    string    // 概要
-	TermStartAt    time.Time // 集計期間開始時のタイムスタンプ
-	TermEndAt      time.Time // 集計期間終了時のタイムスタンプ
-	TransferAmount int       // 	入金額
-	TransferDate   string    // 入金日
+	ID                string             `json:"id"`       // tr_で始まる一意なオブジェクトを示す文字列
+	LiveMode          bool               `json:"livemode"` // 本番環境かどうか
+	Created           *int               `json:"created"`  // この入金作成時のタイムスタンプ
+	CreatedAt         time.Time          // この入金作成時のタイムスタンプ
+	Amount            int                `json:"amount"` // 入金予定額
+	CarriedBalance    int                // 繰越金
+	RawCarriedBalance *int               `json:"carried_balance"`
+	Currency          string             `json:"currency"` // 3文字のISOコード(現状 “jpy” のみサポート)
+	Status            TransferStatus     `json:"status"`   // この入金の処理状態
+	Charges           []*ChargeResponse  // この入金に含まれる支払いのリスト
+	RawCharges        listResponseParser `json:"charges"`
+	ScheduledDate     string             `json:"scheduled_date"` // 入金予定日
+	Summary           struct {
+		ChargeCount   int `json:"charge_count"`   // 支払い総数
+		ChargeFee     int `json:"charge_fee"`     // 支払い手数料
+		ChargeGross   int `json:"charge_gross"`   // 総売上
+		Net           int `json:"net"`            // 差引額
+		RefundAmount  int `json:"refund_amount"`  // 返金総額
+		RefundCount   int `json:"refund_count"`   // 返金総数
+		DisputeAmount int `json:"dispute_amount"` // チャージバックにより相殺された金額の合計
+		DisputeCount  int `json:"dispute_count"`  // チャージバック対象となったchargeの個数
+	} `json:"summary"`
+	Description       string    // 概要
+	RawDescription    *string   `json:"description"`
+	TermStartAt       time.Time // 集計期間開始時のタイムスタンプ
+	TermEndAt         time.Time // 集計期間終了時のタイムスタンプ
+	TermEnd           *int      `json:"term_end"`
+	TermStart         *int      `json:"term_start"`
+	TransferAmount    int
+	TransferDate      string
+	RawTransferAmount *int    `json:"transfer_amount"`
+	RawTransferDate   *string `json:"transfer_date"`
+	Object            string  `json:"object"`
 
 	service *Service
 }
 
-type transferResponseParser struct {
-	Amount         int                `json:"amount"`
-	CarriedBalance int                `json:"carried_balance"`
-	Charges        listResponseParser `json:"charges"`
-	CreatedEpoch   int                `json:"created"`
-	Currency       string             `json:"currency"`
-	Description    string             `json:"description"`
-	ID             string             `json:"id"`
-	LiveMode       bool               `json:"livemode"`
-	Object         string             `json:"object"`
-	ScheduledDate  string             `json:"scheduled_date"`
-	Status         string             `json:"status"`
-	Summary        struct {
-		ChargeCount   int `json:"charge_count"`
-		ChargeFee     int `json:"charge_fee"`
-		ChargeGross   int `json:"charge_gross"`
-		Net           int `json:"net"`
-		RefundAmount  int `json:"refund_amount"`
-		RefundCount   int `json:"refund_count"`
-		DisputeAmount int `json:"dispute_amount"`
-		DisputeCount  int `json:"dispute_count"`
-	} `json:"summary"`
-	TermEndEpoch   int    `json:"term_end"`
-	TermStartEpoch int    `json:"term_start"`
-	TransferAmount int    `json:"transfer_amount"`
-	TransferDate   string `json:"transfer_date"`
-}
-
-type transfer TransferResponse
-
-// UnmarshalJSON はJSONパース用の内部APIです。
 func (t *TransferResponse) UnmarshalJSON(b []byte) error {
-	raw := transferResponseParser{}
+	type transferResponseParser TransferResponse
+	var raw transferResponseParser
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "transfer" {
-		t.Amount = raw.Amount
-		t.CarriedBalance = raw.CarriedBalance
-		t.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
-		t.Currency = raw.Currency
-		t.Description = raw.Description
-		t.ID = raw.ID
-		t.LiveMode = raw.LiveMode
-		t.ScheduledDate = raw.ScheduledDate
-		switch raw.Status {
-		case "pending":
-			t.Status = TransferPending
-		case "paid":
-			t.Status = TransferPaid
-		case "failed":
-			t.Status = TransferFailed
-		case "recombination":
-			t.Status = TransferRecombination
-		case "carried_over":
-			t.Status = TransferCarriedOver
-		case "stop":
-			t.Status = TransferStop
+		raw.CreatedAt = time.Unix(IntValue(raw.Created), 0)
+		raw.TermEndAt = time.Unix(IntValue(raw.TermEnd), 0)
+		raw.TermStartAt = time.Unix(IntValue(raw.TermStart), 0)
+		raw.CarriedBalance = int(IntValue(raw.RawCarriedBalance))
+		raw.Description = StringValue(raw.RawDescription)
+		raw.TransferAmount = int(IntValue(raw.RawTransferAmount))
+		raw.TransferDate = StringValue(raw.RawTransferDate)
+		raw.Charges = make([]*ChargeResponse, len(raw.RawCharges.Data))
+		for i, rawCharge := range raw.RawCharges.Data {
+			json.Unmarshal(rawCharge, &(raw.Charges[i]))
 		}
-		t.Summary.ChargeCount = raw.Summary.ChargeCount
-		t.Summary.ChargeFee = raw.Summary.ChargeFee
-		t.Summary.ChargeGross = raw.Summary.ChargeGross
-		t.Summary.Net = raw.Summary.Net
-		t.Summary.RefundAmount = raw.Summary.RefundAmount
-		t.Summary.RefundCount = raw.Summary.RefundCount
-		t.Summary.DisputeAmount = raw.Summary.DisputeAmount
-		t.Summary.DisputeCount = raw.Summary.DisputeCount
-		t.TermEndAt = time.Unix(int64(raw.TermEndEpoch), 0)
-		t.TermStartAt = time.Unix(int64(raw.TermStartEpoch), 0)
-		t.TransferAmount = raw.TransferAmount
-		t.TransferDate = raw.TransferDate
-		t.Charges = make([]*ChargeResponse, len(raw.Charges.Data))
-		for i, rawCharge := range raw.Charges.Data {
-			charge := &ChargeResponse{}
-			json.Unmarshal(rawCharge, charge)
-			t.Charges[i] = charge
-		}
+		raw.service = t.service
+		*t = TransferResponse(raw)
 
 		return nil
 	}
-	rawError := errorResponse{}
-	err = json.Unmarshal(b, &rawError)
-	if err == nil && rawError.Error.Status != 0 {
-		return &rawError.Error
-	}
-
-	return nil
+	return parseError(b)
 }

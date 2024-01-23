@@ -2,9 +2,9 @@ package payjp
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
-    "github.com/stretchr/testify/assert"
 )
 
 var planResponseJSONStr = `{
@@ -39,7 +39,7 @@ var planListResponseJSON = []byte(`
 {
   "count": 1,
   "data": [` + planResponseJSONStr +
-  `],
+	`],
   "object": "list",
   "has_more": true,
   "url": "/v1/customers/cus_4df4b5ed720933f4fb9e28857517/cards"
@@ -98,7 +98,7 @@ func TestPlanUpdate(t *testing.T) {
 	service := New("api-key", mock)
 
 	plan, err := service.Plan.Update("pln_req", Plan{
-	    Name: "name",
+		Name: "name",
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/plans/pln_req", transport.URL)
@@ -151,18 +151,31 @@ func TestPlanResponseDelete(t *testing.T) {
 
 func TestPlanList(t *testing.T) {
 	mock, transport := newMockClient(200, planListResponseJSON)
+	transport.AddResponse(200, planListResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
-	p := service.Plan.List().
+
+	params := &PlanListParams{
+		ListParams: ListParams{
+			Limit:  Int(10),
+			Offset: Int(0),
+			Since:  Int(1455328095),
+			Until:  Int(1455500895),
+		},
+	}
+	plans, hasMore, err := service.Plan.All(params)
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/plans?limit=10&offset=0&since=1455328095&until=1455500895", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.True(t, hasMore)
+	assert.Equal(t, len(plans), 1)
+	assert.Equal(t, 500, plans[0].Amount)
+
+	plans, hasMore, err = service.Plan.List().
 		Limit(1).
 		Offset(15).
 		Since(time.Unix(1455328095, 0)).
-		Until(time.Unix(1455500895, 0))
-
-	plans, hasMore, err := p.Do()
-	if len(plans) != 1 {
-		t.Error("parse error: plans")
-	}
+		Until(time.Unix(1455500895, 0)).Do()
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/plans?limit=1&offset=15&since=1455328095&until=1455500895", transport.URL)
 	assert.Equal(t, "GET", transport.Method)
@@ -170,7 +183,7 @@ func TestPlanList(t *testing.T) {
 	assert.Equal(t, len(plans), 1)
 	assert.Equal(t, 500, plans[0].Amount)
 
-	_, hasMore, err = p.Do()
+	_, hasMore, err = service.Plan.All()
 	assert.False(t, hasMore)
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())
