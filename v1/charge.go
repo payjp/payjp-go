@@ -3,7 +3,6 @@ package payjp
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -22,15 +21,15 @@ func newChargeService(service *Service) *ChargeService {
 
 // Charge 構造体はCharge.Createのパラメータを設定するのに使用します
 type Charge struct {
-	Currency    string            // 必須: 3文字のISOコード(現状 “jpy” のみサポート)
-	CustomerID  string            // 顧客ID (CardかCustomerのどちらかは必須パラメータ)
-	Card        Card              // カードオブジェクト(cardかcustomerのどちらかは必須)
-	CardToken   string            // トークンID (CardかCustomerのどちらかは必須パラメータ)
-	CustomerCardID	string        // 顧客のカードID
-	Capture     bool              // 支払い処理を確定するかどうか (falseの場合、カードの認証と支払い額の確保のみ行う)
-	Description string            // 	概要
-	ExpireDays  interface{}       // デフォルトで7日となっており、1日~60日の間で設定が可能
-	Metadata    map[string]string // メタデータ
+	Currency       string            // 必須: 3文字のISOコード(現状 “jpy” のみサポート)
+	CustomerID     string            // 顧客ID (CardかCustomerのどちらかは必須パラメータ)
+	Card           Card              // カードオブジェクト(cardかcustomerのどちらかは必須)
+	CardToken      string            // トークンID (CardかCustomerのどちらかは必須パラメータ)
+	CustomerCardID string            // 顧客のカードID
+	Capture        bool              // 支払い処理を確定するかどうか (falseの場合、カードの認証と支払い額の確保のみ行う)
+	Description    string            // 	概要
+	ExpireDays     interface{}       // デフォルトで7日となっており、1日~60日の間で設定が可能
+	Metadata       map[string]string // メタデータ
 }
 
 // Create はトークンID、カードを保有している顧客ID、カードオブジェクトのいずれかのパラメーターを指定して支払いを作成します。
@@ -90,14 +89,7 @@ func (c ChargeService) Create(amount int, charge Charge) (*ChargeResponse, error
 	qb.Add("expiry_days", charge.ExpireDays)
 	qb.AddMetadata(charge.Metadata)
 
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	body, err := respToBody(c.service.Client.Do(request))
+	body, err := respToBody(c.service.formUrlEncodedPostRequest(c.service.apiBase+"/charges", make(HeaderMap), qb))
 	if err != nil {
 		return nil, err
 	}
@@ -118,14 +110,7 @@ func (c ChargeService) update(chargeID, description string, metadata map[string]
 	qb := newRequestBuilder()
 	qb.Add("description", description)
 	qb.AddMetadata(metadata)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID, qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	return parseResponseError(c.service.Client.Do(request))
+	return parseResponseError(c.service.formUrlEncodedPostRequest(c.service.apiBase+"/charges/"+chargeID, make(HeaderMap), qb))
 }
 
 // Update は支払い情報のDescriptionを更新します。
@@ -151,13 +136,7 @@ func (c ChargeService) refund(id string, reason string, amount []int) ([]byte, e
 		qb.Add("amount", amount[0])
 	}
 	qb.Add("refund_reason", reason)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+id+"/refund", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	return parseResponseError(c.service.Client.Do(request))
+	return parseResponseError(c.service.postRequest(c.service.apiBase+"/charges/"+id+"/refund", make(HeaderMap), qb))
 }
 
 // Refund は支払い済みとなった処理を返金します。
@@ -170,20 +149,12 @@ func (c ChargeService) Refund(chargeID, reason string, amount ...int) (*ChargeRe
 	return parseCharge(c.service, body, &ChargeResponse{})
 }
 
-
-
 func (c ChargeService) capture(chargeID string, amount []int) ([]byte, error) {
 	qb := newRequestBuilder()
 	if len(amount) > 0 {
 		qb.Add("amount", amount[0])
 	}
-	request, err := http.NewRequest("POST", c.service.apiBase+"/charges/"+chargeID+"/capture", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	return parseResponseError(c.service.Client.Do(request))
+	return parseResponseError(c.service.postRequest(c.service.apiBase+"/charges/"+chargeID+"/capture", make(HeaderMap), qb))
 }
 
 // Capture は認証状態となった処理待ちの支払い処理を確定させます。具体的には Captured="false" となった支払いが該当します。

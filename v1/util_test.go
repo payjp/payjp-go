@@ -3,7 +3,12 @@ package payjp
 import (
 	"bytes"
 	"io/ioutil"
+	"math"
+	"math/rand"
 	"net/http"
+	"reflect"
+	"testing"
+	"testing/quick"
 )
 
 func NewMockClient(status int, response []byte) (*http.Client, *MockTransport) {
@@ -51,4 +56,40 @@ func (t *MockTransport) AddResponse(status int, body []byte) {
 		status:   status,
 		response: body,
 	})
+}
+
+
+// test for RandUniform
+type randUniformArgSource struct {
+  valueX float64
+  valueY float64
+}
+
+func(s randUniformArgSource) maxValue() float64 {
+  return math.Max(s.valueX, s.valueY)
+}
+
+func(s randUniformArgSource) minValue() float64 {
+  return math.Min(s.valueX, s.valueY)
+}
+
+func (randUniformArgSource) Generate(r *rand.Rand, size int) reflect.Value {
+  s := randUniformArgSource {
+    float64(r.Int63()),
+    float64(r.Int63()),
+  }
+  return reflect.ValueOf(s)
+}
+
+
+func TestRandUniform(t *testing.T) {
+  testFunc := func(arg randUniformArgSource) bool {
+    min := arg.minValue()
+    max := arg.maxValue()
+    result:= RandUniform(min, max)
+    return result >= min || result < max
+  }
+  if err := quick.Check(testFunc, nil); err != nil {
+    t.Error(err)
+  }
 }
