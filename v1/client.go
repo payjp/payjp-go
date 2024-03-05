@@ -12,6 +12,7 @@ import (
 	"strconv"
 )
 
+const Version = "v0.1.0"
 const tagName = "form"
 
 // Config 構造体はNewに渡すパラメータを設定するのに使用します。
@@ -110,7 +111,7 @@ func (s Service) request(method, path string, body io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	request.Header.Add("Authorization", s.apiKey)
-	request.Header.Add("X-Payjp-Client-User-Agent", "payjp-go("+runtime.Version()+",os:"+runtime.GOOS+",arch:"+runtime.GOARCH+")")
+	request.Header.Add("X-Payjp-Client-User-Agent", "payjp-go/"+Version+"("+runtime.Version()+",os:"+runtime.GOOS+",arch:"+runtime.GOARCH+")")
 	if method == "POST" && body != nil {
 		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if path == "/tokens" {
