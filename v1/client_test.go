@@ -65,6 +65,7 @@ func TestRequests(t *testing.T) {
 	assert.Equal(t, "https://api.pay.jp/v1/test", transport.URL)
 	assert.Equal(t, "POST", transport.Method)
 	assert.Equal(t, "Basic YXBpLWtleTo=", transport.Header.Get("Authorization"))
+	assert.Regexp(t, "^Go-http-client/payjp-v[0-9.]+$", transport.Header.Get("User-Agent"))
 	assert.Regexp(t, "^payjp-go/v[0-9.]+\\(go[0-9.]+,os\\:.+,arch\\:.+\\)$", transport.Header.Get("X-Payjp-Client-User-Agent"))
 	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
 	assert.Equal(t, errorJSONStr, string(body))

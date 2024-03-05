@@ -134,7 +134,6 @@ type EventResponse struct {
 	Object          string          `json:"object"`
 	Data            json.RawMessage `json:"data"`
 	DataMap         map[string]interface{}
-	DataParser      interface{}
 
 	service *Service
 }
@@ -146,12 +145,6 @@ func (e *EventResponse) UnmarshalJSON(b []byte) error {
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "event" {
 		raw.CreatedAt = time.Unix(IntValue(raw.Created), 0)
-		data := payjpResponse{}
-		err = json.Unmarshal(raw.Data, &data)
-		if err != nil {
-			return err
-		}
-		raw.DataParser = data.Parser
 		err = json.Unmarshal(raw.Data, &raw.DataMap)
 
 		raw.service = e.service
@@ -161,12 +154,12 @@ func (e *EventResponse) UnmarshalJSON(b []byte) error {
 	return parseError(b)
 }
 
-func (e *EventResponse) GetDataValue(keys ...string) string {
+func (e *EventResponse) GetDataValue(keys ...string) (string, error) {
 	return getValue(e.DataMap, keys)
 }
 
 // from https://github.com/stripe/stripe-go/releases/tag/v76.14.0
-func getValue(m map[string]interface{}, keys []string) string {
+func getValue(m map[string]interface{}, keys []string) (string, error) {
 	node := m[keys[0]]
 
 	for i := 1; i < len(keys); i++ {
@@ -175,10 +168,8 @@ func getValue(m map[string]interface{}, keys []string) string {
 		sliceNode, ok := node.([]interface{})
 		if ok {
 			intKey, err := strconv.Atoi(key)
-			if err != nil {
-				panic(fmt.Sprintf(
-					"Cannot access nested slice element with non-integer key: %s",
-					key))
+			if err != nil || intKey >= len(sliceNode) || intKey < 0 {
+				return "", fmt.Errorf("cannot access array by key: %s", key)
 			}
 			node = sliceNode[intKey]
 			continue
@@ -190,13 +181,13 @@ func getValue(m map[string]interface{}, keys []string) string {
 			continue
 		}
 
-		panic(fmt.Sprintf(
-			"Cannot descend into non-map non-slice object with key: %s", key))
+		return "", fmt.Errorf(
+			"cannot descend into non-map non-slice object with key: %s", key)
 	}
 
 	if node == nil {
-		return ""
+		return "", nil
 	}
 
-	return fmt.Sprintf("%v", node)
+	return fmt.Sprintf("%v", node), nil
 }

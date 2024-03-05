@@ -125,7 +125,7 @@ func TestPlanUpdate(t *testing.T) {
 }
 
 func TestPlanDelete(t *testing.T) {
-	mock, transport := newMockClient(200, []byte(`{}`))
+	mock, transport := newMockClient(200, []byte(deleteResponseJSONStr))
 	service := New("api-key", mock)
 
 	err := service.Plan.Delete("pln_45dd3268a18b2837d52861716260")
@@ -137,7 +137,7 @@ func TestPlanDelete(t *testing.T) {
 
 func TestPlanResponseDelete(t *testing.T) {
 	mock, transport := newMockClient(200, planResponseJSON)
-	transport.AddResponse(200, []byte(`{}`))
+	transport.AddResponse(200, []byte(deleteResponseJSONStr))
 	service := New("api-key", mock)
 	plan, err := service.Plan.Retrieve("pln_45dd3268a18b2837d52861716260")
 	assert.NoError(t, err)

@@ -100,6 +100,11 @@ func IntValue(v *int) int64 {
 	return 0
 }
 
+// Bool returns a pointer to the bool value passed in.
+func Bool(v bool) *bool {
+	return &v
+}
+
 // APIBase はPAY.JPのエントリーポイントの基底部分のURLを返します。
 func (s Service) APIBase() string {
 	return s.apiBase
@@ -111,6 +116,7 @@ func (s Service) request(method, path string, body io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	request.Header.Add("Authorization", s.apiKey)
+	request.Header.Add("User-Agent", "Go-http-client/payjp-"+Version)
 	request.Header.Add("X-Payjp-Client-User-Agent", "payjp-go/"+Version+"("+runtime.Version()+",os:"+runtime.GOOS+",arch:"+runtime.GOARCH+")")
 	if method == "POST" && body != nil {
 		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -165,6 +171,8 @@ func (s Service) makeEncoder(v reflect.Value, values url.Values) {
 		switch rf.Type.Elem().Kind() {
 		case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
 			value = strconv.FormatInt(fieldV.Int(), 10)
+		case reflect.Bool:
+			value = strconv.FormatBool(fieldV.Bool())
 		default:
 			value = fieldV.String()
 		}

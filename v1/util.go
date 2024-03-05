@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 type requestBuilder struct {
@@ -29,17 +30,26 @@ func (qb *requestBuilder) Add(key string, value interface{}) {
 	case int:
 		valueString = strconv.Itoa(v)
 	case *int:
+		if v == nil {
+			return
+		}
 		valueString = strconv.Itoa(*v)
 	case string:
 		valueString = url.QueryEscape(v)
 	case *string:
-		valueString = url.QueryEscape(*v)
-	case bool:
-		if v {
-			valueString = "true"
-		} else {
-			valueString = "false"
+		if v == nil {
+			return
 		}
+		valueString = url.QueryEscape(*v)
+	case time.Time:
+		valueString = strconv.Itoa(int(v.Unix()))
+	case bool:
+		valueString = strconv.FormatBool(v)
+	case *bool:
+		if v == nil {
+			return
+		}
+		valueString = strconv.FormatBool(*v)
 	default:
 		panic(`invalid parameter type of '` + key + `'`)
 	}
@@ -88,43 +98,4 @@ func (p *listResponseParser) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 	return parseError(b)
-}
-
-type payjpResponse struct {
-	Object  *string `json:"object"`
-	Deleted *bool   `json:"deleted"`
-	Parser  interface{}
-}
-
-func (e *payjpResponse) UnmarshalJSON(b []byte) error {
-	type payjpParser payjpResponse
-	var raw payjpParser
-	err := json.Unmarshal(b, &raw)
-	if err != nil {
-		return parseError(b)
-	} else if raw.Deleted != nil && *(raw.Deleted) {
-		e.Parser = DeleteResponse{}
-		return nil
-	}
-	switch *(raw.Object) {
-	case "token":
-		e.Parser = TokenResponse{}
-	case "charge":
-		e.Parser = ChargeResponse{}
-	case "customer":
-		e.Parser = CustomerResponse{}
-	case "card":
-		e.Parser = CardResponse{}
-	case "plan":
-		e.Parser = PlanResponse{}
-	case "subscription":
-		e.Parser = SubscriptionResponse{}
-	case "transfer":
-		e.Parser = TransferResponse{}
-	case "statement":
-		e.Parser = StatementResponse{}
-	default:
-		return nil
-	}
-	return nil
 }

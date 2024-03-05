@@ -1,7 +1,6 @@
 package payjp
 
 import (
-	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -10,29 +9,21 @@ var errorResponseJSON = []byte(`{"error":` + errorJSONStr + `}`)
 var errorStr = "400: Type: type Code: code Message: message, Param: param"
 
 func TestErrorJson(t *testing.T) {
-	actual := &errorResponse{}
-	err := json.Unmarshal(errorResponseJSON, actual)
-
+	err := parseError([]byte(`{}`))
 	assert.NoError(t, err)
-	assert.IsType(t, &errorResponse{}, actual)
-	assert.Equal(t, 400, actual.Error.Status)
-	assert.Equal(t, "type", actual.Error.Type)
-	assert.Equal(t, "param", actual.Error.Param)
-	assert.Equal(t, "message", actual.Error.Message)
-	assert.Equal(t, "code", actual.Error.Code)
+	assert.Nil(t, err)
 
-	actual2 := &Error{}
-	err = json.Unmarshal(errorJSON, actual2)
-
-	assert.NoError(t, err)
-	assert.IsType(t, &Error{}, actual2)
-	assert.Equal(t, actual2.Status, actual.Error.Status)
-	assert.Equal(t, actual2.Type, actual.Error.Type)
-	assert.Equal(t, actual2.Param, actual.Error.Param)
-	assert.Equal(t, actual2.Message, actual.Error.Message)
-	assert.Equal(t, actual2.Code, actual.Error.Code)
-
-	assert.Equal(t, errorStr, actual2.Error())
-	actual2.Param = ""
-	assert.Equal(t, "400: Type: type Code: code Message: message", actual2.Error())
+	err = parseError(errorResponseJSON)
+	assert.Error(t, err)
+	assert.IsType(t, &Error{}, err)
+	assert.Equal(t, errorStr, err.Error())
+	payErr := err.(*Error)
+	assert.Equal(t, 400, payErr.Status)
+	assert.Equal(t, "type", payErr.Type)
+	assert.Equal(t, "param", payErr.Param)
+	assert.Equal(t, "message", payErr.Message)
+	assert.Equal(t, "code", payErr.Code)
+	assert.Equal(t, errorStr, err.Error())
+	payErr.Param = ""
+	assert.Equal(t, "400: Type: type Code: code Message: message", payErr.Error())
 }

@@ -2,7 +2,6 @@ package payjp
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 )
 
@@ -61,7 +60,7 @@ func (c *CardResponse) Update(card Card) error {
 // Customer情報から得られるカードでしか削除はできません
 func (c *CardResponse) Delete() error {
 	if c.customerID == "" {
-		return errors.New("token's card doens't support Delete()")
+		panic("token's card doens't support Delete()")
 	}
 	return c.service.delete("/customers/" + c.customerID + "/cards/" + c.ID)
 }

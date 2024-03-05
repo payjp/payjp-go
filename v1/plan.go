@@ -2,7 +2,6 @@ package payjp
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 )
@@ -40,9 +39,6 @@ type Plan struct {
 //
 // また、支払いの実行日を指定すると、支払い日の固定されたプランを生成することができます。
 func (p PlanService) Create(plan Plan) (*PlanResponse, error) {
-	if plan.BillingDay < 0 || plan.BillingDay > 31 {
-		return nil, fmt.Errorf("billing_day should be between 1 and 31, but %d", plan.BillingDay)
-	}
 	qb := newRequestBuilder()
 	qb.Add("amount", strconv.Itoa(plan.Amount))
 	if plan.Currency == "" {

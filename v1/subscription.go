@@ -2,8 +2,6 @@ package payjp
 
 import (
 	"encoding/json"
-	"fmt"
-	"strconv"
 	"time"
 )
 
@@ -38,8 +36,9 @@ func newSubscriptionService(service *Service) *SubscriptionService {
 
 // Subscription はSubscribeやUpdateの引数を設定するのに使用する構造体です。
 type Subscription struct {
-	TrialEndAt      time.Time         // トライアルの終了時期
-	SkipTrial       interface{}       // トライアルをしない(bool)
+	TrialEnd        interface{}       // トライアルの終了時期 (time.Time or "now")
+	TrialEndAt      time.Time         // deprecated
+	SkipTrial       interface{}       // deprecated
 	PlanID          interface{}       // プランID(string)
 	NextCyclePlanID interface{}       // 次サイクルから適用するプランID(string, 更新時のみ設定可能)
 	Prorate         interface{}       // 日割り課金をするかどうか(bool)
@@ -47,7 +46,7 @@ type Subscription struct {
 }
 
 type SubscriptionDelete struct {
-	Prorate *string `form:"prorate"`
+	Prorate *bool `form:"prorate"`
 }
 
 // Subscribe は顧客IDとプランIDを指定して、定期課金を開始することができます。
@@ -57,17 +56,12 @@ type SubscriptionDelete struct {
 // 作成時よりもあとの支払い実行日に最初の課金が行われます。またトライアル設定がある場合は、
 // トライアル終了時に支払い処理が行われ、そこを基準にして定期課金が開始されます。
 func (s SubscriptionService) Subscribe(customerID string, subscription Subscription) (*SubscriptionResponse, error) {
-	trialEnd, err := subscription.getTrialEnd()
-	if err != nil {
-		return nil, err
-	}
+	trialEnd := subscription.getTrialEnd()
 	qb := newRequestBuilder()
 	qb.Add("customer", customerID)
 	qb.Add("plan", subscription.PlanID)
-	if trialEnd != nil {
-		qb.Add("trial_end", *trialEnd)
-	}
 	qb.Add("prorate", subscription.Prorate)
+	qb.Add("trial_end", trialEnd)
 	qb.AddMetadata(subscription.Metadata)
 
 	body, err := s.service.request("POST", "/subscriptions", qb.Reader())
@@ -88,17 +82,12 @@ func (s SubscriptionService) Retrieve(customerID, id string) (*SubscriptionRespo
 
 // Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
 func (s SubscriptionService) Update(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
-	trialEnd, err := subscription.getTrialEnd()
-	if err != nil {
-		return nil, err
-	}
+	trialEnd := subscription.getTrialEnd()
 	qb := newRequestBuilder()
 	qb.Add("next_cycle_plan", subscription.NextCyclePlanID)
 	qb.Add("plan", subscription.PlanID)
-	if trialEnd != nil {
-		qb.Add("trial_end", *trialEnd)
-	}
 	qb.Add("prorate", subscription.Prorate)
+	qb.Add("trial_end", trialEnd)
 	qb.AddMetadata(subscription.Metadata)
 	body, err := s.service.request("POST", "/subscriptions/"+subscriptionID, qb.Reader())
 	if err != nil {
@@ -120,14 +109,9 @@ func (s SubscriptionService) Pause(subscriptionID string) (*SubscriptionResponse
 
 // Resume は停止もしくはキャンセル状態の定期課金を再開させます。
 func (s SubscriptionService) Resume(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
-	trialEnd, err := subscription.getTrialEnd()
-	if err != nil {
-		return nil, err
-	}
+	trialEnd := subscription.getTrialEnd()
 	qb := newRequestBuilder()
-	if trialEnd != nil {
-		qb.Add("trial_end", *trialEnd)
-	}
+	qb.Add("trial_end", trialEnd)
 	qb.Add("prorate", subscription.Prorate)
 
 	body, err := s.service.request("POST", "/subscriptions/"+subscriptionID+"/resume", qb.Reader())
@@ -161,20 +145,19 @@ func (s SubscriptionService) List() *subscriptionListCaller {
 	}
 }
 
-func (subscription Subscription) getTrialEnd() (*string, error) {
-	var isZero time.Time
+func (subscription Subscription) getTrialEnd() interface{} {
+	if subscription.TrialEnd != nil {
+		return subscription.TrialEnd
+	}
 	skipTrial, ok := subscription.SkipTrial.(bool)
-	if subscription.TrialEndAt != isZero && ok {
-		return nil, fmt.Errorf("only either trial_end or SkipTrial is available")
+	if ok && skipTrial {
+		return "now"
 	}
+	var isZero time.Time
 	if subscription.TrialEndAt != isZero {
-		trialEnd := strconv.Itoa(int(subscription.TrialEndAt.Unix()))
-		return &trialEnd, nil
-	} else if ok && skipTrial {
-		trialEnd := "now"
-		return &trialEnd, nil
+		return subscription.TrialEndAt
 	}
-	return nil, nil
+	return nil
 }
 
 func parseSubscription(service *Service, body []byte, result *SubscriptionResponse) (*SubscriptionResponse, error) {

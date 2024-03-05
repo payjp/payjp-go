@@ -14,7 +14,7 @@ type Error struct {
 	Type    string `json:"type"`
 }
 
-func (ce Error) Error() string {
+func (ce *Error) Error() string {
 	if ce.Param != "" {
 		return fmt.Sprintf("%d: Type: %s Code: %s Message: %s, Param: %s", ce.Status, ce.Type, ce.Code, ce.Message, ce.Param)
 	}
@@ -22,14 +22,14 @@ func (ce Error) Error() string {
 }
 
 type errorResponse struct {
-	Error Error `json:"error"`
+	Error *Error `json:"error"`
 }
 
 func parseError(body []byte) error {
 	rawError := &errorResponse{}
 	err := json.Unmarshal(body, rawError)
-	if err == nil && rawError.Error.Status != 0 {
-		return &rawError.Error
+	if err == nil && rawError.Error != nil {
+		return rawError.Error
 	}
 	// ignore JSON parsing error.
 	// Subscription JSON has same name property 'status' but it is string.

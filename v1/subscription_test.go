@@ -2,9 +2,7 @@ package payjp
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/stretchr/testify/assert"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -130,6 +128,7 @@ var subscriptionListResponseJSON = []byte(`
   "url": "/v1/customers/cus_121673955bd7aa144de5a8f6c262/subscriptions"
 }
 `)
+var dt990403199 = time.Date(2001, 5, 20, 23, 59, 59, 0, time.UTC)
 
 func TestParseSubscriptionResponseJSON(t *testing.T) {
 	service := &Service{}
@@ -195,34 +194,24 @@ func TestSubscriptionCreate(t *testing.T) {
 	service := New("api-key", mock)
 
 	subscription, err := service.Subscription.Subscribe("cus_xxx", Subscription{
-		PlanID:  "pln_yyy",
-		Prorate: true,
+		PlanID:   "pln_yyy",
+		Prorate:  true,
+		TrialEnd: "now",
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/subscriptions", transport.URL)
 	assert.Equal(t, "POST", transport.Method)
 	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
-	assert.Equal(t, "customer=cus_xxx&plan=pln_yyy&prorate=true", *transport.Body)
+	assert.Equal(t, "customer=cus_xxx&plan=pln_yyy&prorate=true&trial_end=now", *transport.Body)
 	assert.NotNil(t, subscription)
 	assert.Equal(t, "pln_9589006d14aad86aafeceac06b60", subscription.Plan.ID)
 
 	_, err = service.Subscription.Subscribe("error", Subscription{
 		PlanID: "pln_yyy",
 	})
+	assert.Equal(t, "customer=error&plan=pln_yyy", *transport.Body)
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())
-}
-
-func TestSubscriptionCreateParamError(t *testing.T) {
-	service := New("api-key", nil)
-
-	subscription, err := service.Subscription.Subscribe("cus_xxx", Subscription{
-		SkipTrial:  true,
-		TrialEndAt: time.Now().AddDate(1, 0, 0),
-	})
-	assert.Nil(t, subscription)
-	expected := fmt.Errorf("only either trial_end or SkipTrial is available")
-	assert.Equal(t, expected, err)
 }
 
 func TestSubscriptionRetrieve(t *testing.T) {
@@ -250,6 +239,7 @@ func TestSubscriptionUpdate(t *testing.T) {
 	subscription, err := service.Subscription.Update("sub_req", Subscription{
 		PlanID:          "pln_xxx",
 		NextCyclePlanID: "next_plan",
+		TrialEnd:        dt990403199,
 		Metadata: map[string]string{
 			"hoge": "fuga",
 		},
@@ -258,29 +248,31 @@ func TestSubscriptionUpdate(t *testing.T) {
 	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_req", transport.URL)
 	assert.Equal(t, "POST", transport.Method)
 	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
-	assert.Equal(t, "next_cycle_plan=next_plan&plan=pln_xxx&metadata[hoge]=fuga", *transport.Body)
+	assert.Equal(t, "next_cycle_plan=next_plan&plan=pln_xxx&trial_end=990403199&metadata[hoge]=fuga", *transport.Body)
 	assert.NotNil(t, subscription)
 	assert.Equal(t, "next_plan", subscription.NextCyclePlan.ID)
 
 	err = subscription.Update(Subscription{
 		NextCyclePlanID: "",
 		Prorate:         "true",
+		TrialEndAt:      dt990403199,
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_response1", transport.URL)
 	assert.Equal(t, "POST", transport.Method)
-	assert.Equal(t, "next_cycle_plan=&prorate=true", *transport.Body)
+	assert.Equal(t, "next_cycle_plan=&prorate=true&trial_end=990403199", *transport.Body)
 	assert.Nil(t, subscription.NextCyclePlan)
 
 	// next_cycle_plan未設定時はゼロ値ではなくrequest bodyに含まれないことをテスト
 	err = subscription.Update(Subscription{
+		SkipTrial: true,
 		Metadata: map[string]string{
 			"hoge": "piyo",
 		},
 	})
 	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_response2", transport.URL)
 	assert.Equal(t, "POST", transport.Method)
-	assert.Equal(t, "metadata[hoge]=piyo", *transport.Body)
+	assert.Equal(t, "trial_end=now&metadata[hoge]=piyo", *transport.Body)
 	// Updateだけに行われていたparseResponseErrorが不要なことをテスト
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())
@@ -313,23 +305,25 @@ func TestSubscriptionResume(t *testing.T) {
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 
-	nextYear := time.Now().AddDate(1, 0, 0)
 	subscription, err := service.Subscription.Resume("sub_req", Subscription{
-		TrialEndAt: nextYear,
+		TrialEndAt: dt990403199,
+		SkipTrial:  true,
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_req/resume", transport.URL)
 	assert.Equal(t, "POST", transport.Method)
 	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
-	nextYearStr := strconv.Itoa(int(nextYear.Unix()))
-	assert.Equal(t, "trial_end="+nextYearStr, *transport.Body)
+	assert.Equal(t, "trial_end=now", *transport.Body)
 	assert.NotNil(t, subscription)
 
-	err = subscription.Resume(Subscription{})
+	err = subscription.Resume(Subscription{
+		TrialEnd:  dt990403199,
+		SkipTrial: true,
+	})
 	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_response1/resume", transport.URL)
 	assert.Equal(t, "POST", transport.Method)
 	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
-	assert.Equal(t, "", *transport.Body)
+	assert.Equal(t, "trial_end=990403199", *transport.Body)
 	assert.NotNil(t, subscription)
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())
@@ -362,7 +356,7 @@ func TestSubscriptionDelete(t *testing.T) {
 	service := New("api-key", mock)
 
 	err := service.Subscription.Delete("sub_req", SubscriptionDelete{
-		Prorate: String("false"),
+		Prorate: Bool(false),
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_req?prorate=false", transport.URL)
@@ -377,9 +371,11 @@ func TestSubscriptionResponseDelete(t *testing.T) {
 	subscription, err := service.Subscription.Retrieve("cus_xxx", "sub_req")
 	assert.NoError(t, err)
 
-	err = subscription.Delete()
+	err = subscription.Delete(SubscriptionDelete{
+		Prorate: Bool(true),
+	})
 	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_response1", transport.URL)
+	assert.Equal(t, "https://api.pay.jp/v1/subscriptions/sub_response1?prorate=true", transport.URL)
 	assert.Equal(t, "DELETE", transport.Method)
 	assert.NotNil(t, subscription)
 }

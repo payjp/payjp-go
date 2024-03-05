@@ -172,6 +172,11 @@ func TestChargeCreate(t *testing.T) {
 	assert.NotNil(t, charge)
 	assert.Equal(t, 3500, charge.Amount)
 
+	params := Charge{}
+	assert.False(t, params.Capture)
+	assert.Nil(t, params.ExpireDays)
+	assert.Nil(t, params.ThreeDSecure)
+
 	charge, err = service.Charge.Create(3500, Charge{
 		Product:        "prd_req1",
 		CustomerID:     "cus_req1",
@@ -192,18 +197,17 @@ func TestChargeCreate(t *testing.T) {
 		Product:      "prd_req1",
 		CardToken:    "tok_req1",
 		ExpireDays:   1,
-		ThreeDSecure: false,
+		ThreeDSecure: Bool(false),
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "product=prd_req1&card=tok_req1&capture=false&expiry_days=1&three_d_secure=false", *transport.Body)
 	assert.NotNil(t, charge)
 
 	_, err = service.Charge.Create(1000, Charge{
-		ExpireDays:   "invalid",
-		ThreeDSecure: "invalid",
+		ExpireDays: "invalid",
 	})
 	assert.IsType(t, &Error{}, err)
-	assert.Equal(t, "amount=1000&currency=jpy&capture=false&expiry_days=invalid&three_d_secure=invalid", *transport.Body)
+	assert.Equal(t, "amount=1000&currency=jpy&capture=false&expiry_days=invalid", *transport.Body)
 	assert.Equal(t, errorStr, err.Error())
 }
 
@@ -359,8 +363,9 @@ func TestChargeTdsFinish(t *testing.T) {
 	assert.Nil(t, transport.Body)
 
 	chargeErr, err := service.Charge.TdsFinish("ch_req")
-	assert.IsType(t, &Error{}, err)
-	assert.Equal(t, errorStr, err.Error())
+	assert.Error(t, err)
+	payErr := err.(*Error)
+	assert.Equal(t, 400, payErr.Status)
 	assert.Nil(t, chargeErr)
 
 	err = charge.TdsFinish()
@@ -433,4 +438,6 @@ func TestChargeList(t *testing.T) {
 	assert.False(t, hasMore)
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())
+	payErr := err.(*Error)
+	assert.Equal(t, 400, payErr.Status)
 }

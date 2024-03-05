@@ -93,6 +93,8 @@ func TestStatementUrls(t *testing.T) {
 	mock, transport := newMockClient(200, statementResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	transport.AddResponse(200, statementUrlsResponseJSON)
+	transport.AddResponse(200, statementUrlsResponseJSON)
+	transport.AddResponse(200, statementUrlsResponseJSON)
 	service := New("api-key", mock)
 
 	statement, err := service.Statement.Retrieve("st_xxx")
@@ -107,7 +109,7 @@ func TestStatementUrls(t *testing.T) {
 	assert.Equal(t, errorStr, err.Error())
 
 	url, err := statement.StatementUrls(StatementUrls{
-		Platformer: true,
+		Platformer: Bool(true),
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/statements/st_xxx/statement_urls", transport.URL)
@@ -116,6 +118,14 @@ func TestStatementUrls(t *testing.T) {
 	assert.Equal(t, "platformer=true", *transport.Body)
 	assert.NotNil(t, url)
 	assert.Equal(t, "url", url.URL)
+
+	_, err = statement.StatementUrls()
+	assert.NoError(t, err)
+	assert.Equal(t, "", *transport.Body)
+
+	_, err = statement.StatementUrls(StatementUrls{})
+	assert.NoError(t, err)
+	assert.Equal(t, "", *transport.Body)
 }
 
 func TestListStatement(t *testing.T) {
@@ -131,17 +141,16 @@ func TestListStatement(t *testing.T) {
 		SourceTransfer: String("ten_tr_xxx"),
 		Tenant:         String("test"),
 	}
-	statements, hasMore, err := service.Statement.List(params).
-		Since(time.Unix(1, 0)).Do()
+	statements, hasMore, err := service.Statement.All(params)
 	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/statements?limit=1&owner=tenant&since=1&source_transfer=ten_tr_xxx&tenant=test", transport.URL)
+	assert.Equal(t, "https://api.pay.jp/v1/statements?limit=1&owner=tenant&source_transfer=ten_tr_xxx&tenant=test", transport.URL)
 	assert.Equal(t, "GET", transport.Method)
 	assert.True(t, hasMore)
 	assert.Equal(t, len(statements), 1)
 	assert.Equal(t, "st_xxx", statements[0].ID)
 	assert.Equal(t, service, statements[0].service)
 
-	_, hasMore, err = service.Statement.List().Do()
+	_, hasMore, err = service.Statement.All()
 	assert.False(t, hasMore)
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())

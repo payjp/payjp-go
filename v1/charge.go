@@ -2,7 +2,6 @@ package payjp
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 )
 
@@ -24,10 +23,10 @@ type Charge struct {
 	CustomerID     string            // 顧客ID (CardかCustomerのどちらかは必須パラメータ)
 	CardToken      string            // トークンID (CardかCustomerのどちらかは必須パラメータ)
 	CustomerCardID string            // 顧客のカードID
-	Capture        bool              // 支払い処理を確定するかどうか (falseの場合、カードの認証と支払い額の確保のみ行う)
-	Description    string            // 概要
-	ExpireDays     interface{}       // デフォルトで7日となっており、1日~60日の間で設定が可能
-	ThreeDSecure   interface{}       // 3DSecureを実施するか否か (bool)
+	Capture        bool              // 支払い処理を確定するかどうか
+	Description    string            // 任意の文字列
+	ExpireDays     interface{}       // 認証状態が失効するまでの日数
+	ThreeDSecure   *bool             // 3DSecureを実施するか否か
 	Metadata       map[string]string // メタデータ
 }
 
@@ -99,7 +98,6 @@ func (c ChargeService) Update(chargeID, description string, metadata ...map[stri
 	case 1:
 		md = metadata[0]
 	default:
-		return nil, fmt.Errorf("Update can accept zero or one metadata map, but %d are passed", len(metadata))
 	}
 	body, err := c.update(chargeID, description, md)
 	if err != nil {
@@ -271,7 +269,6 @@ func (c *ChargeResponse) Update(description string, metadata ...map[string]strin
 	case 1:
 		md = metadata[0]
 	default:
-		return fmt.Errorf("Update can accept zero or one metadata map, but %d are passed", len(metadata))
 	}
 	body, err := c.service.Charge.update(c.ID, description, md)
 	if err != nil {

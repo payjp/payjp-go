@@ -16,12 +16,14 @@ func newStatementService(service *Service) *StatementService {
 }
 
 type StatementUrls struct {
-	Platformer interface{} // プラットフォーム手数料に関する明細か否か (bool)
+	Platformer *bool // プラットフォーム手数料に関する明細か否か
 }
 
-func (s *StatementResponse) StatementUrls(p StatementUrls) (*StatementUrlResponse, error) {
+func (s *StatementResponse) StatementUrls(p ...StatementUrls) (*StatementUrlResponse, error) {
 	qb := newRequestBuilder()
-	qb.Add("platformer", p.Platformer)
+	if len(p) > 0 {
+		qb.Add("platformer", p[0].Platformer)
+	}
 
 	body, err := s.service.request("POST", "/statements/"+s.ID+"/statement_urls", qb.Reader())
 	if err != nil {
@@ -105,51 +107,14 @@ type StatementListParams struct {
 	Owner          *string `form:"owner"`
 	SourceTransfer *string `form:"source_transfer"`
 	Tenant         *string `form:"tenant"`
-
-	service *Service `form:"-"`
 }
 
-// List Statements
-func (s StatementService) List(params ...*StatementListParams) *StatementListParams {
+func (c StatementService) All(params ...*StatementListParams) ([]*StatementResponse, bool, error) {
+	p := &StatementListParams{}
 	if len(params) > 0 {
-		p := params[0]
-		p.service = s.service
-		return p
+		p = params[0]
 	}
-	r := &StatementListParams{}
-	r.service = s.service
-	return r
-}
-
-// Limit はリストの要素数の最大値を設定します
-func (c *StatementListParams) Limit(limit int) *StatementListParams {
-	c.ListParams.Limit = &limit
-	return c
-}
-
-// Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
-func (c *StatementListParams) Offset(offset int) *StatementListParams {
-	c.ListParams.Offset = &offset
-	return c
-}
-
-// Since はここに指定したタイムスタンプ以降に作成されたデータを取得します
-func (c *StatementListParams) Since(p time.Time) *StatementListParams {
-	i := int(p.Unix())
-	c.ListParams.Since = &i
-	return c
-}
-
-// Until はここに指定したタイムスタンプ以前に作成されたデータを取得します
-func (c *StatementListParams) Until(p time.Time) *StatementListParams {
-	i := int(p.Unix())
-	c.ListParams.Until = &i
-	return c
-}
-
-// Do は指定されたクエリーを元にリストを配列で取得します。
-func (c *StatementListParams) Do() ([]*StatementResponse, bool, error) {
-	body, err := c.service.request("GET", "/statements"+c.service.getQuery(c), nil)
+	body, err := c.service.request("GET", "/statements"+c.service.getQuery(p), nil)
 	if err != nil {
 		return nil, false, err
 	}
@@ -159,8 +124,8 @@ func (c *StatementListParams) Do() ([]*StatementResponse, bool, error) {
 		return nil, false, err
 	}
 	result := make([]*StatementResponse, len(raw.Data))
-	for i, rawStatement := range raw.Data {
-		json.Unmarshal(rawStatement, &result[i])
+	for i, rawS := range raw.Data {
+		json.Unmarshal(rawS, &result[i])
 		result[i].service = c.service
 	}
 	return result, raw.HasMore, nil

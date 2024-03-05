@@ -30,6 +30,9 @@ func parseToken(data []byte, err error) (*TokenResponse, error) {
 	}
 	result := &TokenResponse{}
 	err = json.Unmarshal(data, result)
+	if err != nil {
+		return nil, err
+	}
 	return result, err
 }
 

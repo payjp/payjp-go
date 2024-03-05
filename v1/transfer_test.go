@@ -142,21 +142,19 @@ func TestParseTransferStatusResponseJSON(t *testing.T) {
 
 	response := []byte(makeTransferJSONStr(TransferRecombination))
 	err := json.Unmarshal(response, transfer)
-	if err != nil && transfer.Status.status() != "recombination" {
-		t.Errorf("bad value: err=%v,status=%v", err, transfer.Status.status())
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, TransferRecombination, transfer.Status)
+	assert.Equal(t, "recombination", transfer.Status.status())
 
 	response = []byte(makeTransferJSONStr(TransferCarriedOver))
 	err = json.Unmarshal(response, transfer)
-	if err != nil && transfer.Status.status() != "carried_over" {
-		t.Errorf("bad value: err=%v,status=%v", err, transfer.Status.status())
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "carried_over", transfer.Status.status())
 
 	response = []byte(makeTransferJSONStr(TransferStop))
 	err = json.Unmarshal(response, transfer)
-	if err != nil || transfer.Status.status() != "stop" {
-		t.Errorf("bad value: err=%v,status=%v", err, transfer.Status.status())
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "stop", transfer.Status.status())
 }
 
 func TestTransferList(t *testing.T) {
@@ -165,13 +163,14 @@ func TestTransferList(t *testing.T) {
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 
+	status := TransferPending
 	// deprecated だが後方互換で残すリクエスト方法
 	res, hasMore, err := service.Transfer.List().
 		Limit(10).
 		Offset(15).
 		SinceSheduledDate(time.Unix(1455328095, 0)).
 		UntilSheduledDate(time.Unix(1455500895, 0)).
-		Status(TransferPending).
+		Status(status).
 		Since(time.Unix(1455328095, 0)).
 		Until(time.Unix(1455500895, 0)).Do()
 	assert.NoError(t, err)
@@ -186,20 +185,20 @@ func TestTransferList(t *testing.T) {
 		ListParams: ListParams{
 			Limit:  Int(10),
 			Offset: Int(0),
-			Since:  Int(1455328095),
-			Until:  Int(1455500895),
 		},
+		SinceSheduledDate: Int(1455328095),
+		Status:            &status,
 	}
 	res, hasMore, err = service.Transfer.All(params)
 	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/transfers?limit=10&offset=0&since=1455328095&until=1455500895", transport.URL)
+	assert.Equal(t, "https://api.pay.jp/v1/transfers?limit=10&offset=0&since_scheduled_date=1455328095&status=pending", transport.URL)
 	assert.Equal(t, "GET", transport.Method)
 	assert.False(t, hasMore)
 	assert.Equal(t, len(res), 1)
 	assert.Equal(t, "tr_xxx", res[0].ID)
 	assert.Equal(t, service, res[0].service)
 
-	_, hasMore, err = service.Statement.List().Do()
+	_, hasMore, err = service.Transfer.All()
 	assert.False(t, hasMore)
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())
