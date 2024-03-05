@@ -283,10 +283,10 @@ func (c *CustomerCardListCaller) Until(until time.Time) *CustomerCardListCaller 
 
 // Do は指定されたクエリーを元に支払いのリストを配列で取得します。
 func (c *CustomerCardListCaller) Do() ([]*CardResponse, bool, error) {
-	return c.caller.All(&c.CardListParams)
+	return c.caller.AllCard(&c.CardListParams)
 }
 
-func (c *CustomerResponse) All(params ...*CardListParams) ([]*CardResponse, bool, error) {
+func (c *CustomerResponse) AllCard(params ...*CardListParams) ([]*CardResponse, bool, error) {
 	p := &CardListParams{}
 	if len(params) > 0 {
 		p = params[0]

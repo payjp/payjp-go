@@ -366,7 +366,7 @@ func TestCustomerListCard(t *testing.T) {
 			Offset: Int(15),
 		},
 	}
-	cards, hasMore, err = customer.All(params)
+	cards, hasMore, err = customer.AllCard(params)
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards?limit=10&offset=15", transport.URL)
 	assert.Equal(t, "GET", transport.Method)
