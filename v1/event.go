@@ -148,12 +148,15 @@ func (e *EventResponse) UnmarshalJSON(b []byte) error {
 		raw.CreatedAt = time.Unix(IntValue(raw.Created), 0)
 		data := payjpResponse{}
 		err = json.Unmarshal(raw.Data, &data)
+		if err != nil {
+			return err
+		}
 		raw.DataParser = data.Parser
 		err = json.Unmarshal(raw.Data, &raw.DataMap)
 
 		raw.service = e.service
 		*e = EventResponse(raw)
-		return nil
+		return err
 	}
 	return parseError(b)
 }

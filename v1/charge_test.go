@@ -383,6 +383,7 @@ func TestChargeCaptureChangedAmount(t *testing.T) {
 	service := New("api-key", mock)
 	chargeID := "ch_fa990a4c10672a93053a774730b0a"
 	charge, err := service.Charge.Retrieve(chargeID)
+	assert.NoError(t, err)
 	newAmount := 100
 	err = charge.Capture(newAmount)
 	assert.NoError(t, err)

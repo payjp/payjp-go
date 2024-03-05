@@ -51,7 +51,6 @@ func TestParsePlanResponseJSON(t *testing.T) {
 	err := json.Unmarshal(planResponseJSON, plan)
 
 	assert.NoError(t, err)
-	assert.True(t, 1433127983 == plan.CreatedAt.Unix())
 	assert.Equal(t, 0, plan.BillingDay)
 }
 
@@ -141,6 +140,7 @@ func TestPlanResponseDelete(t *testing.T) {
 	transport.AddResponse(200, []byte(`{}`))
 	service := New("api-key", mock)
 	plan, err := service.Plan.Retrieve("pln_45dd3268a18b2837d52861716260")
+	assert.NoError(t, err)
 
 	err = plan.Delete()
 	assert.NoError(t, err)

@@ -375,6 +375,7 @@ func TestSubscriptionResponseDelete(t *testing.T) {
 	transport.AddResponse(200, []byte(deleteResponseJSONStr))
 	service := New("api-key", mock)
 	subscription, err := service.Subscription.Retrieve("cus_xxx", "sub_req")
+	assert.NoError(t, err)
 
 	err = subscription.Delete()
 	assert.NoError(t, err)

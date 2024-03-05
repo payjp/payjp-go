@@ -114,7 +114,7 @@ func main() {
 	}
 	fmt.Println("using next_cycle_plan =", nextCyclePlan)
 	fmt.Printf("%s has metadata[test]=%s & next_cycle_plan=%s.\n",
-		subscription.ID, subscription.Metadata["test"], subscription.NextCyclePlan)
+		subscription.ID, subscription.Metadata["test"], subscription.NextCyclePlan.ID)
 	err = subscription.Update(payjp.Subscription{
 		NextCyclePlanID: nextCyclePlan.ID,
 		Metadata: map[string]string{

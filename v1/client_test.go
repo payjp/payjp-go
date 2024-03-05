@@ -7,8 +7,7 @@ import (
 )
 
 type TestListParams struct {
-	service *Service `form:"-"`
-	Param   *string  `form:"param"`
+	Param *string `form:"param"`
 }
 
 func TestNew(t *testing.T) {

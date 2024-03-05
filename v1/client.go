@@ -127,9 +127,9 @@ func (s Service) request(method, path string, body io.Reader) ([]byte, error) {
 }
 
 func (s Service) delete(path string) error {
-	body, err := s.request("DELETE", path, nil)
+	body, _ := s.request("DELETE", path, nil)
 	var res DeleteResponse
-	err = json.Unmarshal(body, &res)
+	err := json.Unmarshal(body, &res)
 	if err == nil && res.Deleted {
 		return nil
 	}

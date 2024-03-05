@@ -2,14 +2,18 @@ package main
 
 import (
 	"fmt"
-	"github.com/payjp/payjp-go/v1"
+	payjp "github.com/payjp/payjp-go/v1"
 	"time"
 )
 
 func main() {
 	payjpService := payjp.New("sk_test_c62fade9d045b54cd76d7036", nil)
 
-	plans, _, _ := payjpService.Plan.List().Limit(1).Do()
+	plans, _, _ := payjpService.Plan.All(&payjp.PlanListParams{
+		ListParams: payjp.ListParams{
+			Limit: payjp.Int(1),
+		},
+	})
 	plan := plans[0]
 	fmt.Println("  Id:", plan.ID)
 	fmt.Println("  BillingDay:", plan.BillingDay)
@@ -22,8 +26,8 @@ func main() {
 	fmt.Println("  TrialDays:", plan.TrialDays)
 	fmt.Println("  Metadata:", plan.Metadata)
 	err := plan.Update(payjp.Plan{
-		Name: plan.Metadata["hoge"],
-        Metadata: map[string]string{"hoge":plan.Name},
+		Name:     plan.Metadata["hoge"],
+		Metadata: map[string]string{"hoge": plan.Name},
 	})
 	if err != nil {
 		fmt.Println("plan update error")

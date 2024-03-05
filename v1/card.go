@@ -61,7 +61,7 @@ func (c *CardResponse) Update(card Card) error {
 // Customer情報から得られるカードでしか削除はできません
 func (c *CardResponse) Delete() error {
 	if c.customerID == "" {
-		return errors.New("Token's card doens't support Delete()")
+		return errors.New("token's card doens't support Delete()")
 	}
 	return c.service.delete("/customers/" + c.customerID + "/cards/" + c.ID)
 }
