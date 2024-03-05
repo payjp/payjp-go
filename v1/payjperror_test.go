@@ -2,21 +2,11 @@ package payjp
 
 import (
 	"encoding/json"
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
-var errorJSONStr = `
-{
-  "code": "code",
-  "message": "message",
-  "param": "param",
-  "status": 400,
-  "type": "type"
-}
-`
-var errorJSON = []byte(errorJSONStr)
-var errorResponseJSON = []byte(`{"error":`+errorJSONStr+`}`)
+var errorResponseJSON = []byte(`{"error":` + errorJSONStr + `}`)
 var errorStr = "400: Type: type Code: code Message: message, Param: param"
 
 func TestErrorJson(t *testing.T) {
@@ -46,4 +36,3 @@ func TestErrorJson(t *testing.T) {
 	actual2.Param = ""
 	assert.Equal(t, "400: Type: type Code: code Message: message", actual2.Error())
 }
-

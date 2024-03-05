@@ -10,6 +10,18 @@ type TestListParams struct {
 	Param *string `form:"param"`
 }
 
+var errorJSONStr = `
+{
+  "code": "code",
+  "message": "message",
+  "param": "param",
+  "status": 400,
+  "type": "type"
+}
+`
+
+var errorJSON = []byte(errorJSONStr)
+
 func TestNew(t *testing.T) {
 	// New(): default constructor
 	service := New("api-key", nil)

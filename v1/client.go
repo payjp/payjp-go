@@ -144,6 +144,7 @@ type ListParams struct {
 	Until  *int `form:"until"`
 }
 
+// 第一引数の構造体を第二引数のURLパラメータにパースします(keyはメタ情報の値、valueは再帰しつつプリミティブに変換)
 func (s Service) makeEncoder(v reflect.Value, values url.Values) {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
@@ -171,7 +172,7 @@ func (s Service) makeEncoder(v reflect.Value, values url.Values) {
 	}
 }
 
-// 引数の構造体はメンバが全てポインタ型である必要があります
+// 引数の構造体からURLパラメータを生成します(メンバが全てポインタ型でメタ情報を持っている必要があります)
 func (s Service) getQuery(c interface{}) string {
 	rv := reflect.ValueOf(c)
 	if c != nil && rv.Kind() == reflect.Ptr && !rv.IsNil() {
