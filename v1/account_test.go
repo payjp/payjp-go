@@ -2,6 +2,7 @@ package payjp
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -46,41 +47,22 @@ var accountResponseJSON = []byte(`
 `)
 
 func TestParseAccountResponseJSON(t *testing.T) {
-	account := &AccountResponse{}
-	err := json.Unmarshal(accountResponseJSON, account)
+	a := &AccountResponse{}
+	err := json.Unmarshal(accountResponseJSON, a)
 
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-	}
-	if account.ID != "acct_8a27db83a7bf11a0c12b0c2833f" {
-		t.Errorf("customer.ID should be 'acct_8a27db83a7bf11a0c12b0c2833f', but '%s'", account.ID)
-	}
-	if account.Merchant.DefaultCurrency != "jpy" {
-		t.Errorf("defaultCurrency should be 'jpy', but %s", account.Merchant.DefaultCurrency)
-	}
-	if account.TeamID != "example-team-id" {
-		t.Errorf("account.TeamID should be 'example-team-id', but %s", account.TeamID)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "acct_8a27db83a7bf11a0c12b0c2833f", a.ID)
+	assert.False(t, a.Merchant.LiveModeEnabled)
+	assert.Equal(t, "example-team-id", a.TeamID)
 }
 
 func TestAccountRetrieve(t *testing.T) {
-	mock, transport := NewMockClient(200, accountResponseJSON)
+	mock, transport := newMockClient(200, accountResponseJSON)
 	service := New("api-key", mock)
-	account, err := service.Account.Retrieve()
-	if transport.URL != "https://api.pay.jp/v1/accounts" {
-		t.Errorf("URL is wrong: %s", transport.URL)
-	}
-	if transport.Method != "GET" {
-		t.Errorf("Method should be GET, but %s", transport.Method)
-	}
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-		return
-	} else if account == nil {
-		t.Error("plan should not be nil")
-	} else if account.Email != "liveaccount@mail.com" {
-		t.Errorf("parse error: account.Email should be 'liveaccount@mail.com', but %s.", account.Email)
-	} else if account.TeamID != "example-team-id" {
-		t.Errorf("parse error: account.TeamID should be 'example-team-id', but %s.", account.TeamID)
-	}
+	a, err := service.Account.Retrieve()
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/accounts", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.Equal(t, "", transport.Header.Get("Content-Type"))
+	assert.Equal(t, "liveaccount@mail.com", a.Email)
 }

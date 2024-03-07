@@ -2,6 +2,7 @@ package payjp
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -39,55 +40,50 @@ func TestParseTokenResponseJSON(t *testing.T) {
 	token := &TokenResponse{}
 	err := json.Unmarshal(tokenResponseJSON, token)
 
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-	}
-	if token.ID != "tok_5ca06b51685e001723a2c3b4aeb4" {
-		t.Errorf("token.Id should be 'tok_5ca06b51685e001723a2c3b4aeb4', but '%s'", token.ID)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "tok_5ca06b51685e001723a2c3b4aeb4", token.ID)
 }
 
 func TestTokenCreate(t *testing.T) {
-	mock, transport := NewMockClient(200, tokenResponseJSON)
+	mock, transport := newMockClient(200, tokenResponseJSON)
+	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
-	token, err := service.Token.Create(Card{
+
+	p := Token{
 		Number:   "4242424242424242",
 		ExpMonth: 2,
-		ExpYear:  2020,
-	})
-	if transport.URL != "https://api.pay.jp/v1/tokens" {
-		t.Errorf("URL is wrong: %s", transport.URL)
+		ExpYear:  "2020",
 	}
-	if transport.Method != "POST" {
-		t.Errorf("Method should be POST, but %s", transport.Method)
-	}
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-		return
-	}
-	if token == nil {
-		t.Error("plan should not be nil")
-	} else if token.Card.ExpYear != 2020 {
-		t.Errorf("token.Card.ExpYear should be 2020, but %d.", token.Card.ExpYear)
-	}
+	p.Name = "pay"
+	token, err := service.Token.Create(p)
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/tokens", transport.URL)
+	assert.Equal(t, "POST", transport.Method)
+	assert.Equal(t, "Basic YXBpLWtleTo=", transport.Header.Get("Authorization"))
+	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
+	assert.Equal(t, "true", transport.Header.Get("X-Payjp-Direct-Token-Generate"))
+	assert.Equal(t, "card[number]=4242424242424242&card[exp_month]=2&card[exp_year]=2020&card[name]=pay", *transport.Body)
+	assert.NotNil(t, token)
+	assert.Equal(t, "4242", token.Card.Last4)
+
+	token, err = service.Token.Create(Token{})
+	assert.Nil(t, token)
+	assert.Error(t, err)
+	assert.Equal(t, errorStr, err.Error())
 }
 
 func TestTokenRetrieve(t *testing.T) {
-	mock, transport := NewMockClient(200, tokenResponseJSON)
+	mock, transport := newMockClient(200, tokenResponseJSON)
+	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 	token, err := service.Token.Retrieve("tok_5ca06b51685e001723a2c3b4aeb4")
-	if transport.URL != "https://api.pay.jp/v1/tokens/tok_5ca06b51685e001723a2c3b4aeb4" {
-		t.Errorf("URL is wrong: %s", transport.URL)
-	}
-	if transport.Method != "GET" {
-		t.Errorf("Method should be GET, but %s", transport.Method)
-	}
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-		return
-	} else if token == nil {
-		t.Error("plan should not be nil")
-	} else if token.ID != "tok_5ca06b51685e001723a2c3b4aeb4" {
-		t.Errorf("parse error: plan.Amount should be tok_5ca06b51685e001723a2c3b4aeb4, but %s.", token.ID)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/tokens/tok_5ca06b51685e001723a2c3b4aeb4", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.Equal(t, "tok_5ca06b51685e001723a2c3b4aeb4", token.ID)
+	assert.PanicsWithValue(t, "token's card doens't support Delete()", func() { token.Card.Delete() })
+
+	token, err = service.Token.Retrieve("hoge")
+	assert.Nil(t, token)
+	assert.Error(t, err)
 }
