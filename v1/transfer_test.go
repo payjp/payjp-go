@@ -2,6 +2,7 @@ package payjp
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
@@ -53,7 +54,7 @@ var chargeListJSONStr = `
   ],
   "has_more": false,
   "object": "list",
-  "url": "/v1/transfers/tr_8f0c0fe2c9f8a47f9d18f03959ba1/charges"
+  "url": "/v1/transfers/tr_xxx/charges"
 }`
 var transferChargeListResponseJSON = []byte(chargeListJSONStr)
 
@@ -65,12 +66,12 @@ func makeTransferJSONStr(t TransferStatus) string {
   "charges": ` + chargeListJSONStr + `,
   "created": 1438354800,
   "currency": "jpy",
-  "description": null,
-  "id": "tr_8f0c0fe2c9f8a47f9d18f03959ba1",
+  "description": "test",
+  "id": "tr_xxx",
   "livemode": false,
   "object": "transfer",
   "scheduled_date": "2015-09-16",
-  "status": "` + t.status().(string) + `",
+  "status": "` + string(t) + `",
   "summary": {
     "charge_count": 1,
     "charge_fee": 0,
@@ -104,21 +105,36 @@ var transferListJSONStr = `
 var transferListResponseJSON = []byte(transferListJSONStr)
 
 func TestParseTransferResponseJSON(t *testing.T) {
-	transfer := &TransferResponse{}
-	err := json.Unmarshal(transferResponseJSON, transfer)
+	service := &Service{}
+	s := &TransferResponse{
+		service: service,
+	}
+	err := json.Unmarshal(transferResponseJSON, s)
 
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-	}
-	if transfer.ID != "tr_8f0c0fe2c9f8a47f9d18f03959ba1" {
-		t.Errorf("transfer.ID should be 'tr_8f0c0fe2c9f8a47f9d18f03959ba1', but '%s'", transfer.ID)
-	}
-	if transfer.Charges[0].ID != "ch_60baaf2dc8f3e35684ebe2031a6e0" {
-		t.Errorf("Charge.ID should be 'ch_60baaf2dc8f3e35684ebe2031a6e0', but '%s'", transfer.Charges[0].ID)
-	}
-	if transfer.Status.status() != "pending" {
-		t.Errorf("transfer.Status should be 'pending', but '%s'", transfer.Status.status())
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "tr_xxx", s.ID)
+	assert.False(t, s.LiveMode)
+	assert.Equal(t, "transfer", s.Object)
+	assert.Equal(t, 1438354800, *s.Created)
+	assert.IsType(t, time.Unix(0, 0), s.CreatedAt)
+	assert.Equal(t, 1000, s.Amount)
+	assert.Nil(t, s.RawCarriedBalance)
+	assert.Equal(t, 0, s.CarriedBalance)
+	assert.Equal(t, "jpy", s.Currency)
+	assert.Equal(t, TransferPending, s.Status)
+	assert.False(t, s.RawCharges.HasMore)
+	assert.Equal(t, "ch_60baaf2dc8f3e35684ebe2031a6e0", s.Charges[0].ID)
+	assert.Equal(t, "2015-09-16", s.ScheduledDate)
+	assert.Equal(t, "test", s.Description)
+	assert.Equal(t, 1438354800, *s.TermStart)
+	assert.IsType(t, time.Unix(0, 0), s.TermStartAt)
+	assert.Equal(t, 1439650800, *s.TermEnd)
+	assert.IsType(t, time.Unix(0, 0), s.TermEndAt)
+	assert.Nil(t, s.RawTransferAmount)
+	assert.Nil(t, s.RawTransferDate)
+	assert.Equal(t, 0, s.TransferAmount)
+	assert.Equal(t, "", s.TransferDate)
+	assert.Equal(t, service, s.service)
 }
 
 func TestParseTransferStatusResponseJSON(t *testing.T) {
@@ -126,92 +142,121 @@ func TestParseTransferStatusResponseJSON(t *testing.T) {
 
 	response := []byte(makeTransferJSONStr(TransferRecombination))
 	err := json.Unmarshal(response, transfer)
-	if err != nil && transfer.Status.status() != "recombination" {
-		t.Errorf("bad value: err=%v,status=%v", err, transfer.Status.status())
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, TransferRecombination, transfer.Status)
+	assert.Equal(t, "recombination", transfer.Status.status())
 
 	response = []byte(makeTransferJSONStr(TransferCarriedOver))
 	err = json.Unmarshal(response, transfer)
-	if err != nil && transfer.Status.status() != "carried_over" {
-		t.Errorf("bad value: err=%v,status=%v", err, transfer.Status.status())
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "carried_over", transfer.Status.status())
 
 	response = []byte(makeTransferJSONStr(TransferStop))
 	err = json.Unmarshal(response, transfer)
-	if err != nil || transfer.Status.status() != "stop" {
-		t.Errorf("bad value: err=%v,status=%v", err, transfer.Status.status())
-	}
-}
-
-func TestTransferRetrieve(t *testing.T) {
-	mock, transport := NewMockClient(200, transferResponseJSON)
-	service := New("api-key", mock)
-	transfer, err := service.Transfer.Retrieve("tr_8f0c0fe2c9f8a47f9d18f03959ba1")
-	if transport.URL != "https://api.pay.jp/v1/transfers/tr_8f0c0fe2c9f8a47f9d18f03959ba1" {
-		t.Errorf("URL is wrong: %s", transport.URL)
-	}
-	if transport.Method != "GET" {
-		t.Errorf("Method should be GET, but %s", transport.Method)
-	}
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-		return
-	} else if transfer == nil {
-		t.Error("transfer should not be nil")
-	} else if transfer.Summary.ChargeGross != 1000 {
-		t.Errorf("transfer.Summary.ChargeGross should be 1000 but %d", transfer.Summary.ChargeGross)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "stop", transfer.Status.status())
 }
 
 func TestTransferList(t *testing.T) {
-	mock, transport := NewMockClient(200, transferListResponseJSON)
+	mock, transport := newMockClient(200, transferListResponseJSON)
+	transport.AddResponse(200, transferListResponseJSON)
+	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
-	subscriptions, hasMore, err := service.Transfer.List().
+
+	status := TransferPending
+	// deprecated だが後方互換で残すリクエスト方法
+	res, hasMore, err := service.Transfer.List().
 		Limit(10).
 		Offset(15).
+		SinceSheduledDate(time.Unix(1455328095, 0)).
+		UntilSheduledDate(time.Unix(1455500895, 0)).
+		Status(status).
 		Since(time.Unix(1455328095, 0)).
 		Until(time.Unix(1455500895, 0)).Do()
-	if transport.URL != "https://api.pay.jp/v1/transfers?limit=10&offset=15&since=1455328095&until=1455500895" {
-		t.Errorf("URL is wrong: %s", transport.URL)
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/transfers?limit=10&offset=15&since=1455328095&since_scheduled_date=1455328095&status=pending&until=1455500895&until_scheduled_date=1455500895", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.False(t, hasMore)
+	assert.Equal(t, len(res), 1)
+	assert.Equal(t, "tr_xxx", res[0].ID)
+	assert.Equal(t, service, res[0].service)
+
+	params := &TransferListParams{
+		ListParams: ListParams{
+			Limit:  Int(10),
+			Offset: Int(0),
+		},
+		SinceSheduledDate: Int(1455328095),
+		Status:            &status,
 	}
-	if transport.Method != "GET" {
-		t.Errorf("Method should be GET, but %s", transport.Method)
-	}
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-		return
-	}
-	if hasMore {
-		t.Error("parse error: hasMore")
-	}
-	if len(subscriptions) != 1 {
-		t.Error("parse error: plans")
-	}
+	res, hasMore, err = service.Transfer.All(params)
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/transfers?limit=10&offset=0&since_scheduled_date=1455328095&status=pending", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.False(t, hasMore)
+	assert.Equal(t, len(res), 1)
+	assert.Equal(t, "tr_xxx", res[0].ID)
+	assert.Equal(t, service, res[0].service)
+
+	_, hasMore, err = service.Transfer.All()
+	assert.False(t, hasMore)
+	assert.IsType(t, &Error{}, err)
+	assert.Equal(t, errorStr, err.Error())
 }
 
 func TestTransferChargeList(t *testing.T) {
-	mock, transport := NewMockClient(200, transferChargeListResponseJSON)
+	mock, transport := newMockClient(200, transferResponseJSON)
+	transport.AddResponse(200, transferChargeListResponseJSON)
+
+	transport.AddResponse(200, transferResponseJSON)
+
+	transport.AddResponse(200, transferChargeListResponseJSON)
+
+	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
-	subscriptions, hasMore, err := service.Transfer.ChargeList("tr_8f0c0fe2c9f8a47f9d18f03959ba1").
+
+	// deprecated だが後方互換で残すリクエスト方法
+	res, hasMore, err := service.Transfer.ChargeList("tr_xxx").
 		Limit(10).
 		Offset(15).
+		CustomerID("cus_xxx").
 		Since(time.Unix(1455328095, 0)).
-		Until(time.Unix(1455500895, 0)).
-		CustomerID("cus_b92b879e60f62b532d6756ae12af").Do()
-	if transport.URL != "https://api.pay.jp/v1/transfers/tr_8f0c0fe2c9f8a47f9d18f03959ba1/charges?customer=cus_b92b879e60f62b532d6756ae12af&limit=10&offset=15&since=1455328095&until=1455500895" {
-		t.Errorf("URL is wrong: %s", transport.URL)
+		Until(time.Unix(1455500895, 0)).Do()
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/transfers/tr_xxx/charges?customer=cus_xxx&limit=10&offset=15&since=1455328095&until=1455500895", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.False(t, hasMore)
+	assert.Equal(t, len(res), 1)
+	assert.Equal(t, "ch_60baaf2dc8f3e35684ebe2031a6e0", res[0].ID)
+	assert.Equal(t, service, res[0].service)
+
+	transfer, err := service.Transfer.Retrieve("tr_xxx")
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/transfers/tr_xxx", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.NotNil(t, transfer)
+	assert.Equal(t, 1000, transfer.Summary.ChargeGross)
+
+	params := &TransferChargeListParams{
+		ListParams: ListParams{
+			Limit:  Int(10),
+			Offset: Int(15),
+			Since:  Int(1455328095),
+			Until:  Int(1455500895),
+		},
+		Customer: String("cus_xxx"),
 	}
-	if transport.Method != "GET" {
-		t.Errorf("Method should be GET, but %s", transport.Method)
-	}
-	if err != nil {
-		t.Errorf("err should be nil, but %v", err)
-		return
-	}
-	if hasMore {
-		t.Error("parse error: hasMore")
-	}
-	if len(subscriptions) != 1 {
-		t.Error("parse error: plans")
-	}
+	res, hasMore, err = transfer.All(params)
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/transfers/tr_xxx/charges?customer=cus_xxx&limit=10&offset=15&since=1455328095&until=1455500895", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.False(t, hasMore)
+	assert.Equal(t, len(res), 1)
+	assert.Equal(t, "ch_60baaf2dc8f3e35684ebe2031a6e0", res[0].ID)
+	assert.Equal(t, service, res[0].service)
+
+	_, hasMore, err = service.Transfer.All()
+	assert.False(t, hasMore)
+	assert.IsType(t, &Error{}, err)
+	assert.Equal(t, errorStr, err.Error())
 }

@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 type requestBuilder struct {
@@ -24,25 +23,37 @@ func newRequestBuilder() *requestBuilder {
 }
 
 func (qb *requestBuilder) Add(key string, value interface{}) {
-	if value == nil {
-		return
-	}
 	var valueString string
-	s, ok := value.(string)
-	if ok {
-		valueString = url.QueryEscape(s)
-	} else {
-		b, ok := value.(bool)
-		if ok {
-			if b {
-				valueString = "true"
-			} else {
-				valueString = "false"
-			}
-		} else {
-			valueString = strconv.Itoa(value.(int))
+	switch v := value.(type) {
+	case nil:
+		return
+	case int:
+		valueString = strconv.Itoa(v)
+	case *int:
+		if v == nil {
+			return
 		}
+		valueString = strconv.Itoa(*v)
+	case string:
+		valueString = url.QueryEscape(v)
+	case *string:
+		if v == nil {
+			return
+		}
+		valueString = url.QueryEscape(*v)
+	case time.Time:
+		valueString = strconv.Itoa(int(v.Unix()))
+	case bool:
+		valueString = strconv.FormatBool(v)
+	case *bool:
+		if v == nil {
+			return
+		}
+		valueString = strconv.FormatBool(*v)
+	default:
+		panic(`invalid parameter type of '` + key + `'`)
 	}
+
 	if qb.hasValue {
 		qb.buffer.WriteByte(qb.delimiter)
 	}
@@ -50,21 +61,6 @@ func (qb *requestBuilder) Add(key string, value interface{}) {
 	qb.buffer.WriteString(key)
 	qb.buffer.WriteByte('=')
 	qb.buffer.WriteString(valueString)
-}
-
-func (qb *requestBuilder) AddCard(card Card) {
-	qb.Add("card[number]", card.Number)
-	qb.Add("card[exp_month]", card.ExpMonth)
-	qb.Add("card[exp_year]", card.ExpYear)
-	qb.Add("card[cvc]", card.CVC)
-	qb.Add("card[address_state]", card.AddressState)
-	qb.Add("card[address_city]", card.AddressCity)
-	qb.Add("card[address_line1]", card.AddressLine1)
-	qb.Add("card[address_line2]", card.AddressLine2)
-	qb.Add("card[address_zip]", card.AddressZip)
-	qb.Add("card[country]", card.Country)
-	qb.Add("card[name]", card.Name)
-	qb.AddMetadata(card.Metadata)
 }
 
 func (qb *requestBuilder) AddMetadata(metadata map[string]string) {
@@ -77,12 +73,11 @@ func (qb *requestBuilder) Reader() io.Reader {
 	return qb.buffer
 }
 
-func respToBody(resp *http.Response, err error) ([]byte, error) {
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+// DeleteResponse
+type DeleteResponse struct {
+	Deleted  bool   `json:"deleted"`
+	ID       string `json:"id"`
+	LiveMode bool   `json:"livemode"`
 }
 
 type listResponseParser struct {
@@ -102,11 +97,5 @@ func (p *listResponseParser) UnmarshalJSON(b []byte) error {
 		*p = listResponseParser(raw)
 		return nil
 	}
-	rawError := errorResponse{}
-	err = json.Unmarshal(b, &rawError)
-	if err == nil && rawError.Error.Status != 0 {
-		return &rawError.Error
-	}
-
-	return nil
+	return parseError(b)
 }

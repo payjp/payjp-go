@@ -2,49 +2,28 @@ package payjp
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
 	"time"
 )
 
 // SubscriptionStatus は定期購読のステータスを表すEnumです。
-type SubscriptionStatus int
+type SubscriptionStatus string
 
 const (
-	noSubscriptionStatus SubscriptionStatus = iota
 	// SubscriptionActive はアクティブ状態を表す定数
-	SubscriptionActive
+	SubscriptionActive = SubscriptionStatus("active")
 	// SubscriptionTrial はトライアル状態を表す定数
-	SubscriptionTrial
+	SubscriptionTrial = SubscriptionStatus("trial")
 	// SubscriptionCanceled はキャンセル状態を表す定数
-	SubscriptionCanceled
+	SubscriptionCanceled = SubscriptionStatus("canceled")
 	// SubscriptionPaused は停止状態を表す定数
-	SubscriptionPaused
+	SubscriptionPaused = SubscriptionStatus("paused")
 )
 
-func (s SubscriptionStatus) status() interface{} {
-	switch s {
-	case SubscriptionActive:
-		return "active"
-	case SubscriptionTrial:
-		return "trial"
-	case SubscriptionCanceled:
-		return "canceled"
-	case SubscriptionPaused:
-		return "paused"
-	}
-	return nil
+func (s SubscriptionStatus) String() string {
+	return string(s)
 }
 
 // SubscriptionService は月単位で定期的な支払い処理を行うサービスです。顧客IDとプランIDを指定して生成します。
-//
-// stauts=SubscriptionTrial の場合は支払いは行われず、status=SubscriptionActive の場合のみ支払いが行われます。
-//
-// 支払い処理は、はじめに定期課金を生成した瞬間に行われ、そこを基準にして定期的な支払いが行われていきます。
-// 定期課金は、顧客に複数紐付けるができ、生成した定期課金は停止・再開・キャンセル・削除することができます。
 type SubscriptionService struct {
 	service *Service
 }
@@ -57,12 +36,17 @@ func newSubscriptionService(service *Service) *SubscriptionService {
 
 // Subscription はSubscribeやUpdateの引数を設定するのに使用する構造体です。
 type Subscription struct {
-	TrialEndAt time.Time         // トライアルの終了時期
-	SkipTrial  interface{}       // トライアルをしない(bool)
-	PlanID     interface{}       // プランID(string)
-	NextCyclePlanID interface{}  // 次サイクルから適用するプランID(string, 更新時のみ設定可能)
-	Prorate    interface{}       // 日割り課金をするかどうか(bool)
-	Metadata   map[string]string // メタデータ
+	TrialEnd        interface{}       // トライアルの終了時期 (time.Time or "now")
+	TrialEndAt      time.Time         // deprecated
+	SkipTrial       interface{}       // deprecated
+	PlanID          interface{}       // プランID(string)
+	NextCyclePlanID interface{}       // 次サイクルから適用するプランID(string, 更新時のみ設定可能)
+	Prorate         interface{}       // 日割り課金をするかどうか(bool)
+	Metadata        map[string]string // メタデータ
+}
+
+type SubscriptionDelete struct {
+	Prorate *bool `form:"prorate"`
 }
 
 // Subscribe は顧客IDとプランIDを指定して、定期課金を開始することができます。
@@ -72,37 +56,15 @@ type Subscription struct {
 // 作成時よりもあとの支払い実行日に最初の課金が行われます。またトライアル設定がある場合は、
 // トライアル終了時に支払い処理が行われ、そこを基準にして定期課金が開始されます。
 func (s SubscriptionService) Subscribe(customerID string, subscription Subscription) (*SubscriptionResponse, error) {
-	var errors []string
-	planID, ok := subscription.PlanID.(string)
-	if !ok || planID == "" {
-		errors = append(errors, "PlanID is required, but empty.")
-	}
-	var defaultTime time.Time
-	skipTrial, ok := subscription.SkipTrial.(bool)
-	if subscription.TrialEndAt != defaultTime && ok {
-		errors = append(errors, "TrialEndAt and SkipTrial are exclusive.")
-	}
-	if len(errors) != 0 {
-		return nil, fmt.Errorf("Subscription.Subscribe() parameter error: %s", strings.Join(errors, ", "))
-	}
+	trialEnd := subscription.getTrialEnd()
 	qb := newRequestBuilder()
 	qb.Add("customer", customerID)
 	qb.Add("plan", subscription.PlanID)
-	if subscription.TrialEndAt != defaultTime {
-		qb.Add("trial_end", strconv.Itoa(int(subscription.TrialEndAt.Unix())))
-	} else if ok && skipTrial {
-		qb.Add("trial_end", "now")
-	}
 	qb.Add("prorate", subscription.Prorate)
+	qb.Add("trial_end", trialEnd)
 	qb.AddMetadata(subscription.Metadata)
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", s.service.apiKey)
 
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := s.service.request("POST", "/subscriptions", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -110,49 +72,24 @@ func (s SubscriptionService) Subscribe(customerID string, subscription Subscript
 }
 
 // Retrieve subscription object. 特定の定期課金情報を取得します。
-func (s SubscriptionService) Retrieve(customerID, subscriptionID string) (*SubscriptionResponse, error) {
-	body, err := s.service.retrieve("/customers/" + customerID + "/subscriptions/" + subscriptionID)
+func (s SubscriptionService) Retrieve(customerID, id string) (*SubscriptionResponse, error) {
+	body, err := s.service.request("GET", "/customers/"+customerID+"/subscriptions/"+id, nil)
 	if err != nil {
 		return nil, err
 	}
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
-func (s SubscriptionService) update(subscriptionID string, subscription Subscription) ([]byte, error) {
-	var defaultTime time.Time
-	_, ok := subscription.SkipTrial.(bool)
-	if subscription.TrialEndAt != defaultTime && ok {
-		return nil, errors.New("Subscription.Update() parameter error: TrialEndAt and SkipTrial are exclusive")
-	}
+// Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
+func (s SubscriptionService) Update(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
+	trialEnd := subscription.getTrialEnd()
 	qb := newRequestBuilder()
 	qb.Add("next_cycle_plan", subscription.NextCyclePlanID)
 	qb.Add("plan", subscription.PlanID)
-	if subscription.TrialEndAt != defaultTime {
-		qb.Add("trial_end", strconv.Itoa(int(subscription.TrialEndAt.Unix())))
-	} else if subscription.SkipTrial == true {
-		qb.Add("trial_end", "now")
-	}
 	qb.Add("prorate", subscription.Prorate)
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID, qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", s.service.apiKey)
-	return parseResponseError(s.service.Client.Do(request))
-}
-
-// Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
-//
-// トライアル期間を更新する場合、トライアル期間終了時に支払い処理が行われ、
-// そこを基準としてプランに沿った周期で定期課金が再開されます。
-// このトライアル期間を利用すれば、定期課金の開始日を任意の日にずらすこともできます。
-// また SkipTrial=true とする事により、トライアル期間中の定期課金を即時開始できます。
-//
-// プランを変更する場合は、 PlanID に新しいプランのIDを指定してください。
-// 同時に Prorate=true とする事により、 日割り課金を有効化できます。
-func (s SubscriptionService) Update(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
-	body, err := s.update(subscriptionID, subscription)
+	qb.Add("trial_end", trialEnd)
+	qb.AddMetadata(subscription.Metadata)
+	body, err := s.service.request("POST", "/subscriptions/"+subscriptionID, qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -163,12 +100,7 @@ func (s SubscriptionService) Update(subscriptionID string, subscription Subscrip
 //
 // 定期課金を停止させると、再開されるまで引き落とし処理は一切行われません。
 func (s SubscriptionService) Pause(subscriptionID string) (*SubscriptionResponse, error) {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/pause", nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := s.service.request("POST", "/subscriptions/"+subscriptionID+"/pause", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -176,32 +108,13 @@ func (s SubscriptionService) Pause(subscriptionID string) (*SubscriptionResponse
 }
 
 // Resume は停止もしくはキャンセル状態の定期課金を再開させます。
-// トライアル日数が残っていて再開日がトライアル終了日時より前の場合、
-// トライアル状態で定期課金が再開されます。
-//
-// TrialEndを指定することで、トライアル終了日を任意の日時に再指定する事ができます。
-//
-// 支払いの失敗が原因で停止状態にある定期課金の再開時は未払い分の支払いを行います。
-//
-// 未払い分の支払いに失敗すると、定期課金は再開されません。 この場合は、有効なカードを顧客のデフォルトカードにセットしてから、
-// 再度定期課金の再開を行ってください。
-//
-// またProrate を指定することで、日割り課金を有効化することができます。 日割り課金が有効な場合は、
-// 再開日より課金日までの日数分で課金額を日割りします。
 func (s SubscriptionService) Resume(subscriptionID string, subscription Subscription) (*SubscriptionResponse, error) {
-	var defaultTime time.Time
+	trialEnd := subscription.getTrialEnd()
 	qb := newRequestBuilder()
-	if subscription.TrialEndAt != defaultTime {
-		qb.Add("trial_end", strconv.Itoa(int(subscription.TrialEndAt.Unix())))
-	}
+	qb.Add("trial_end", trialEnd)
 	qb.Add("prorate", subscription.Prorate)
 
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/resume", qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := s.service.request("POST", "/subscriptions/"+subscriptionID+"/resume", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -209,40 +122,42 @@ func (s SubscriptionService) Resume(subscriptionID string, subscription Subscrip
 }
 
 // Cancel は定期課金をキャンセルし、現在の周期の終了日をもって定期課金を終了させます。
-//
-// 終了日以前であれば、定期課金の再開リクエスト(Resume)を行うことで、
-// キャンセルを取り消すことができます。終了日をむかえた定期課金は、
-// 自動的に削除されますのでご注意ください。
 func (s SubscriptionService) Cancel(subscriptionID string) (*SubscriptionResponse, error) {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+subscriptionID+"/cancel", nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
+	body, err := s.service.request("POST", "/subscriptions/"+subscriptionID+"/cancel", nil)
 	if err != nil {
 		return nil, err
 	}
 	return parseSubscription(s.service, body, &SubscriptionResponse{})
 }
 
-// Delete は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
-// 再び戻すことができません。
-func (s SubscriptionService) Delete(subscriptionID string) error {
-	request, err := http.NewRequest("DELETE", s.service.apiBase+"/subscriptions/"+subscriptionID, nil)
-	if err != nil {
-		return err
+func (s SubscriptionService) Delete(subscriptionID string, params ...SubscriptionDelete) error {
+	path := "/subscriptions/" + subscriptionID
+	if len(params) > 0 {
+		path = path + s.service.getQuery(&params[0])
 	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	_, err = parseResponseError(s.service.Client.Do(request))
-	return err
+	return s.service.delete(path)
 }
 
-// List は顧客の定期課金リストを取得します。リストは、直近で生成された順番に取得されます。
-func (s SubscriptionService) List() *SubscriptionListCaller {
-	return &SubscriptionListCaller{
-		service: s.service,
+// deprecated
+func (s SubscriptionService) List() *subscriptionListCaller {
+	return &subscriptionListCaller{
+		service: s,
 	}
+}
+
+func (subscription Subscription) getTrialEnd() interface{} {
+	if subscription.TrialEnd != nil {
+		return subscription.TrialEnd
+	}
+	skipTrial, ok := subscription.SkipTrial.(bool)
+	if ok && skipTrial {
+		return "now"
+	}
+	var isZero time.Time
+	if subscription.TrialEndAt != isZero {
+		return subscription.TrialEndAt
+	}
+	return nil
 }
 
 func parseSubscription(service *Service, body []byte, result *SubscriptionResponse) (*SubscriptionResponse, error) {
@@ -257,214 +172,148 @@ func parseSubscription(service *Service, body []byte, result *SubscriptionRespon
 // SubscriptionResponse はSubscriptionService.GetやSubscriptionService.Listで返される
 // 定期購読情報持つ構造体です。
 type SubscriptionResponse struct {
-	ID                   string             // sub_で始まる一意なオブジェクトを示す文字列
-	LiveMode             bool               // 本番環境かどうか
 	CreatedAt            time.Time          // この定期課金作成時のタイムスタンプ
+	Created              *int               `json:"created"`
 	StartAt              time.Time          // この定期課金開始時のタイムスタンプ
-	CustomerID           string             // この定期課金を購読している顧客のID
-	Plan                 Plan               // この定期課金のプラン情報
-	NextCyclePlan        *Plan              // この定期課金の次のサイクルから適用されるプラン情報
-	Status               SubscriptionStatus // この定期課金の現在の状態
-	Prorate              bool               // 日割り課金が有効かどうか
+	Start                *int               `json:"start"`
 	CurrentPeriodStartAt time.Time          // 現在の購読期間開始時のタイムスタンプ
+	CurrentPeriodStart   *int               `json:"current_period_start"`
 	CurrentPeriodEndAt   time.Time          // 現在の購読期間終了時のタイムスタンプ
+	CurrentPeriodEnd     *int               `json:"current_period_end"`
 	TrialStartAt         time.Time          // トライアル期間開始時のタイムスタンプ
+	TrialStart           *int               `json:"trial_start"`
 	TrialEndAt           time.Time          // 	トライアル期間終了時のタイムスタンプ
+	TrialEnd             *int               `json:"trial_end"`
 	PausedAt             time.Time          // 定期課金が停止状態になった時のタイムスタンプ
+	RawPausedAt          *int               `json:"paused_at"`
 	CanceledAt           time.Time          // 定期課金がキャンセル状態になった時のタイムスタンプ
+	RawCanceledAt        *int               `json:"canceled_at"`
 	ResumedAt            time.Time          // 停止またはキャンセル状態の定期課金が有効状態になった時のタイムスタンプ
-	Metadata             map[string]string  // メタデータ
+	RawResumedAt         *int               `json:"resumed_at"`
+	Customer             string             `json:"customer"`
+	ID                   string             `json:"id"`
+	LiveMode             bool               `json:"livemode"`
+	Object               string             `json:"object"`
+	RawPlan              json.RawMessage    `json:"plan"`
+	Plan                 Plan               // この定期課金のプラン情報
+	NextCyclePlan        *Plan              `json:"next_cycle_plan"`
+	Prorate              bool               `json:"prorate"`
+	Status               SubscriptionStatus `json:"status"`
+	Metadata             map[string]string  `json:"metadata"`
 
 	service *Service
 }
 
-type subscriptionResponseParser struct {
-	CanceledEpoch           int               `json:"canceled_at"`
-	CreatedEpoch            int               `json:"created"`
-	CurrentPeriodEndEpoch   int               `json:"current_period_end"`
-	CurrentPeriodStartEpoch int               `json:"current_period_start"`
-	Customer                string            `json:"customer"`
-	ID                      string            `json:"id"`
-	LiveMode                bool              `json:"livemode"`
-	Object                  string            `json:"object"`
-	PausedEpoch             int               `json:"paused_at"`
-	Plan                    json.RawMessage   `json:"plan"`
-	NextCyclePlan           json.RawMessage   `json:"next_cycle_plan"`
-	Prorate                 bool              `json:"prorate"`
-	ResumedEpoch            int               `json:"resumed_at"`
-	StartEpoch              int               `json:"start"`
-	Status                  string            `json:"status"`
-	TrialEndEpoch           int               `json:"trial_end"`
-	TrialStartEpoch         int               `json:"trial_start"`
-	Metadata                map[string]string `json:"metadata"`
+func (s *SubscriptionResponse) updateResponse(r *SubscriptionResponse, err error) error {
+	if err != nil {
+		return err
+	}
+	*s = *r
+	return nil
 }
 
-// Update はトライアル期間を新たに設定したり、プランの変更を行うことができます。
+// Update をSubscriptionResponseから実行します。
 func (s *SubscriptionResponse) Update(subscription Subscription) error {
-	body, err := s.service.Subscription.update(s.ID, subscription)
-	if err != nil {
-		return err
-	}
-	_, err = parseSubscription(s.service, body, s)
-	return err
+	return s.updateResponse(s.service.Subscription.Update(s.ID, subscription))
 }
 
-// Pause は引き落としの失敗やカードが不正である、また定期課金を停止したい場合はこのリクエストで定期購入を停止させます。
+// Pause をSubscriptionResponseから実行します。
 func (s *SubscriptionResponse) Pause() error {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/pause", nil)
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
-	if err != nil {
-		return err
-	}
-	_, err = parseSubscription(s.service, body, s)
-	return err
+	return s.updateResponse(s.service.Subscription.Pause(s.ID))
 }
 
-// Resume は停止もしくはキャンセル状態の定期課金を再開させます。
+// Resume をSubscriptionResponseから実行します。
 func (s *SubscriptionResponse) Resume(subscription Subscription) error {
-	var defaultTime time.Time
-	qb := newRequestBuilder()
-	if subscription.TrialEndAt != defaultTime {
-		qb.Add("trial_end", strconv.Itoa(int(subscription.TrialEndAt.Unix())))
-	}
-	qb.Add("prorate", subscription.Prorate)
-
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/resume", qb.Reader())
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
-	if err != nil {
-		return err
-	}
-	_, err = parseSubscription(s.service, body, s)
-	return err
+	return s.updateResponse(s.service.Subscription.Resume(s.ID, subscription))
 }
 
-// Cancel は定期課金をキャンセルし、現在の周期の終了日をもって定期課金を終了させます。
+// Cancel をSubscriptionResponseから実行します。
 func (s *SubscriptionResponse) Cancel() error {
-	request, err := http.NewRequest("POST", s.service.apiBase+"/subscriptions/"+s.ID+"/cancel", nil)
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	body, err := respToBody(s.service.Client.Do(request))
-	if err != nil {
-		return err
-	}
-	_, err = parseSubscription(s.service, body, s)
-	return err
+	return s.updateResponse(s.service.Subscription.Cancel(s.ID))
 }
 
-// Delete は定期課金をすぐに削除します。次回以降の課金は行われずに、一度削除した定期課金は、
-// 再び戻すことができません。
-func (s *SubscriptionResponse) Delete() error {
-	request, err := http.NewRequest("DELETE", s.service.apiBase+"/subscriptions/"+s.ID, nil)
-	if err != nil {
-		return err
+// Delete をSubscriptionResponseから実行します。
+func (s *SubscriptionResponse) Delete(params ...SubscriptionDelete) error {
+	if len(params) > 0 {
+		return s.service.Subscription.Delete(s.ID, params[0])
 	}
-	request.Header.Add("Authorization", s.service.apiKey)
-	_, err = parseResponseError(s.service.Client.Do(request))
-	return err
+	return s.service.Subscription.Delete(s.ID)
 }
 
 // UnmarshalJSON はJSONパース用の内部APIです。
 func (s *SubscriptionResponse) UnmarshalJSON(b []byte) error {
-	raw := subscriptionResponseParser{}
+	type subscriptionResponseParser SubscriptionResponse
+	var raw subscriptionResponseParser
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "subscription" {
-		s.CanceledAt = time.Unix(int64(raw.CanceledEpoch), 0)
-		s.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
-		s.CurrentPeriodEndAt = time.Unix(int64(raw.CurrentPeriodEndEpoch), 0)
-		s.CurrentPeriodStartAt = time.Unix(int64(raw.CurrentPeriodStartEpoch), 0)
-		s.CustomerID = raw.Customer
-		s.ID = raw.ID
-		s.LiveMode = raw.LiveMode
-		s.PausedAt = time.Unix(int64(raw.PausedEpoch), 0)
-		json.Unmarshal(raw.Plan, &s.Plan)
-		json.Unmarshal(raw.NextCyclePlan, &s.NextCyclePlan)
-		s.Prorate = raw.Prorate
-		s.ResumedAt = time.Unix(int64(raw.ResumedEpoch), 0)
-		s.StartAt = time.Unix(int64(raw.StartEpoch), 0)
-		switch raw.Status {
-		case "active":
-			s.Status = SubscriptionActive
-		case "trial":
-			s.Status = SubscriptionTrial
-		case "canceled":
-			s.Status = SubscriptionCanceled
-		case "paused":
-			s.Status = SubscriptionPaused
-		}
-		s.TrialEndAt = time.Unix(int64(raw.TrialEndEpoch), 0)
-		s.TrialStartAt = time.Unix(int64(raw.TrialStartEpoch), 0)
-		s.Metadata = raw.Metadata
+		raw.CanceledAt = time.Unix(IntValue(raw.RawCanceledAt), 0)
+		raw.CreatedAt = time.Unix(IntValue(raw.Created), 0)
+		raw.CurrentPeriodEndAt = time.Unix(IntValue(raw.CurrentPeriodEnd), 0)
+		raw.CurrentPeriodStartAt = time.Unix(IntValue(raw.CurrentPeriodStart), 0)
+		raw.PausedAt = time.Unix(IntValue(raw.RawPausedAt), 0)
+		json.Unmarshal(raw.RawPlan, &raw.Plan)
+		raw.ResumedAt = time.Unix(IntValue(raw.RawResumedAt), 0)
+		raw.StartAt = time.Unix(IntValue(raw.Start), 0)
+		raw.TrialEndAt = time.Unix(IntValue(raw.TrialEnd), 0)
+		raw.TrialStartAt = time.Unix(IntValue(raw.TrialStart), 0)
+
+		raw.service = s.service
+		*s = SubscriptionResponse(raw)
 		return nil
 	}
-	rawError := errorResponse{}
-	err = json.Unmarshal(b, &rawError)
-	if err == nil && rawError.Error.Status != 0 {
-		return &rawError.Error
-	}
-
-	return nil
+	return parseError(b)
 }
 
 // SubscriptionListCaller はリスト取得に使用する構造体です。
-type SubscriptionListCaller struct {
-	service    *Service
-	customerID string
-	limit      int
-	offset     int
-	since      int
-	until      int
-	planID     string
+type subscriptionListCaller struct {
+	service SubscriptionService
+	SubscriptionListParams
+}
+
+type SubscriptionListParams struct {
+	ListParams `form:"*"`
+	Customer   *string             `form:"customer"`
+	Plan       *string             `form:"plan"`
+	Status     *SubscriptionStatus `form:"status"`
 }
 
 // Limit はリストの要素数の最大値を設定します(1-100)
-func (c *SubscriptionListCaller) Limit(limit int) *SubscriptionListCaller {
-	c.limit = limit
+func (c *subscriptionListCaller) Limit(limit int) *subscriptionListCaller {
+	c.SubscriptionListParams.ListParams.Limit = &limit
 	return c
 }
 
 // Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
-func (c *SubscriptionListCaller) Offset(offset int) *SubscriptionListCaller {
-	c.offset = offset
+func (c *subscriptionListCaller) Offset(offset int) *subscriptionListCaller {
+	c.SubscriptionListParams.ListParams.Offset = &offset
 	return c
 }
 
 // Since はここに指定したタイムスタンプ以降に作成されたデータを取得します
-func (c *SubscriptionListCaller) Since(since time.Time) *SubscriptionListCaller {
-	c.since = int(since.Unix())
+func (c *subscriptionListCaller) Since(since time.Time) *subscriptionListCaller {
+	p := int(since.Unix())
+	c.SubscriptionListParams.ListParams.Since = &p
 	return c
 }
 
 // Until はここに指定したタイムスタンプ以前に作成されたデータを取得します
-func (c *SubscriptionListCaller) Until(until time.Time) *SubscriptionListCaller {
-	c.until = int(until.Unix())
-	return c
-}
-
-// PlanID はプランIDで結果を絞ります
-func (c *SubscriptionListCaller) PlanID(planID string) *SubscriptionListCaller {
-	c.planID = planID
+func (c *subscriptionListCaller) Until(until time.Time) *subscriptionListCaller {
+	p := int(until.Unix())
+	c.SubscriptionListParams.ListParams.Until = &p
 	return c
 }
 
 // Do は指定されたクエリーを元に顧客のリストを配列で取得します。
-func (c *SubscriptionListCaller) Do() ([]*SubscriptionResponse, bool, error) {
-	var url string
-	if c.customerID == "" {
-		url = "/subscriptions"
-	} else {
-		url = "/customers/" + c.customerID + "/subscriptions"
+func (c *subscriptionListCaller) Do() ([]*SubscriptionResponse, bool, error) {
+	return c.service.All(&c.SubscriptionListParams)
+}
+
+func (c SubscriptionService) All(params ...*SubscriptionListParams) ([]*SubscriptionResponse, bool, error) {
+	p := &SubscriptionListParams{}
+	if len(params) > 0 {
+		p = params[0]
 	}
-	body, err := c.service.queryList(url, c.limit, c.offset, c.since, c.until)
+	body, err := c.service.request("GET", "/subscriptions"+c.service.getQuery(p), nil)
 	if err != nil {
 		return nil, false, err
 	}
@@ -475,9 +324,8 @@ func (c *SubscriptionListCaller) Do() ([]*SubscriptionResponse, bool, error) {
 	}
 	result := make([]*SubscriptionResponse, len(raw.Data))
 	for i, rawSubscription := range raw.Data {
-		subscription := &SubscriptionResponse{}
-		json.Unmarshal(rawSubscription, subscription)
-		result[i] = subscription
+		json.Unmarshal(rawSubscription, &result[i])
+		result[i].service = c.service
 	}
 	return result, raw.HasMore, nil
 }

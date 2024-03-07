@@ -2,7 +2,6 @@ package payjp
 
 import (
 	"encoding/json"
-	"net/http"
 	"time"
 )
 
@@ -27,107 +26,57 @@ type Customer struct {
 	ID          interface{}       // 一意の顧客ID
 	CardToken   interface{}       // トークンID
 	DefaultCard interface{}       // デフォルトカード
-	Card        Card              // カード
 	Metadata    map[string]string // メタデータ
 }
 
-func parseCustomer(service *Service, body []byte, result *CustomerResponse) (*CustomerResponse, error) {
-	err := json.Unmarshal(body, result)
-	if err != nil {
-		return nil, err
-	}
-	result.service = service
-	for _, card := range result.Cards {
-		card.service = service
-		card.customerID = result.ID
-	}
-	return result, nil
-}
-
 // Create はメールアドレスやIDなどを指定して顧客を作成します。
-//
-// 作成と同時にカード情報を登録する場合、トークンIDかカードオブジェクトのどちらかを指定します。
-//
-// 作成した顧客やカード情報はあとから更新・削除することができます。
-//
-// DefaultCardは更新時のみ設定が可能です
+// https://pay.jp/docs/api/?go#顧客を作成
 func (c CustomerService) Create(customer Customer) (*CustomerResponse, error) {
 	qb := newRequestBuilder()
-	if customer.Email != "" {
-		qb.Add("email", customer.Email)
-	}
-	if customer.Description != "" {
-		qb.Add("description", customer.Description)
-	}
-	if customer.ID != "" {
-		qb.Add("id", customer.ID)
-	}
-	if customer.CardToken != "" {
-		qb.Add("card", customer.CardToken)
-	} else {
-		qb.AddCard(customer.Card)
-	}
+	qb.Add("email", customer.Email)
+	qb.Add("description", customer.Description)
+	qb.Add("id", customer.ID)
+	qb.Add("card", customer.CardToken)
 	qb.AddMetadata(customer.Metadata)
 
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers", qb.Reader())
+	body, err := c.service.request("POST", "/customers", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	body, err := respToBody(c.service.Client.Do(request))
-	if err != nil {
-		return nil, err
-	}
-	return parseCustomer(c.service, body, &CustomerResponse{})
+	result := &CustomerResponse{service: c.service}
+	err = json.Unmarshal(body, result)
+	return result, err
 }
 
 // Retrieve customer object. 顧客情報を取得します。
+// https://pay.jp/docs/api/?go#顧客情報を取得
 func (c CustomerService) Retrieve(id string) (*CustomerResponse, error) {
-	body, err := c.service.retrieve("/customers/" + id)
+	body, err := c.service.request("GET", "/customers/"+id, nil)
 	if err != nil {
 		return nil, err
 	}
-	return parseCustomer(c.service, body, &CustomerResponse{})
+	result := &CustomerResponse{service: c.service}
+	err = json.Unmarshal(body, result)
+	return result, err
 }
 
 // Update は生成した顧客情報を更新したり、新たなカードを顧客に追加します。
-//
-// また default_card に保持しているカードIDを指定することで、メイン利用のカードを変更することもできます。
+// https://pay.jp/docs/api/?go#顧客情報を更新
 func (c CustomerService) Update(id string, customer Customer) (*CustomerResponse, error) {
-	body, err := c.update(id, customer)
-	if err != nil {
-		return nil, err
-	}
-	return parseCustomer(c.service, body, &CustomerResponse{})
-}
-
-func (c CustomerService) update(id string, customer Customer) ([]byte, error) {
 	qb := newRequestBuilder()
-	if customer.Email != "" {
-		qb.Add("email", customer.Email)
-	}
-	if customer.Description != "" {
-		qb.Add("description", customer.Description)
-	}
-	if customer.DefaultCard != "" {
-		qb.Add("default_card", customer.DefaultCard)
-	}
-	if customer.CardToken != "" {
-		qb.Add("card", customer.CardToken)
-	} else {
-		qb.AddCard(customer.Card)
-	}
+	qb.Add("email", customer.Email)
+	qb.Add("description", customer.Description)
+	qb.Add("default_card", customer.DefaultCard)
+	qb.Add("card", customer.CardToken)
 	qb.AddMetadata(customer.Metadata)
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+id, qb.Reader())
+
+	body, err := c.service.request("POST", "/customers/"+id, qb.Reader())
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	return parseResponseError(c.service.Client.Do(request))
+	result := &CustomerResponse{service: c.service}
+	err = json.Unmarshal(body, result)
+	return result, err
 }
 
 // Delete は生成した顧客情報を削除します。削除した顧客情報は、もう一度生成することができないためご注意ください。
@@ -135,71 +84,69 @@ func (c CustomerService) Delete(id string) error {
 	return c.service.delete("/customers/" + id)
 }
 
-// List は生成した顧客情報のリストを取得します。リストは、直近で生成された順番に取得されます。
+// Deprecated
 func (c CustomerService) List() *CustomerListCaller {
 	return &CustomerListCaller{
-		service: c.service,
+		service: c,
 	}
 }
 
-// AddCardToken はトークンIDを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
-func (c CustomerService) AddCardToken(customerID, token string) (*CardResponse, error) {
+// AddCardToken はトークンIDを指定して、新たにカードを追加します。
+func (c CustomerService) AddCardToken(id string, token string, options ...Customer) (*CardResponse, error) {
 	qb := newRequestBuilder()
 	qb.Add("card", token)
-
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+customerID+"/cards", qb.Reader())
+	if len(options) > 0 {
+		qb.Add("default", options[0].DefaultCard)
+		qb.AddMetadata(options[0].Metadata)
+	}
+	body, err := c.service.request("POST", "/customers/"+id+"/cards", qb.Reader())
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	body, err := respToBody(c.service.Client.Do(request))
-	if err != nil {
-		return nil, err
+	result := &CardResponse{
+		service:    c.service,
+		customerID: id,
 	}
-	return parseCard(c.service, body, &CardResponse{}, customerID)
-}
-
-func (c CustomerService) postCard(customerID, resourcePath string, card Card, result *CardResponse) (*CardResponse, error) {
-	qb := newRequestBuilder()
-	qb.AddCard(card)
-
-	request, err := http.NewRequest("POST", c.service.apiBase+"/customers/"+customerID+"/cards"+resourcePath, qb.Reader())
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Authorization", c.service.apiKey)
-
-	body, err := respToBody(c.service.Client.Do(request))
-	if err != nil {
-		return nil, err
-	}
-	return parseCard(c.service, body, result, customerID)
-}
-
-// AddCard はカード情報のパラメーターを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
-func (c CustomerService) AddCard(customerID string, card Card) (*CardResponse, error) {
-	return c.postCard(customerID, "", card, &CardResponse{})
+	err = json.Unmarshal(body, result)
+	return result, err
 }
 
 // GetCard は顧客の特定のカード情報を取得します。
-func (c CustomerService) GetCard(customerID, cardID string) (*CardResponse, error) {
-	body, err := c.service.retrieve("/customers/" + customerID + "/cards/" + cardID)
+func (c CustomerService) GetCard(id, cardID string) (*CardResponse, error) {
+	body, err := c.service.request("GET", "/customers/"+id+"/cards/"+cardID, nil)
 	if err != nil {
 		return nil, err
 	}
-	return parseCard(c.service, body, &CardResponse{}, customerID)
+	result := &CardResponse{
+		service:    c.service,
+		customerID: id,
+	}
+	err = json.Unmarshal(body, result)
+	return result, err
 }
 
 // UpdateCard は顧客の特定のカード情報を更新します。
-func (c CustomerService) UpdateCard(customerID, cardID string, card Card) (*CardResponse, error) {
-	result := &CardResponse{
-		customerID: customerID,
-		service:    c.service,
+func (c CustomerService) UpdateCard(id string, cardID string, card Card) (*CardResponse, error) {
+	qb := newRequestBuilder()
+	qb.Add("card[address_state]", card.AddressState)
+	qb.Add("card[address_city]", card.AddressCity)
+	qb.Add("card[address_line1]", card.AddressLine1)
+	qb.Add("card[address_line2]", card.AddressLine2)
+	qb.Add("card[address_zip]", card.AddressZip)
+	qb.Add("card[country]", card.Country)
+	qb.Add("card[name]", card.Name)
+	qb.AddMetadata(card.Metadata)
+
+	body, err := c.service.request("POST", "/customers/"+id+"/cards/"+cardID, qb.Reader())
+	if err != nil {
+		return nil, err
 	}
-	return c.postCard(customerID, "/"+cardID, card, result)
+	result := &CardResponse{
+		service:    c.service,
+		customerID: id,
+	}
+	err = json.Unmarshal(body, result)
+	return result, err
 }
 
 // DeleteCard は顧客の特定のカードを削除します。
@@ -207,11 +154,15 @@ func (c CustomerService) DeleteCard(customerID, cardID string) error {
 	return c.service.delete("/customers/" + customerID + "/cards/" + cardID)
 }
 
-// ListCard は顧客の保持しているカードリストを取得します。リストは、直近で生成された順番に取得されます。
-func (c CustomerService) ListCard(customerID string) *CustomerCardListCaller {
+// deprecated
+func (c CustomerService) ListCard(id string) *CustomerCardListCaller {
+	cus, err := c.Retrieve(id)
+	if err != nil {
+		return nil
+	}
+
 	return &CustomerCardListCaller{
-		service:    c.service,
-		customerID: customerID,
+		caller: cus,
 	}
 }
 
@@ -221,54 +172,62 @@ func (c CustomerService) GetSubscription(customerID, subscriptionID string) (*Su
 }
 
 // ListSubscription は顧客の定期課金リストを取得します。リストは、直近で生成された順番に取得されます。
-func (c CustomerService) ListSubscription(customerID string) *SubscriptionListCaller {
-	return &SubscriptionListCaller{
-		service:    c.service,
-		customerID: customerID,
+func (c CustomerService) ListSubscription(customerID string) *subscriptionListCaller {
+	return &subscriptionListCaller{
+		service: *c.service.Subscription,
+		SubscriptionListParams: SubscriptionListParams{
+			Customer: &customerID,
+		},
 	}
 }
 
-// CustomerListCaller はリスト取得に使用する構造体です。
-//
-// Fluentインタフェースを提供しており、最後にDoを呼ぶことでリストが取得できます:
-//
-//     pay := payjp.New("api-key", nil)
-//     customers, err := pay.Customer.List().Limit(50).Offset(150).Do()
+type CustomerListParams struct {
+	ListParams `form:"*"`
+}
+
 type CustomerListCaller struct {
-	service *Service
-	limit   int
-	offset  int
-	since   int
-	until   int
+	service CustomerService
+	CustomerListParams
 }
 
 // Limit はリストの要素数の最大値を設定します(1-100)
 func (c *CustomerListCaller) Limit(limit int) *CustomerListCaller {
-	c.limit = limit
+	c.CustomerListParams.ListParams.Limit = &limit
 	return c
 }
 
 // Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
 func (c *CustomerListCaller) Offset(offset int) *CustomerListCaller {
-	c.offset = offset
+	c.CustomerListParams.ListParams.Offset = &offset
 	return c
 }
 
 // Since はここに指定したタイムスタンプ以降に作成されたデータを取得します
 func (c *CustomerListCaller) Since(since time.Time) *CustomerListCaller {
-	c.since = int(since.Unix())
+	p := int(since.Unix())
+	c.CustomerListParams.ListParams.Since = &p
 	return c
 }
 
 // Until はここに指定したタイムスタンプ以前に作成されたデータを取得します
 func (c *CustomerListCaller) Until(until time.Time) *CustomerListCaller {
-	c.until = int(until.Unix())
+	p := int(until.Unix())
+	c.CustomerListParams.ListParams.Until = &p
 	return c
 }
 
 // Do は指定されたクエリーを元に顧客のリストを配列で取得します。
 func (c *CustomerListCaller) Do() ([]*CustomerResponse, bool, error) {
-	body, err := c.service.queryList("/customers", c.limit, c.offset, c.since, c.until)
+	return c.service.All(&c.CustomerListParams)
+}
+
+func (c CustomerService) All(params ...*CustomerListParams) ([]*CustomerResponse, bool, error) {
+	p := &CustomerListParams{}
+	if len(params) > 0 {
+		p = params[0]
+	}
+	body, err := c.service.request("GET", "/customers"+c.service.getQuery(p), nil)
+
 	if err != nil {
 		return nil, false, err
 	}
@@ -277,59 +236,62 @@ func (c *CustomerListCaller) Do() ([]*CustomerResponse, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	result := make([]*CustomerResponse, len(raw.Data))
+	result := make([]*CustomerResponse, raw.Count)
 
 	for i, raw := range raw.Data {
-		customer := &CustomerResponse{}
-		json.Unmarshal(raw, customer)
-		customer.service = c.service
-		result[i] = customer
+		json.Unmarshal(raw, &result[i])
+		result[i].service = c.service
 	}
 	return result, raw.HasMore, nil
 }
 
+type CardListParams struct {
+	ListParams `form:"*"`
+}
+
 // CustomerCardListCaller はカードのリスト取得に使用する構造体です。
-//
-// Fluentインタフェースを提供しており、最後にDoを呼ぶことでリストが取得できます:
-//
-//     pay := payjp.New("api-key", nil)
-//     cards, err := pay.Customer.ListCard("userID").Limit(50).Offset(150).Do()
 type CustomerCardListCaller struct {
-	service    *Service
-	customerID string
-	limit      int
-	offset     int
-	since      int
-	until      int
+	caller *CustomerResponse
+	CardListParams
 }
 
 // Limit はリストの要素数の最大値を設定します(1-100)
 func (c *CustomerCardListCaller) Limit(limit int) *CustomerCardListCaller {
-	c.limit = limit
+	c.CardListParams.ListParams.Limit = &limit
 	return c
 }
 
 // Offset は取得するリストの先頭要素のインデックスのオフセットを設定します
 func (c *CustomerCardListCaller) Offset(offset int) *CustomerCardListCaller {
-	c.offset = offset
+	c.CardListParams.ListParams.Offset = &offset
 	return c
 }
 
 // Since はここに指定したタイムスタンプ以降に作成されたデータを取得します
 func (c *CustomerCardListCaller) Since(since time.Time) *CustomerCardListCaller {
-	c.since = int(since.Unix())
+	p := int(since.Unix())
+	c.CardListParams.ListParams.Since = &p
 	return c
 }
 
 // Until はここに指定したタイムスタンプ以前に作成されたデータを取得します
 func (c *CustomerCardListCaller) Until(until time.Time) *CustomerCardListCaller {
-	c.until = int(until.Unix())
+	p := int(until.Unix())
+	c.CardListParams.ListParams.Until = &p
 	return c
 }
 
 // Do は指定されたクエリーを元に支払いのリストを配列で取得します。
 func (c *CustomerCardListCaller) Do() ([]*CardResponse, bool, error) {
-	body, err := c.service.queryList("/customers/"+c.customerID+"/cards", c.limit, c.offset, c.since, c.until)
+	return c.caller.AllCard(&c.CardListParams)
+}
+
+func (c *CustomerResponse) AllCard(params ...*CardListParams) ([]*CardResponse, bool, error) {
+	p := &CardListParams{}
+	if len(params) > 0 {
+		p = params[0]
+	}
+	body, err := c.service.request("GET", "/customers/"+c.ID+"/cards"+c.service.getQuery(p), nil)
 	if err != nil {
 		return nil, false, err
 	}
@@ -338,52 +300,43 @@ func (c *CustomerCardListCaller) Do() ([]*CardResponse, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	result := make([]*CardResponse, len(raw.Data))
+	result := make([]*CardResponse, raw.Count)
 	for i, rawCustomer := range raw.Data {
-		card := &CardResponse{}
-		json.Unmarshal(rawCustomer, card)
-		result[i] = card
+		json.Unmarshal(rawCustomer, &result[i])
+		result[i].service = c.service
 	}
 	return result, raw.HasMore, nil
 }
 
 // CustomerResponse はCustomerService.GetやCustomerService.Listで返される顧客を表す構造体です
 type CustomerResponse struct {
-	ID            string                  // 一意なオブジェクトを示す文字列
-	LiveMode      bool                    // 本番環境かどうか
-	CreatedAt     time.Time               // この顧客作成時のタイムスタンプ
-	DefaultCard   string                  // 支払いに使用されるカードのcar_から始まるID
-	Cards         []*CardResponse         // この顧客に紐づけられているカードのリスト
-	Email         string                  // メールアドレス
-	Description   string                  // 概要
-	Subscriptions []*SubscriptionResponse // この顧客が購読している定期課金のリスト
-	Metadata      map[string]string       // メタデータ
+	RawCards         listResponseParser `json:"cards"`
+	Cards            []*CardResponse
+	DefaultCard      string             `json:"default_card"`
+	Description      string             `json:"description"`
+	Email            string             `json:"email"`
+	ID               string             `json:"id"`
+	LiveMode         bool               `json:"livemode"`
+	Object           string             `json:"object"`
+	RawSubscriptions listResponseParser `json:"subscriptions"`
+	Subscriptions    []*SubscriptionResponse
+	Metadata         map[string]string `json:"metadata"`
+	Created          *int              `json:"created"`
+	CreatedAt        time.Time
 
 	service *Service
-}
-
-type customerResponseParser struct {
-	Cards         listResponseParser `json:"cards"`
-	CreatedEpoch  int                `json:"created"`
-	DefaultCard   string             `json:"default_card"`
-	Description   string             `json:"description"`
-	Email         string             `json:"email"`
-	ID            string             `json:"id"`
-	LiveMode      bool               `json:"livemode"`
-	Object        string             `json:"object"`
-	Subscriptions listResponseParser `json:"subscriptions"`
-	Metadata      map[string]string  `json:"metadata"`
 }
 
 // Update は生成した顧客情報を更新したり、新たなカードを顧客に追加することができます。
 //
 // また default_card に保持しているカードIDを指定することで、メイン利用のカードを変更することもできます。
 func (c *CustomerResponse) Update(customer Customer) error {
-	body, err := c.service.Customer.update(c.ID, customer)
+	r, err := c.service.Customer.Update(c.ID, customer)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(body, c)
+	*c = *r
+	return nil
 }
 
 // Delete は生成した顧客情報を削除します。削除した顧客情報は、もう一度生成することができないためご注意ください。
@@ -391,19 +344,14 @@ func (c *CustomerResponse) Delete() error {
 	return c.service.Customer.Delete(c.ID)
 }
 
-// AddCard はカード情報のパラメーターを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
-func (c *CustomerResponse) AddCard(card Card) (*CardResponse, error) {
-	return c.service.Customer.AddCard(c.ID, card)
-}
-
-// AddCardToken はトークンIDを指定して、新たにカードを追加します。ただし同じカード番号および同じ有効期限年/月のカードは、重複追加することができません。
-func (c *CustomerResponse) AddCardToken(token string) (*CardResponse, error) {
-	return c.service.Customer.AddCardToken(c.ID, token)
-}
-
 // GetCard は顧客の特定のカード情報を取得します。
 func (c *CustomerResponse) GetCard(cardID string) (*CardResponse, error) {
 	return c.service.Customer.GetCard(c.ID, cardID)
+}
+
+// AddCardToken をCustomerResponseから実行します。
+func (c *CustomerResponse) AddCardToken(token string, options ...Customer) (*CardResponse, error) {
+	return c.service.Customer.AddCardToken(c.ID, token, options...)
 }
 
 // UpdateCard は顧客の特定のカード情報を更新します。
@@ -426,42 +374,31 @@ func (c *CustomerResponse) GetSubscription(subscriptionID string) (*Subscription
 	return c.service.Customer.GetSubscription(c.ID, subscriptionID)
 }
 
-// ListSubscription は顧客の定期課金リストを取得します。リストは、直近で生成された順番に取得されます。
-func (c *CustomerResponse) ListSubscription() *SubscriptionListCaller {
+// deprecated
+func (c *CustomerResponse) ListSubscription() *subscriptionListCaller {
 	return c.service.Customer.ListSubscription(c.ID)
 }
 
-// UnmarshalJSON はJSONパース用の内部APIです。
 func (c *CustomerResponse) UnmarshalJSON(b []byte) error {
-	raw := customerResponseParser{}
+	type customerResponseParser CustomerResponse
+	var raw customerResponseParser
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "customer" {
-		c.Cards = make([]*CardResponse, len(raw.Cards.Data))
-		for i, rawCard := range raw.Cards.Data {
-			card := &CardResponse{}
-			json.Unmarshal(rawCard, card)
-			c.Cards[i] = card
+		raw.CreatedAt = time.Unix(IntValue(raw.Created), 0)
+		raw.Cards = make([]*CardResponse, raw.RawCards.Count)
+		raw.Subscriptions = make([]*SubscriptionResponse, raw.RawSubscriptions.Count)
+		for i, rawCard := range raw.RawCards.Data {
+			json.Unmarshal(rawCard, &raw.Cards[i])
+			raw.Cards[i].service = c.service
+			raw.Cards[i].customerID = raw.ID
 		}
-		c.CreatedAt = time.Unix(int64(raw.CreatedEpoch), 0)
-		c.DefaultCard = raw.DefaultCard
-		c.Description = raw.Description
-		c.Email = raw.Email
-		c.ID = raw.ID
-		c.LiveMode = raw.LiveMode
-		c.Subscriptions = make([]*SubscriptionResponse, len(raw.Subscriptions.Data))
-		for i, rawSubscription := range raw.Subscriptions.Data {
-			subscription := &SubscriptionResponse{}
-			json.Unmarshal(rawSubscription, subscription)
-			c.Subscriptions[i] = subscription
+		for i, rawSubscription := range raw.RawSubscriptions.Data {
+			json.Unmarshal(rawSubscription, &raw.Subscriptions[i])
+			raw.Subscriptions[i].service = c.service
 		}
-		c.Metadata = raw.Metadata
+		raw.service = c.service
+		*c = CustomerResponse(raw)
 		return nil
 	}
-	rawError := errorResponse{}
-	err = json.Unmarshal(b, &rawError)
-	if err == nil && rawError.Error.Status != 0 {
-		return &rawError.Error
-	}
-
-	return nil
+	return parseError(b)
 }

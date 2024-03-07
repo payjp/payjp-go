@@ -6,8 +6,8 @@ import (
 	"net/http"
 )
 
-func NewMockClient(status int, response []byte) (*http.Client, *MockTransport) {
-	transport := &MockTransport{
+func newMockClient(status int, response []byte) (*http.Client, *mockTransport) {
+	transport := &mockTransport{
 		responses: []*responsePair{&responsePair{status, response}},
 	}
 	return &http.Client{
@@ -20,17 +20,26 @@ type responsePair struct {
 	response []byte
 }
 
-type MockTransport struct {
+type mockTransport struct {
 	responses []*responsePair
 	index     int
 	URL       string
 	Method    string
+	Body      *string
+	Header    http.Header
 }
 
 // Implement http.RoundTripper
-func (t *MockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	t.URL = req.URL.String()
 	t.Method = req.Method
+	t.Header = req.Header
+	t.Body = nil
+	if req.Body != nil {
+		b, _ := ioutil.ReadAll(req.Body)
+		s := string(b)
+		t.Body = &s
+	}
 	// Create mocked http.Response
 	responseSet := t.responses[t.index]
 	t.index++
@@ -46,7 +55,7 @@ func (t *MockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return response, nil
 }
 
-func (t *MockTransport) AddResponse(status int, body []byte) {
+func (t *mockTransport) AddResponse(status int, body []byte) {
 	t.responses = append(t.responses, &responsePair{
 		status:   status,
 		response: body,
