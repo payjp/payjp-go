@@ -54,10 +54,12 @@ func (s StatementService) Retrieve(id string) (*StatementResponse, error) {
 
 // StatementResponse
 type StatementResponse struct {
-	ID        string  `json:"id"`
-	LiveMode  bool    `json:"livemode"`
-	Object    string  `json:"object"`
-	Title     *string `json:"title"`
+	ID        string        `json:"id"`
+	LiveMode  bool          `json:"livemode"`
+	Object    string        `json:"object"`
+	Title     *string       `json:"title"`
+	BalanceId *string       `json:"balance_id"`
+	Term      *TermResponse `json:"term"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Items     []StatementItem

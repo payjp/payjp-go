@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-var statementResponseJSONStr = `
-{
+func makeStatementJSONStr(term string, balance string) string {
+	return `{
   "created": 1695892351,
   "id": "st_xxx",
   "items": [
@@ -27,13 +27,18 @@ var statementResponseJSONStr = `
   ],
   "livemode": true,
   "object": "statement",
+  "balance_id": ` + balance + `,
   "title": null,
+  "term": ` + term + `,
   "updated": 1695892351
+}`
 }
-`
+
+var statementResponseJSONStr = makeStatementJSONStr("null", `"ba_xxx"`)
+
 var statementResponseJSON = []byte(statementResponseJSONStr)
 
-var statementListResponseJSON = []byte(`
+var statementListResponseJSONStr = `
 {
   "count": 1,
   "data": [` + statementResponseJSONStr +
@@ -42,8 +47,8 @@ var statementListResponseJSON = []byte(`
   "object": "list",
   "url": "/v1/statements"
 }
-`)
-
+`
+var statementListResponseJSON = []byte(statementListResponseJSONStr)
 var statementUrlsResponseJSON = []byte(`
 {
   "expires": 1695903280,
@@ -71,6 +76,8 @@ func TestParseStatementResponseJSON(t *testing.T) {
 	assert.Equal(t, "statement", s.Object)
 	assert.Nil(t, s.Title)
 	assert.Equal(t, 1695892351, *s.Created)
+	assert.Equal(t, "ba_xxx", StringValue(s.BalanceId))
+	assert.Nil(t, s.Term)
 	assert.IsType(t, s.Updated, s.Created)
 	assert.IsType(t, time.Unix(0, 0), s.UpdatedAt)
 	assert.IsType(t, s.CreatedAt, s.UpdatedAt)
@@ -80,6 +87,12 @@ func TestParseStatementResponseJSON(t *testing.T) {
 	assert.Equal(t, "0.00", s.Items[1].TaxRate)
 	assert.Equal(t, "0.00", s.Items[1].TaxRate)
 	assert.Equal(t, service, s.service)
+
+	statementResponseJSONStr2 := makeStatementJSONStr(termJSONStr, "null")
+	err = json.Unmarshal([]byte(statementResponseJSONStr2), s)
+	assert.NoError(t, err)
+	assert.Equal(t, "tm_b92b879e60f62b532d6756ae12af", s.Term.ID)
+	assert.Nil(t, s.BalanceId)
 }
 
 func TestParseStatementTitle(t *testing.T) {
