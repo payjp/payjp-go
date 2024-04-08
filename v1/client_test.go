@@ -1,9 +1,17 @@
 package payjp
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/stretchr/testify/assert"
+	"log"
+	"math"
+	"math/rand"
 	"net/http"
+	"reflect"
+	"strings"
 	"testing"
+	"testing/quick"
 )
 
 type TestListParams struct {
@@ -19,6 +27,15 @@ var errorJSONStr = `
   "type": "type"
 }
 `
+var rateLimitResponseBody = []byte(`{
+  "error": {
+    "code": "over_capacity",
+    "message": "The service is over capacity. Please try again later.",
+    "status": 429,
+    "type": "client_error"
+  }
+}`)
+var rateLimitStr = "429: Type: client_error Code: over_capacity Message: The service is over capacity. Please try again later."
 
 var errorJSON = []byte(errorJSONStr)
 
@@ -38,17 +55,19 @@ func TestNew(t *testing.T) {
 	assert.NotNil(t, service.Event)
 	assert.Equal(t, "https://api.pay.jp/v1", service.apiBase)
 	assert.Regexp(t, "^Basic .*", service.apiKey)
+	assert.EqualValues(t, 0, service.MaxCount)
+	assert.EqualValues(t, 2, service.InitialDelay)
+	assert.EqualValues(t, 32, service.MaxDelay)
+	assert.Nil(t, service.Logger)
 
 	client := &http.Client{}
 	assert.NotSame(t, client, service.Client)
 
 	service = New("api-key", client)
 	assert.Same(t, client, service.Client)
-}
 
-func TestAPIBase(t *testing.T) {
-	service := New("api-key", nil, Config{
-		APIBase: "https://api.pay.jp/v2",
+	service = New("api-key", nil, Config{
+		APIBase: String("https://api.pay.jp/v2"),
 	})
 	assert.Equal(t, "https://api.pay.jp/v2", service.APIBase())
 }
@@ -86,4 +105,124 @@ func TestGetList(t *testing.T) {
 	}
 	q = service.getQuery(l2)
 	assert.Equal(t, "?param=str", q)
+}
+
+func TestGetRetryDelay(t *testing.T) {
+	config := New("sk_test_xxxx", nil)
+	first := config.getRetryDelay(0)
+	assert.GreaterOrEqual(t, first, 1.0)
+	assert.LessOrEqual(t, first, 2.0)
+	second := config.getRetryDelay(1)
+	assert.GreaterOrEqual(t, second, 2.0)
+	assert.LessOrEqual(t, second, 4.0)
+	third := config.getRetryDelay(2)
+	assert.GreaterOrEqual(t, third, 4.0)
+	assert.LessOrEqual(t, third, 8.0)
+	upperLimit := config.getRetryDelay(4)
+	assert.GreaterOrEqual(t, upperLimit, 16.0)
+	assert.LessOrEqual(t, upperLimit, 32.0)
+	overLimit := config.getRetryDelay(10)
+	assert.GreaterOrEqual(t, overLimit, 16.0)
+	assert.LessOrEqual(t, overLimit, 32.0)
+}
+
+func TestAttemptRequestWithoutRetrySetting(t *testing.T) {
+	// リトライなし設定におけるリクエスト試行をテスト
+	// RetryConfig.Logger によるログ記録がないことで処理完了を検証
+	client, transport := newMockClient(rateLimitStatusCode, rateLimitResponseBody)
+	var buf bytes.Buffer
+	logger := log.New(&buf, "TestAttemptRequestReachedRateLimit_", log.Ldate)
+	var noRetry = Config{
+		MaxCount:     Int(0),
+		InitialDelay: Float(2),
+		MaxDelay:     Float(32),
+		Logger:       logger,
+	} // リトライなしであることを明示
+	s := New("sk_test_xxxx", client, noRetry)
+	resp, err := s.request("POST", "/endpoint", newRequestBuilder().Reader())
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/endpoint", transport.URL)
+	assert.Equal(t, "POST", transport.Method)
+	assert.Equal(t, rateLimitResponseBody, resp)
+
+	result := buf.String()
+	assert.Equal(t, result, "")
+	assert.Equal(t, 0, buf.Len())
+}
+
+func TestAttemptRequestReachedRetryLimit(t *testing.T) {
+	// リトライ回数上限に到達する場合のテスト
+	client, transport := newMockClient(rateLimitStatusCode, rateLimitResponseBody)
+	transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
+	var buf bytes.Buffer
+	logger := log.New(&buf, "TestAttemptRequestReachedRateLimit_", log.Ldate)
+	s := New("sk_test_xxxx", client, Config{
+		MaxCount:     Int(2),
+		InitialDelay: Float(0.1),
+		MaxDelay:     Float(10),
+		Logger:       logger,
+	})
+	_, err := s.Account.Retrieve()
+	assert.Equal(t, rateLimitStr, err.Error())
+	logResults := strings.Split(strings.Trim(buf.String(), "\n"), "\n")
+	assert.Equal(t, len(logResults), s.MaxCount)
+	for i := 0; i < len(logResults); i++ {
+		assert.True(t, strings.Contains(logResults[i], fmt.Sprintf("Retry Count: %d", i+1)))
+	}
+}
+
+func TestAttemptRequestNotReachedRetryLimit(t *testing.T) {
+	// リトライ回数上限到達前にリクエストを完了する場合のテスト
+	client, transport := newMockClient(rateLimitStatusCode, rateLimitResponseBody)
+	notRateLimitStatusCode := 200
+	transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
+	transport.AddResponse(notRateLimitStatusCode, accountResponseJSON)
+	var buf bytes.Buffer
+	logger := log.New(&buf, "TestAttemptRequestNotReachedRetryLimit", log.Ldate)
+	s := New("sk_test_xxxx", client, Config{
+		MaxCount:     Int(3),
+		InitialDelay: Float(0.1),
+		MaxDelay:     Float(10),
+		Logger:       logger,
+	})
+	_, err := s.Account.Retrieve()
+	assert.NoError(t, err)
+	logResults := strings.Split(strings.Trim(buf.String(), "\n"), "\n")
+	assert.Equal(t, len(logResults), 2)
+	for i := 0; i < len(logResults); i++ {
+		assert.True(t, strings.Contains(logResults[i], fmt.Sprintf("Retry Count: %d", i+1)))
+	}
+}
+
+// test for RandUniform
+type randUniformArgSource struct {
+	valueX float64
+	valueY float64
+}
+
+func (s randUniformArgSource) maxValue() float64 {
+	return math.Max(s.valueX, s.valueY)
+}
+
+func (s randUniformArgSource) minValue() float64 {
+	return math.Min(s.valueX, s.valueY)
+}
+
+func (randUniformArgSource) Generate(r *rand.Rand, size int) reflect.Value {
+	s := randUniformArgSource{
+		float64(r.Int63()),
+		float64(r.Int63()),
+	}
+	return reflect.ValueOf(s)
+}
+
+func TestRandUniform(t *testing.T) {
+	testFunc := func(arg randUniformArgSource) bool {
+		min := arg.minValue()
+		max := arg.maxValue()
+		result := RandUniform(min, max)
+		return result >= min || result < max
+	}
+	err := quick.Check(testFunc, nil)
+	assert.NoError(t, err)
 }

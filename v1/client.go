@@ -5,27 +5,59 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"log"
+	"math"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"reflect"
 	"runtime"
 	"strconv"
+	"time"
 )
 
 const Version = "v0.2.0"
 const tagName = "form"
+const rateLimitStatusCode = 429
 
 // Config 構造体はNewに渡すパラメータを設定するのに使用します。
 type Config struct {
-	APIBase string // APIのエンドポイントのURL(省略時は'https://api.pay.jp/v1')
+	APIBase      *string // 内部デバッグ用
+	MaxCount     *int
+	InitialDelay *float64 // sec
+	MaxDelay     *float64 // sec
+	Logger       *log.Logger
+}
+
+const defaultMaxCount = 0
+const defaultInitialDelay = 2
+const defaultMaxDelay = 32
+
+func RandUniform(min, max float64) float64 {
+	// [min, max) の小数を返す
+	return (rand.Float64() * (max - min)) + min
+}
+
+// リクエストリトライ時に遅延させる時間を計算する
+// equal jitter に基づいて算出
+// ref: https://aws.amazon.com/jp/blogs/architecture/exponential-backoff-and-jitter/
+func (r Service) getRetryDelay(retryCount int) float64 {
+	delay := math.Min(r.MaxDelay, r.InitialDelay*math.Pow(2.0, float64(retryCount)))
+	half := delay / 2.0
+	offset := RandUniform(0, half)
+	return half + offset
 }
 
 // Service 構造体はPAY.JPのすべてのAPIの起点となる構造体です。
 // New()を使ってインスタンスを生成します。
 type Service struct {
-	Client  *http.Client
-	apiKey  string
-	apiBase string
+	Client       *http.Client
+	apiKey       string
+	apiBase      string
+	MaxCount     int
+	InitialDelay float64
+	MaxDelay     float64
+	Logger       *log.Logger
 
 	Charge       *ChargeService
 	Customer     *CustomerService
@@ -46,7 +78,7 @@ type Service struct {
 //
 // clientは特別な設定をしたhttp.Clientを使用する場合に渡します。nilを指定するとデフォルトのもhttp.Clientを指定します。
 //
-// configは追加の設定が必要な場合に渡します。現状で設定できるのはAPIのエントリーポイントのURLのみです。省略できます。
+// configは追加の設定が必要な場合に渡します。
 func New(apiKey string, client *http.Client, config ...Config) *Service {
 	if client == nil {
 		client = &http.Client{}
@@ -55,10 +87,24 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 		apiKey: "Basic " + base64.StdEncoding.EncodeToString([]byte(apiKey+":")),
 		Client: client,
 	}
+	service.apiBase = "https://api.pay.jp/v1"
+	service.MaxCount = defaultMaxCount
+	service.InitialDelay = defaultInitialDelay
+	service.MaxDelay = defaultMaxDelay
 	if len(config) > 0 {
-		service.apiBase = config[0].APIBase
-	} else {
-		service.apiBase = "https://api.pay.jp/v1"
+		if config[0].APIBase != nil {
+			service.apiBase = StringValue(config[0].APIBase)
+		}
+		if config[0].MaxCount != nil {
+			service.MaxCount = *config[0].MaxCount
+		}
+		if config[0].InitialDelay != nil {
+			service.InitialDelay = *config[0].InitialDelay
+		}
+		if config[0].MaxDelay != nil {
+			service.MaxDelay = *config[0].MaxDelay
+		}
+		service.Logger = config[0].Logger
 	}
 
 	service.Charge = newChargeService(service)
@@ -104,6 +150,11 @@ func IntValue(v *int) int64 {
 	return 0
 }
 
+// Float returns a pointer to the float64 value passed in.
+func Float(v float64) *float64 {
+	return &v
+}
+
 // Bool returns a pointer to the bool value passed in.
 func Bool(v bool) *bool {
 	return &v
@@ -114,7 +165,7 @@ func (s Service) APIBase() string {
 	return s.apiBase
 }
 
-func (s Service) request(method, path string, body io.Reader) ([]byte, error) {
+func (s Service) request(method, path string, body io.Reader, headerMap ...map[string]string) ([]byte, error) {
 	request, err := http.NewRequest(method, s.apiBase+path, body)
 	if err != nil {
 		return nil, err
@@ -124,14 +175,32 @@ func (s Service) request(method, path string, body io.Reader) ([]byte, error) {
 	request.Header.Add("X-Payjp-Client-User-Agent", "payjp-go/"+Version+"("+runtime.Version()+",os:"+runtime.GOOS+",arch:"+runtime.GOARCH+")")
 	if method == "POST" && body != nil {
 		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		if path == "/tokens" {
-			request.Header.Add("X-Payjp-Direct-Token-Generate", "true")
+	}
+	for _, headers := range headerMap {
+		for k, v := range headers {
+			request.Header.Add(k, v)
 		}
 	}
 
 	resp, err := s.Client.Do(request)
 	if err != nil {
 		return nil, err
+	}
+	logger := s.Logger
+	for currentRetryCount := 0; currentRetryCount < s.MaxCount; currentRetryCount++ {
+		if resp.StatusCode != rateLimitStatusCode {
+			// レートリミット制限ではないのでこれ以上のリトライは不要
+			break
+		}
+		delay := time.Duration(s.getRetryDelay(currentRetryCount)*1000) * time.Millisecond
+		if logger != nil {
+			logger.Printf("Current Retry Count: %d. Retry after %v", currentRetryCount+1, delay)
+		}
+		time.Sleep(delay)
+		resp, err = s.Client.Do(request)
+		if err != nil {
+			return nil, err
+		}
 	}
 	defer resp.Body.Close()
 	return ioutil.ReadAll(resp.Body)
