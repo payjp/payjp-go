@@ -3,22 +3,49 @@ package payjp
 import (
 	"encoding/base64"
 	"fmt"
+	"io"
+	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
-// Config 構造体はNewに渡すパラメータを設定するのに使用します。
-type Config struct {
-	APIBase string // APIのエンドポイントのURL(省略時は'https://api.pay.jp/v1')
+type HeaderMap = map[string]string
+type RetryConfig struct {
+	MaxCount     int
+	InitialDelay float64     // sec
+	MaxDelay     float64     // sec
+	Logger       *log.Logger // nilable
+}
+
+func defaultRetryConfig() RetryConfig {
+	return RetryConfig{
+		0,
+		2,
+		32,
+		nil,
+	}
+}
+
+// リクエストリトライ時に遅延させる時間を計算する
+// equal jitter に基づいて算出
+// ref: https://aws.amazon.com/jp/blogs/architecture/exponential-backoff-and-jitter/
+func (r RetryConfig) getRetryDelay(retryCount int) float64 {
+	delay := math.Min(r.MaxDelay, r.InitialDelay*math.Pow(2.0, float64(retryCount)))
+	half := delay / 2.0
+	offset := RandUniform(0, half)
+	return half + offset
 }
 
 // Service 構造体はPAY.JPのすべてのAPIの起点となる構造体です。
 // New()を使ってインスタンスを生成します。
 type Service struct {
-	Client  *http.Client
-	apiKey  string
-	apiBase string
+	Client      *http.Client
+	apiKey      string
+	apiBase     string
+	retryConfig RetryConfig
 
 	Charge       *ChargeService       // 支払いに関するAPI
 	Customer     *CustomerService     // 顧客情報に関するAPI
@@ -30,6 +57,20 @@ type Service struct {
 	Account      *AccountService      // アカウント情報に関するAPI
 }
 
+type Option func(*Service)
+
+func OptionApiBase(url string) Option {
+	return func(s *Service) {
+		s.apiBase = url
+	}
+}
+
+func OptionRetryConfig(retryConfig RetryConfig) Option {
+	return func(s *Service) {
+		s.retryConfig = retryConfig
+	}
+}
+
 // New はPAY.JPのAPIを初期化する関数です。
 //
 // apiKeyはPAY.JPのウェブサイトで作成したキーを指定します。
@@ -37,7 +78,7 @@ type Service struct {
 // clientは特別な設定をしたhttp.Clientを使用する場合に渡します。nilを指定するとデフォルトのもhttp.Clientを指定します。
 //
 // configは追加の設定が必要な場合に渡します。現状で設定できるのはAPIのエントリーポイントのURLのみです。省略できます。
-func New(apiKey string, client *http.Client, config ...Config) *Service {
+func New(apiKey string, client *http.Client, options ...Option) *Service {
 	if client == nil {
 		client = &http.Client{}
 	}
@@ -45,10 +86,11 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 		apiKey: "Basic " + base64.StdEncoding.EncodeToString([]byte(apiKey+":")),
 		Client: client,
 	}
-	if len(config) > 0 {
-		service.apiBase = config[0].APIBase
-	} else {
-		service.apiBase = "https://api.pay.jp/v1"
+
+	service.apiBase = "https://api.pay.jp/v1"
+	service.retryConfig = defaultRetryConfig()
+	for _, o := range options {
+		o(service)
 	}
 
 	service.Charge = newChargeService(service)
@@ -68,24 +110,123 @@ func (s Service) APIBase() string {
 	return s.apiBase
 }
 
-func (s Service) retrieve(resourceURL string) ([]byte, error) {
-	request, err := http.NewRequest("GET", s.apiBase+resourceURL, nil)
+func (s Service) RetryConfig() RetryConfig {
+	return s.retryConfig
+}
+
+type HttpMethod int
+
+const (
+	GET HttpMethod = iota + 1
+	POST
+	PUT
+	DELETE
+)
+
+type UnkownHttpMethod struct{}
+
+func (m HttpMethod) String() string {
+	switch m {
+	case 1:
+		return "GET"
+	case 2:
+		return "POST"
+	case 3:
+		return "PUT"
+	case 4:
+		return "DELETE"
+	default:
+		// though never reach
+		panic(UnkownHttpMethod{})
+	}
+}
+
+func (s Service) buildRequest(method HttpMethod, url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Request, error) {
+	var payload io.Reader = nil
+	if requestBuilder != nil {
+		payload = requestBuilder.Reader()
+	}
+	req, err := http.NewRequest(method.String(), url, payload)
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Add("Authorization", s.apiKey)
+	req.Header.Add("Authorization", s.apiKey)
+	if headers != nil {
+		for k, v := range headers {
+			req.Header.Add(k, v)
+		}
+	}
+	return req, nil
+}
 
-	return respToBody(s.Client.Do(request))
+func (s Service) doRequest(request *http.Request) (*http.Response, error) {
+	res, err := s.Client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+var rateLimitStatusCode = 429
+
+func (s Service) attemptRequest(request *http.Request) (res *http.Response, err error) {
+	logger := s.retryConfig.Logger
+	// レートリミット時、必要に応じてリトライを試行するリクエストのラッパー
+	res, err = s.doRequest(request)
+	for currentRetryCount := 0; currentRetryCount < s.retryConfig.MaxCount; currentRetryCount++ {
+		if res.StatusCode != rateLimitStatusCode {
+			// レートリミット制限ではないのでこれ以上のリトライは不要
+			break
+		}
+		delay := s.retryConfig.getRetryDelay(currentRetryCount)
+		delaySec := time.Duration(delay*1000) * time.Millisecond
+		if logger != nil {
+			logger.Printf("Current Retry Count: %d. Retry after %v", currentRetryCount+1, delaySec)
+		}
+		time.Sleep(delaySec)
+		res, err = s.doRequest(request)
+	}
+	return res, err
+}
+
+func (s Service) request(
+	method HttpMethod,
+	url string,
+	headers HeaderMap,
+	requestBuilder *requestBuilder,
+) (*http.Response, error) {
+	// レスポンスのデコードを含めたHTTPリクエストを行う
+	req, err := s.buildRequest(method, url, headers, requestBuilder)
+	if err != nil {
+		return nil, err
+	}
+	return s.attemptRequest(req)
+}
+
+func (s Service) postRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Response, error) {
+	return s.request(POST, url, headers, requestBuilder)
+}
+
+func (s Service) formUrlEncodedPostRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Response, error) {
+	// ContentType に application/x-www-form-url-encoded を設定して POST リクエストする
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+	return s.postRequest(url, headers, requestBuilder)
+}
+
+func (s Service) getRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Response, error) {
+	return s.request(GET, url, headers, requestBuilder)
+}
+
+func (s Service) deleteRequest(url string, headers HeaderMap, requestBuilder *requestBuilder) (*http.Response, error) {
+	return s.request(DELETE, url, headers, requestBuilder)
+}
+
+func (s Service) retrieve(resourceURL string) ([]byte, error) {
+	return respToBody(s.getRequest(s.apiBase+resourceURL, make(HeaderMap), nil))
 }
 
 func (s Service) delete(resourceURL string) error {
-	request, err := http.NewRequest("DELETE", s.apiBase+resourceURL, nil)
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Authorization", s.apiKey)
-
-	_, err = parseResponseError(s.Client.Do(request))
+	_, err := parseResponseError(s.deleteRequest(s.apiBase+resourceURL, make(HeaderMap), nil))
 	return err
 }
 
@@ -140,11 +281,5 @@ func (s Service) queryListAll(resourcePath string, limit, offset, since, until, 
 	} else {
 		requestURL = s.apiBase + resourcePath
 	}
-	request, err := http.NewRequest("GET", requestURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Authorization", s.apiKey)
-
-	return respToBody(s.Client.Do(request))
+	return respToBody(s.getRequest(requestURL, make(HeaderMap), nil))
 }
