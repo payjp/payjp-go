@@ -84,7 +84,7 @@ func TestParseStatementResponseJSON(t *testing.T) {
 	assert.IsType(t, s.Updated, s.Created)
 	assert.IsType(t, time.Unix(0, 0), s.UpdatedAt)
 	assert.IsType(t, s.CreatedAt, s.UpdatedAt)
-	assert.Equal(t, 3050, s.Net)
+	assert.EqualValues(t, 3050, s.Net)
 	assert.Equal(t, "sales", s.Type)
 	assert.Equal(t, "", s.TenantId)
 	assert.Equal(t, 3125, s.Items[0].Amount)

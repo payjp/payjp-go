@@ -81,7 +81,7 @@ type BalanceResponse struct {
 	LiveMode      bool   `json:"livemode"`
 	Created       *int   `json:"created"`
 	CreatedAt     time.Time
-	Net           int    `json:"net"`
+	Net           int64  `json:"net"`
 	Type          string `json:"type"`
 	Closed        bool   `json:"closed"`
 	Statements    []*StatementResponse

@@ -61,7 +61,7 @@ type StatementResponse struct {
 	BalanceId string        `json:"balance_id"`
 	TenantId  string        `json:"tenant_id"`
 	Type      string        `json:"type"`
-	Net       int           `json:"net"`
+	Net       int64         `json:"net"`
 	Term      *TermResponse `json:"term"`
 	CreatedAt time.Time
 	UpdatedAt time.Time

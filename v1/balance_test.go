@@ -49,7 +49,7 @@ func TestParseBalance(t *testing.T) {
 	assert.Equal(t, "balance", s.Object)
 	assert.Equal(t, 1438354800, *s.Created)
 	assert.IsType(t, time.Unix(0, 0), s.CreatedAt)
-	assert.Equal(t, 1000, s.Net)
+	assert.EqualValues(t, 1000, s.Net)
 	assert.True(t, s.RawStatements.HasMore)
 	assert.Equal(t, "st_xxx", s.Statements[0].ID)
 	assert.Equal(t, "", s.DueDate)
