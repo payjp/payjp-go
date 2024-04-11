@@ -9,7 +9,7 @@ type BalanceListParams struct {
 	ListParams   `form:"*"`
 	SinceDueDate *int    `form:"since_due_date"`
 	UntilDueDate *int    `form:"until_due_date"`
-	Type         *string `form:"type"`
+	State        *string `form:"state"`
 	Closed       *bool   `form:"closed"`
 	Owner        *string `form:"owner"`
 	Tenant       *string `form:"tenant"`
@@ -86,7 +86,7 @@ type BalanceResponse struct {
 	Closed        bool   `json:"closed"`
 	Statements    []*StatementResponse
 	RawStatements listResponseParser `json:"statements"`
-	DueDate       *string            `json:"due_date"`
+	DueDate       string             `json:"due_date"`
 	BankInfo      *BankInfo          `json:"bank_info"`
 	Object        string             `json:"object"`
 

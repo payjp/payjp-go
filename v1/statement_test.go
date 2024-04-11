@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func makeStatementJSONStr(term string, balance string) string {
+func makeStatementJSONStr(term string) string {
 	return `{
   "created": 1695892351,
   "id": "st_xxx",
@@ -27,14 +27,17 @@ func makeStatementJSONStr(term string, balance string) string {
   ],
   "livemode": true,
   "object": "statement",
-  "balance_id": ` + balance + `,
+  "balance_id": "ba_xxx",
   "title": null,
   "term": ` + term + `,
+  "net": 3050,
+  "tenant_id": null,
+  "type": "sales",
   "updated": 1695892351
 }`
 }
 
-var statementResponseJSONStr = makeStatementJSONStr("null", `"ba_xxx"`)
+var statementResponseJSONStr = makeStatementJSONStr("null")
 
 var statementResponseJSON = []byte(statementResponseJSONStr)
 
@@ -74,13 +77,16 @@ func TestParseStatementResponseJSON(t *testing.T) {
 	assert.Equal(t, "st_xxx", s.ID)
 	assert.True(t, s.LiveMode)
 	assert.Equal(t, "statement", s.Object)
-	assert.Nil(t, s.Title)
+	assert.Equal(t, "", s.Title)
 	assert.Equal(t, 1695892351, *s.Created)
-	assert.Equal(t, "ba_xxx", StringValue(s.BalanceId))
+	assert.Equal(t, "ba_xxx", s.BalanceId)
 	assert.Nil(t, s.Term)
 	assert.IsType(t, s.Updated, s.Created)
 	assert.IsType(t, time.Unix(0, 0), s.UpdatedAt)
 	assert.IsType(t, s.CreatedAt, s.UpdatedAt)
+	assert.Equal(t, 3050, s.Net)
+	assert.Equal(t, "sales", s.Type)
+	assert.Equal(t, "", s.TenantId)
 	assert.Equal(t, 3125, s.Items[0].Amount)
 	assert.Equal(t, "売上", s.Items[0].Name)
 	assert.Equal(t, "fee", s.Items[1].Subject)
@@ -88,18 +94,17 @@ func TestParseStatementResponseJSON(t *testing.T) {
 	assert.Equal(t, "0.00", s.Items[1].TaxRate)
 	assert.Equal(t, service, s.service)
 
-	statementResponseJSONStr2 := makeStatementJSONStr(termJSONStr, "null")
+	statementResponseJSONStr2 := makeStatementJSONStr(termJSONStr)
 	err = json.Unmarshal([]byte(statementResponseJSONStr2), s)
 	assert.NoError(t, err)
 	assert.Equal(t, "tm_b92b879e60f62b532d6756ae12af", s.Term.ID)
-	assert.Nil(t, s.BalanceId)
 }
 
 func TestParseStatementTitle(t *testing.T) {
 	s := &StatementResponse{}
 	err := json.Unmarshal(statementTitleJSON, s)
 	assert.NoError(t, err)
-	assert.Equal(t, "title", *s.Title)
+	assert.Equal(t, "title", s.Title)
 }
 
 func TestStatementUrls(t *testing.T) {
@@ -143,6 +148,7 @@ func TestStatementUrls(t *testing.T) {
 
 func TestListStatement(t *testing.T) {
 	mock, transport := newMockClient(200, statementListResponseJSON)
+	transport.AddResponse(200, statementListResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
 	service := New("api-key", mock)
 
@@ -162,6 +168,14 @@ func TestListStatement(t *testing.T) {
 	assert.Equal(t, len(statements), 1)
 	assert.Equal(t, "st_xxx", statements[0].ID)
 	assert.Equal(t, service, statements[0].service)
+
+	params = &StatementListParams{
+		Term: String("tm_xxx"),
+		Type: String("sales"),
+	}
+	statements, hasMore, err = service.Statement.All(params)
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/statements?term=tm_xxx&type=sales", transport.URL)
 
 	_, hasMore, err = service.Statement.All()
 	assert.False(t, hasMore)

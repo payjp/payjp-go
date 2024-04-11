@@ -52,7 +52,7 @@ func TestParseBalance(t *testing.T) {
 	assert.Equal(t, 1000, s.Net)
 	assert.True(t, s.RawStatements.HasMore)
 	assert.Equal(t, "st_xxx", s.Statements[0].ID)
-	assert.Nil(t, s.DueDate)
+	assert.Equal(t, "", s.DueDate)
 	assert.Equal(t, "collecting", s.Type)
 	assert.False(t, s.Closed)
 	assert.Nil(t, s.BankInfo)
@@ -68,7 +68,7 @@ func TestParseBalance(t *testing.T) {
 }`, `"2015-09-16"`)
 	err = json.Unmarshal([]byte(balanceJSONStr2), s)
 	assert.NoError(t, err)
-	assert.Equal(t, "2015-09-16", StringValue(s.DueDate))
+	assert.Equal(t, "2015-09-16", s.DueDate)
 	assert.Equal(t, "0001", s.BankInfo.BankCode)
 	assert.Equal(t, "123", s.BankInfo.BankBranchCode)
 	assert.Equal(t, "普通", s.BankInfo.BankAccountType)
@@ -89,7 +89,7 @@ func TestBalanceList(t *testing.T) {
 		},
 		SinceDueDate: Int(1455328095),
 		UntilDueDate: Int(1455328095),
-		Type:         String("collecting"),
+		State:        String("collecting"),
 		Closed:       Bool(true),
 		Owner:        String("tenant"),
 		Tenant:       String("ten_xxx"),
@@ -97,7 +97,7 @@ func TestBalanceList(t *testing.T) {
 	params.Limit = limit
 	res, hasMore, err := service.Balance.All(params)
 	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/balances?closed=true&limit=10&offset=0&owner=tenant&since_due_date=1455328095&tenant=ten_xxx&type=collecting&until_due_date=1455328095", transport.URL)
+	assert.Equal(t, "https://api.pay.jp/v1/balances?closed=true&limit=10&offset=0&owner=tenant&since_due_date=1455328095&state=collecting&tenant=ten_xxx&until_due_date=1455328095", transport.URL)
 	assert.Equal(t, "GET", transport.Method)
 	assert.False(t, hasMore)
 	assert.Equal(t, len(res), 1)
