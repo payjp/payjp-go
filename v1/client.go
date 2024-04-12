@@ -12,7 +12,7 @@ import (
 	"strconv"
 )
 
-const Version = "v0.1.0"
+const Version = "v0.2.0"
 const tagName = "form"
 
 // Config 構造体はNewに渡すパラメータを設定するのに使用します。
