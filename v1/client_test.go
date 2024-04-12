@@ -3,7 +3,6 @@ package payjp
 import (
 	"bytes"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"math"
 	"math/rand"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"testing/quick"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type TestListParams struct {
@@ -66,9 +67,7 @@ func TestNew(t *testing.T) {
 	service = New("api-key", client)
 	assert.Same(t, client, service.Client)
 
-	service = New("api-key", nil, Config{
-		APIBase: String("https://api.pay.jp/v2"),
-	})
+	service = New("api-key", nil, WithAPIBase("https://api.pay.jp/v2"))
 	assert.Equal(t, "https://api.pay.jp/v2", service.APIBase())
 }
 
@@ -132,13 +131,13 @@ func TestAttemptRequestWithoutRetrySetting(t *testing.T) {
 	client, transport := newMockClient(rateLimitStatusCode, rateLimitResponseBody)
 	var buf bytes.Buffer
 	logger := log.New(&buf, "TestAttemptRequestReachedRateLimit_", log.Ldate)
-	var noRetry = Config{
-		MaxCount:     Int(0),
-		InitialDelay: Float(2),
-		MaxDelay:     Float(32),
-		Logger:       logger,
+	var noRetry = []serviceConfig{
+		WithMaxCount(0),
+		WithInitialDelay(2),
+		WithMaxDelay(32),
+		WithLogger(logger),
 	} // リトライなしであることを明示
-	s := New("sk_test_xxxx", client, noRetry)
+	s := New("sk_test_xxxx", client, noRetry...)
 	resp, err := s.request("POST", "/endpoint", newRequestBuilder().Reader())
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/endpoint", transport.URL)
@@ -156,12 +155,12 @@ func TestAttemptRequestReachedRetryLimit(t *testing.T) {
 	transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
 	var buf bytes.Buffer
 	logger := log.New(&buf, "TestAttemptRequestReachedRateLimit_", log.Ldate)
-	s := New("sk_test_xxxx", client, Config{
-		MaxCount:     Int(2),
-		InitialDelay: Float(0.1),
-		MaxDelay:     Float(10),
-		Logger:       logger,
-	})
+	s := New("sk_test_xxxx", client,
+		WithMaxCount(2),
+		WithInitialDelay(0.1),
+		WithMaxDelay(10),
+		WithLogger(logger),
+	)
 	_, err := s.Account.Retrieve()
 	assert.Equal(t, rateLimitStr, err.Error())
 	logResults := strings.Split(strings.Trim(buf.String(), "\n"), "\n")
@@ -179,12 +178,12 @@ func TestAttemptRequestNotReachedRetryLimit(t *testing.T) {
 	transport.AddResponse(notRateLimitStatusCode, accountResponseJSON)
 	var buf bytes.Buffer
 	logger := log.New(&buf, "TestAttemptRequestNotReachedRetryLimit", log.Ldate)
-	s := New("sk_test_xxxx", client, Config{
-		MaxCount:     Int(3),
-		InitialDelay: Float(0.1),
-		MaxDelay:     Float(10),
-		Logger:       logger,
-	})
+	s := New("sk_test_xxxx", client,
+		WithMaxCount(3),
+		WithInitialDelay(0.1),
+		WithMaxDelay(10),
+		WithLogger(logger),
+	)
 	_, err := s.Account.Retrieve()
 	assert.NoError(t, err)
 	logResults := strings.Split(strings.Trim(buf.String(), "\n"), "\n")
