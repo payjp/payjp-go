@@ -48,7 +48,8 @@ var chargeResponseJSON = []byte(`
   "refund_reason": null,
   "refunded": false,
   "three_d_secure_status": null,
-  "subscription": null
+  "subscription": null,
+  "term_id": "tm_425000e2a448b39b83480a358fee5"
 }
 `)
 
@@ -150,6 +151,7 @@ func TestParseChargeResponseJSON(t *testing.T) {
 	assert.Equal(t, "3.00", s.FeeRate)
 	assert.Nil(t, s.ThreeDSecureStatus)
 	assert.Equal(t, "charge", s.Object)
+	assert.Equal(t, "tm_425000e2a448b39b83480a358fee5", s.TermID)
 	assert.Equal(t, service, s.service)
 }
 
@@ -424,10 +426,11 @@ func TestChargeList(t *testing.T) {
 		Customer:     String("a"),
 		Subscription: String("b"),
 		Tenant:       String("c"),
+		Term:         String("d"),
 	}
 	charges, hasMore, err = service.Charge.All(params)
 	assert.NoError(t, err)
-	assert.Equal(t, "https://api.pay.jp/v1/charges?customer=a&limit=10&offset=0&subscription=b&tenant=c", transport.URL)
+	assert.Equal(t, "https://api.pay.jp/v1/charges?customer=a&limit=10&offset=0&subscription=b&tenant=c&term=d", transport.URL)
 	assert.Equal(t, "GET", transport.Method)
 	assert.True(t, hasMore)
 	assert.Equal(t, len(charges), 1)
