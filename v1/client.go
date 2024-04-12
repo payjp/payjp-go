@@ -20,13 +20,41 @@ const Version = "v0.2.0"
 const tagName = "form"
 const rateLimitStatusCode = 429
 
-// Config 構造体はNewに渡すパラメータを設定するのに使用します。
-type Config struct {
-	APIBase      *string // 内部デバッグ用
-	MaxCount     *int
-	InitialDelay *float64 // sec
-	MaxDelay     *float64 // sec
-	Logger       *log.Logger
+type serviceConfig func(*Service)
+
+// WithAPIBase はAPIのエントリーポイントを変更するために使用します。
+func WithAPIBase(apiBase string) serviceConfig {
+	return func(s *Service) {
+		s.apiBase = apiBase
+	}
+}
+
+// WithMaxCount はリクエストのリトライ回数を変更するために使用します。
+func WithMaxCount(maxCount int) serviceConfig {
+	return func(s *Service) {
+		s.MaxCount = maxCount
+	}
+}
+
+// WithInitialDelay はリクエストリトライ時の初期遅延時間を変更するために使用します。
+func WithInitialDelay(initialDelay float64) serviceConfig {
+	return func(s *Service) {
+		s.InitialDelay = initialDelay
+	}
+}
+
+// WithMaxDelay はリクエストリトライ時の最大遅延時間を変更するために使用します。
+func WithMaxDelay(maxDelay float64) serviceConfig {
+	return func(s *Service) {
+		s.MaxDelay = maxDelay
+	}
+}
+
+// WithLogger はログ出力を変更するために使用します。
+func WithLogger(logger *log.Logger) serviceConfig {
+	return func(s *Service) {
+		s.Logger = logger
+	}
 }
 
 const defaultMaxCount = 0
@@ -79,7 +107,7 @@ type Service struct {
 // clientは特別な設定をしたhttp.Clientを使用する場合に渡します。nilを指定するとデフォルトのもhttp.Clientを指定します。
 //
 // configは追加の設定が必要な場合に渡します。
-func New(apiKey string, client *http.Client, config ...Config) *Service {
+func New(apiKey string, client *http.Client, configs ...serviceConfig) *Service {
 	if client == nil {
 		client = &http.Client{}
 	}
@@ -91,20 +119,9 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 	service.MaxCount = defaultMaxCount
 	service.InitialDelay = defaultInitialDelay
 	service.MaxDelay = defaultMaxDelay
-	if len(config) > 0 {
-		if config[0].APIBase != nil {
-			service.apiBase = StringValue(config[0].APIBase)
-		}
-		if config[0].MaxCount != nil {
-			service.MaxCount = *config[0].MaxCount
-		}
-		if config[0].InitialDelay != nil {
-			service.InitialDelay = *config[0].InitialDelay
-		}
-		if config[0].MaxDelay != nil {
-			service.MaxDelay = *config[0].MaxDelay
-		}
-		service.Logger = config[0].Logger
+
+	for _, c := range configs {
+		c(service)
 	}
 
 	service.Charge = newChargeService(service)
