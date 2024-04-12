@@ -78,7 +78,7 @@ func TestCustomerCreate(t *testing.T) {
 	service := New("api-key", mock)
 
 	customer, err := service.Customer.Create(Customer{
-		Email:       "example@example.com",
+		Email:       String("example@example.com"),
 		Description: "test",
 		ID:          "test",
 		CardToken:   "tok_xxx",

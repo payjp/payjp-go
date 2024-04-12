@@ -54,10 +54,15 @@ func (s StatementService) Retrieve(id string) (*StatementResponse, error) {
 
 // StatementResponse
 type StatementResponse struct {
-	ID        string  `json:"id"`
-	LiveMode  bool    `json:"livemode"`
-	Object    string  `json:"object"`
-	Title     *string `json:"title"`
+	ID        string        `json:"id"`
+	LiveMode  bool          `json:"livemode"`
+	Object    string        `json:"object"`
+	Title     string        `json:"title"`
+	BalanceId string        `json:"balance_id"`
+	TenantId  string        `json:"tenant_id"`
+	Type      string        `json:"type"`
+	Net       int64         `json:"net"`
+	Term      *TermResponse `json:"term"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Items     []StatementItem
@@ -107,6 +112,8 @@ type StatementListParams struct {
 	Owner          *string `form:"owner"`
 	SourceTransfer *string `form:"source_transfer"`
 	Tenant         *string `form:"tenant"`
+	Term           *string `form:"term"`
+	Type           *string `form:"type"`
 }
 
 func (c StatementService) All(params ...*StatementListParams) ([]*StatementResponse, bool, error) {

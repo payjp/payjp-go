@@ -173,6 +173,7 @@ type ChargeListParams struct {
 	Customer     *string `form:"customer"`
 	Subscription *string `form:"subscription"`
 	Tenant       *string `form:"tenant"`
+	Term         *string `form:"term"`
 }
 
 type ChargeListCaller struct {
@@ -345,6 +346,7 @@ type ChargeResponse struct {
 	Metadata           map[string]string `json:"metadata"`
 	FeeRate            string            `json:"fee_rate"`              // 決済手数料率
 	ThreeDSecureStatus *string           `json:"three_d_secure_status"` // 3Dセキュアの実施状況
+	TermID             string            `json:"term_id"` // TermオブジェクトID
 	Object             string            `json:"object"`
 
 	service *Service

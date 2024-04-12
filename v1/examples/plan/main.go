@@ -9,11 +9,10 @@ import (
 func main() {
 	payjpService := payjp.New("sk_test_c62fade9d045b54cd76d7036", nil)
 
-	plans, _, _ := payjpService.Plan.All(&payjp.PlanListParams{
-		ListParams: payjp.ListParams{
-			Limit: payjp.Int(1),
-		},
-	})
+	listParams := payjp.ListParams{
+		Limit: payjp.Int(1),
+	}
+	plans, _, _ := payjpService.Plan.All(&payjp.PlanListParams{listParams})
 	plan := plans[0]
 	fmt.Println("  Id:", plan.ID)
 	fmt.Println("  BillingDay:", plan.BillingDay)

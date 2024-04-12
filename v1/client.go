@@ -34,6 +34,8 @@ type Service struct {
 	Token        *TokenService
 	Transfer     *TransferService
 	Statement    *StatementService
+	Term         *TermService
+	Balance      *BalanceService
 	Event        *EventService
 	Account      *AccountService
 }
@@ -67,6 +69,8 @@ func New(apiKey string, client *http.Client, config ...Config) *Service {
 	service.Token = newTokenService(service)
 	service.Transfer = newTransferService(service)
 	service.Statement = newStatementService(service)
+	service.Balance = newBalanceService(service)
+	service.Term = newTermService(service)
 	service.Event = newEventService(service)
 
 	return service
