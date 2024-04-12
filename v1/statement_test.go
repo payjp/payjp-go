@@ -173,7 +173,7 @@ func TestListStatement(t *testing.T) {
 		Term: String("tm_xxx"),
 		Type: String("sales"),
 	}
-	statements, hasMore, err = service.Statement.All(params)
+	_, _, err = service.Statement.All(params)
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/statements?term=tm_xxx&type=sales", transport.URL)
 

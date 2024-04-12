@@ -15,11 +15,6 @@ type BalanceListParams struct {
 	Tenant       *string `form:"tenant"`
 }
 
-type balanceListCaller struct {
-	service BalanceService
-	BalanceListParams
-}
-
 type BalanceService struct {
 	service *Service
 }
