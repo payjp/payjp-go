@@ -51,7 +51,10 @@ func (t TokenService) Create(card Token) (*TokenResponse, error) {
 	qb.Add("card[country]", card.Country)
 	qb.Add("card[name]", card.Name)
 
-	return parseToken(t.service.request("POST", "/tokens", qb.Reader()))
+	return parseToken(
+		t.service.request("POST", "/tokens", qb.Reader(), map[string]string{
+			"X-Payjp-Direct-Token-Generate": "true",
+		}))
 }
 
 // Retrieve token object. 特定のトークン情報を取得します。

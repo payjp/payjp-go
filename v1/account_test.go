@@ -3,7 +3,9 @@ package payjp
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
+	"time"
 )
 
 var accountResponseJSON = []byte(`
@@ -47,13 +49,29 @@ var accountResponseJSON = []byte(`
 `)
 
 func TestParseAccountResponseJSON(t *testing.T) {
-	a := &AccountResponse{}
-	err := json.Unmarshal(accountResponseJSON, a)
+	account := &AccountResponse{}
+	err := json.Unmarshal(accountResponseJSON, account)
 
 	assert.NoError(t, err)
-	assert.Equal(t, "acct_8a27db83a7bf11a0c12b0c2833f", a.ID)
-	assert.False(t, a.Merchant.LiveModeEnabled)
-	assert.Equal(t, "example-team-id", a.TeamID)
+	assert.Equal(t, "acct_8a27db83a7bf11a0c12b0c2833f", account.ID)
+	assert.True(t, strings.Contains(account.CreatedAt.Format(time.RFC1123Z), "Sun, 16 Aug 2015 "))
+	assert.Equal(t, "liveaccount@mail.com", account.Email)
+	assert.Equal(t, "acct_mch_21a96cb898ceb6db0932983", account.Merchant.ID)
+	assert.False(t, account.Merchant.BankEnabled)
+	assert.Equal(t, "Visa, MasterCard, JCB, American Express, Diners Club, Discover", strings.Join(account.Merchant.BrandsAccepted, ", "))
+	assert.Equal(t, "", account.Merchant.ContactPhone)
+	assert.Equal(t, "JP", account.Merchant.Country)
+	assert.Equal(t, 1, len(account.Merchant.CurrenciesSupported))
+	assert.Equal(t, "jpy", account.Merchant.CurrenciesSupported[0])
+	assert.Equal(t, "jpy", account.Merchant.DefaultCurrency)
+	assert.False(t, account.Merchant.DetailsSubmitted)
+	assert.True(t, strings.Contains(account.Merchant.LiveModeActivatedAt.Format(time.RFC1123Z), "Thu, 01 Jan 1970 "))
+	assert.False(t, account.Merchant.LiveModeEnabled)
+	assert.Equal(t, "", account.Merchant.ProductDetail)
+	assert.Equal(t, "", account.Merchant.ProductName)
+	assert.False(t, account.Merchant.SitePublished)
+	assert.Equal(t, "", account.Merchant.URL)
+	assert.Equal(t, "example-team-id", account.TeamID)
 }
 
 func TestAccountRetrieve(t *testing.T) {
