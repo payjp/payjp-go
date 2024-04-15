@@ -58,7 +58,7 @@ func TestNew(t *testing.T) {
 	assert.EqualValues(t, 0, service.MaxCount)
 	assert.EqualValues(t, 2, service.InitialDelay)
 	assert.EqualValues(t, 32, service.MaxDelay)
-	assert.EqualValues(t, service.Logger, DefaultLogger)
+	assert.EqualValues(t, service.Logger, NullLogger)
 
 	client := &http.Client{}
 	assert.NotSame(t, client, service.Client)

@@ -51,7 +51,7 @@ func WithMaxDelay(maxDelay float64) serviceConfig {
 
 // WithLogger はログ出力を変更するために使用します。
 //
-// デフォルトではWARN, ERRORのログが標準エラーに出力されます。
+// デフォルトではログは出力されません。
 // LoggerInterfaceを実装した構造体を渡すことでログ出力を変更できます。
 func WithLogger(logger LoggerInterface) serviceConfig {
 	return func(s *Service) {
@@ -121,7 +121,7 @@ func New(apiKey string, client *http.Client, configs ...serviceConfig) *Service 
 	service.MaxCount = defaultMaxCount
 	service.InitialDelay = defaultInitialDelay
 	service.MaxDelay = defaultMaxDelay
-	service.Logger = DefaultLogger
+	service.Logger = NullLogger
 
 	for _, c := range configs {
 		c(service)
