@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/payjp/payjp-go/v1"
 )
@@ -51,16 +50,13 @@ func con(pay *payjp.Service, x int) {
 }
 
 func main() {
-	var buf bytes.Buffer
-	logger := log.New(&buf, "example_", log.Lshortfile)
 	pay := payjp.New(
 		"sk_test_c62fade9d045b54cd76d7036",
 		nil,
 		payjp.WithMaxCount(5),
 		// payjp.WithMaxDelay(1),
 		// payjp.WithInitialDelay(0.001),
-		payjp.WithLogger(logger),
+		payjp.WithLogger(payjp.NewPayjpLogger(payjp.LogLevelInfo)),
 	)
 	con(pay, 30)
-	fmt.Println(buf.String())
 }

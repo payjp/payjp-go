@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"math/rand"
 	"net/http"
@@ -51,7 +50,10 @@ func WithMaxDelay(maxDelay float64) serviceConfig {
 }
 
 // WithLogger はログ出力を変更するために使用します。
-func WithLogger(logger *log.Logger) serviceConfig {
+//
+// デフォルトではWARN, ERRORのログが標準エラーに出力されます。
+// LoggerInterfaceを実装した構造体を渡すことでログ出力を変更できます。
+func WithLogger(logger LoggerInterface) serviceConfig {
 	return func(s *Service) {
 		s.Logger = logger
 	}
@@ -85,7 +87,7 @@ type Service struct {
 	MaxCount     int
 	InitialDelay float64
 	MaxDelay     float64
-	Logger       *log.Logger
+	Logger       LoggerInterface
 
 	Charge       *ChargeService
 	Customer     *CustomerService
@@ -119,6 +121,7 @@ func New(apiKey string, client *http.Client, configs ...serviceConfig) *Service 
 	service.MaxCount = defaultMaxCount
 	service.InitialDelay = defaultInitialDelay
 	service.MaxDelay = defaultMaxDelay
+	service.Logger = DefaultLogger
 
 	for _, c := range configs {
 		c(service)
@@ -211,7 +214,7 @@ func (s Service) request(method, path string, body io.Reader, headerMap ...map[s
 		}
 		delay := time.Duration(s.getRetryDelay(currentRetryCount)*1000) * time.Millisecond
 		if logger != nil {
-			logger.Printf("Current Retry Count: %d. Retry after %v", currentRetryCount+1, delay)
+			logger.Infof("Current Retry Count: %d. Retry after %v", currentRetryCount+1, delay)
 		}
 		time.Sleep(delay)
 		resp, err = s.Client.Do(request)

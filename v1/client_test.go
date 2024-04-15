@@ -3,7 +3,6 @@ package payjp
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"math"
 	"math/rand"
 	"net/http"
@@ -59,7 +58,7 @@ func TestNew(t *testing.T) {
 	assert.EqualValues(t, 0, service.MaxCount)
 	assert.EqualValues(t, 2, service.InitialDelay)
 	assert.EqualValues(t, 32, service.MaxDelay)
-	assert.Nil(t, service.Logger)
+	assert.EqualValues(t, service.Logger, DefaultLogger)
 
 	client := &http.Client{}
 	assert.NotSame(t, client, service.Client)
@@ -130,7 +129,7 @@ func TestAttemptRequestWithoutRetrySetting(t *testing.T) {
 	// RetryConfig.Logger によるログ記録がないことで処理完了を検証
 	client, transport := newMockClient(rateLimitStatusCode, rateLimitResponseBody)
 	var buf bytes.Buffer
-	logger := log.New(&buf, "TestAttemptRequestReachedRateLimit_", log.Ldate)
+	logger := &PayjpLogger{logLevel: LogLevelDebug, stdoutOverride: &buf}
 	var noRetry = []serviceConfig{
 		WithMaxCount(0),
 		WithInitialDelay(2),
@@ -154,7 +153,7 @@ func TestAttemptRequestReachedRetryLimit(t *testing.T) {
 	client, transport := newMockClient(rateLimitStatusCode, rateLimitResponseBody)
 	transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
 	var buf bytes.Buffer
-	logger := log.New(&buf, "TestAttemptRequestReachedRateLimit_", log.Ldate)
+	logger := &PayjpLogger{logLevel: LogLevelDebug, stdoutOverride: &buf}
 	s := New("sk_test_xxxx", client,
 		WithMaxCount(2),
 		WithInitialDelay(0.1),
@@ -177,7 +176,7 @@ func TestAttemptRequestNotReachedRetryLimit(t *testing.T) {
 	transport.AddResponse(rateLimitStatusCode, rateLimitResponseBody)
 	transport.AddResponse(notRateLimitStatusCode, accountResponseJSON)
 	var buf bytes.Buffer
-	logger := log.New(&buf, "TestAttemptRequestNotReachedRetryLimit", log.Ldate)
+	logger := &PayjpLogger{logLevel: LogLevelDebug, stdoutOverride: &buf}
 	s := New("sk_test_xxxx", client,
 		WithMaxCount(3),
 		WithInitialDelay(0.1),
