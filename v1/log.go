@@ -25,10 +25,6 @@ type LoggerInterface interface {
 	Errorf(format string, args ...interface{})
 }
 
-// DefaultLogger はデフォルトのロガーです。
-// WARN, ERRORのログが標準エラーに出力されます。
-var DefaultLogger LoggerInterface = NewPayjpLogger(LogLevelWarn)
-
 // NullLogger はログを出力しないロガーです。
 var NullLogger LoggerInterface = NewPayjpLogger(LogLevelNull)
 
