@@ -25,6 +25,24 @@ func newBalanceService(service *Service) *BalanceService {
 	}
 }
 
+func (s *BalanceResponse) StatementUrls(p ...StatementUrls) (*StatementUrlResponse, error) {
+	qb := newRequestBuilder()
+	if len(p) > 0 {
+		qb.Add("platformer", p[0].Platformer)
+	}
+
+	body, err := s.service.request("POST", "/balances/"+s.ID+"/statement_urls", qb.Reader())
+	if err != nil {
+		return nil, err
+	}
+	result := &StatementUrlResponse{}
+	err = json.Unmarshal(body, result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // Retrieve transfer object. 入金情報を取得します。
 func (t BalanceService) Retrieve(id string) (*BalanceResponse, error) {
 	body, err := t.service.request("GET", "/balances/"+id, nil)

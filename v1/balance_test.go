@@ -2,9 +2,10 @@ package payjp
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func makeBalanceJSONStr(bank string, d string) string {
@@ -125,4 +126,42 @@ func TestBalance(t *testing.T) {
 	_, err = service.Balance.Retrieve("ba_xxx")
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())
+}
+
+func TestBalanceStatementUrls(t *testing.T) {
+	mock, transport := newMockClient(200, balanceResponseJSON)
+	transport.AddResponse(400, errorResponseJSON)
+	transport.AddResponse(200, statementUrlsResponseJSON)
+	transport.AddResponse(200, statementUrlsResponseJSON)
+	transport.AddResponse(200, statementUrlsResponseJSON)
+	service := New("api-key", mock)
+
+	balance, err := service.Balance.Retrieve("ba_xxx")
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/balances/ba_xxx", transport.URL)
+	assert.Equal(t, "GET", transport.Method)
+	assert.NotNil(t, balance)
+
+	_, err = service.Balance.Retrieve("ba_xxx")
+	assert.IsType(t, &Error{}, err)
+	assert.Equal(t, errorStr, err.Error())
+
+	url, err := balance.StatementUrls(StatementUrls{
+		Platformer: Bool(true),
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "https://api.pay.jp/v1/balances/ba_xxx/statement_urls", transport.URL)
+	assert.Equal(t, "POST", transport.Method)
+	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
+	assert.Equal(t, "platformer=true", *transport.Body)
+	assert.NotNil(t, url)
+	assert.Equal(t, "url", url.URL)
+
+	_, err = balance.StatementUrls()
+	assert.NoError(t, err)
+	assert.Equal(t, "", *transport.Body)
+
+	_, err = balance.StatementUrls(StatementUrls{})
+	assert.NoError(t, err)
+	assert.Equal(t, "", *transport.Body)
 }
