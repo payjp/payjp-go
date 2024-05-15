@@ -131,9 +131,9 @@ func TestBalance(t *testing.T) {
 func TestBalanceStatementUrls(t *testing.T) {
 	mock, transport := newMockClient(200, balanceResponseJSON)
 	transport.AddResponse(400, errorResponseJSON)
-	transport.AddResponse(200, balanceStatementUrlsResponseJSON)
-	transport.AddResponse(200, balanceStatementUrlsResponseJSON)
-	transport.AddResponse(200, balanceStatementUrlsResponseJSON)
+	transport.AddResponse(200, statementUrlsResponseJSON)
+	transport.AddResponse(200, statementUrlsResponseJSON)
+	transport.AddResponse(200, statementUrlsResponseJSON)
 	service := New("api-key", mock)
 
 	balance, err := service.Balance.Retrieve("ba_xxx")
