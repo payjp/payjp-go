@@ -25,13 +25,6 @@ func makeBalanceJSONStr(bank string, d string) string {
 var balanceJSONStr = makeBalanceJSONStr("null", "null")
 
 var balanceResponseJSON = []byte(balanceJSONStr)
-var balanceStatementUrlsResponseJSON = []byte(`
-{
-  "expires": 1695903280,
-  "object": "statement_url",
-  "url": "url"
-}
-`)
 
 var balanceListJSONStr = `
 {
