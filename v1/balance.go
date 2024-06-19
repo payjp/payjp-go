@@ -99,7 +99,8 @@ type BalanceResponse struct {
 	Closed        bool   `json:"closed"`
 	Statements    []*StatementResponse
 	RawStatements listResponseParser `json:"statements"`
-	DueDate       string             `json:"due_date"`
+	RawDueDate    *int             `json:"due_date"`
+	DueDate       time.Time
 	BankInfo      *BankInfo          `json:"bank_info"`
 	Object        string             `json:"object"`
 
@@ -112,6 +113,7 @@ func (t *BalanceResponse) UnmarshalJSON(b []byte) error {
 	err := json.Unmarshal(b, &raw)
 	if err == nil && raw.Object == "balance" {
 		raw.CreatedAt = time.Unix(IntValue(raw.Created), 0)
+		raw.DueDate = time.Unix(IntValue(raw.RawDueDate), 0)
 		raw.Statements = make([]*StatementResponse, len(raw.RawStatements.Data))
 		for i, r := range raw.RawStatements.Data {
 			json.Unmarshal(r, &(raw.Statements[i]))
