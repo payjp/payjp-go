@@ -71,7 +71,7 @@ func TestParseBalance(t *testing.T) {
 	err = json.Unmarshal([]byte(balanceJSONStr2), s)
 	assert.NoError(t, err)
 	assert.Equal(t, 1711897200, *s.RawDueDate)
-	assert.Equal(t, time.Date(2024, 4, 1, 0, 0, 0, 0, time.Local), s.DueDate)
+	assert.Equal(t, 1711897200, (int)(s.DueDate.Unix()))
 	assert.Equal(t, "0001", s.BankInfo.BankCode)
 	assert.Equal(t, "123", s.BankInfo.BankBranchCode)
 	assert.Equal(t, "普通", s.BankInfo.BankAccountType)
