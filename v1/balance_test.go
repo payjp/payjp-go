@@ -53,7 +53,8 @@ func TestParseBalance(t *testing.T) {
 	assert.EqualValues(t, 1000, s.Net)
 	assert.True(t, s.RawStatements.HasMore)
 	assert.Equal(t, "st_xxx", s.Statements[0].ID)
-	assert.Equal(t, "", s.DueDate)
+	assert.Equal(t, (*int)(nil), s.RawDueDate)
+	assert.Equal(t, time.Unix(0, 0), s.DueDate)
 	assert.Equal(t, "collecting", s.Type)
 	assert.False(t, s.Closed)
 	assert.Nil(t, s.BankInfo)
@@ -66,10 +67,11 @@ func TestParseBalance(t *testing.T) {
 	"bank_account_number": "1234567",
 	"bank_account_holder_name": "ペイ　タロウ",
 	"bank_account_status": "pending"
-}`, `"2015-09-16"`)
+}`, `1711897200`)
 	err = json.Unmarshal([]byte(balanceJSONStr2), s)
 	assert.NoError(t, err)
-	assert.Equal(t, "2015-09-16", s.DueDate)
+	assert.Equal(t, 1711897200, *s.RawDueDate)
+	assert.Equal(t, time.Date(2024, 4, 1, 0, 0, 0, 0, time.Local), s.DueDate)
 	assert.Equal(t, "0001", s.BankInfo.BankCode)
 	assert.Equal(t, "123", s.BankInfo.BankBranchCode)
 	assert.Equal(t, "普通", s.BankInfo.BankAccountType)
