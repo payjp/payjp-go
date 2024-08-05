@@ -27,8 +27,8 @@ var tokenResponseJSON = []byte(`
     "last4": "4242",
     "name": "PAY TARO",
     "object": "card",
-	"email": "liveaccount@example.com",
-	"phone": "+81301234567"
+    "email": "liveaccount@example.com",
+    "phone": "+81301234567"
   },
   "created": 1442290383,
   "id": "tok_5ca06b51685e001723a2c3b4aeb4",
