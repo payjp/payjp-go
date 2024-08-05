@@ -25,10 +25,12 @@ var cardResponseJSONStr = `
   "id": "car_f7d9fa98594dc7c2e42bfcd641ff",
   "last4": "4242",
   "livemode": false,
-  "name": null,
+  "name": "PAY TARO",
   "three_d_secure_status": null,
   "metadata": {},
-  "object": "card"
+  "object": "card",
+  "email": "liveaccount@example.com",
+  "phone": "+81301234567"
 }`
 var cardResponseJSON = []byte(cardResponseJSONStr)
 
@@ -61,10 +63,12 @@ var cardUpdateResponseJSON = []byte(`
   "id": "car_f7d9fa98594dc7c2e42bfcd641ff",
   "last4": "4242",
   "livemode": false,
-  "name": "pay",
+  "name": "PAY TARO",
   "three_d_secure_status": "verified",
   "metadata": {},
-  "object": "card"
+  "object": "card",
+  "email": "liveaccount@example.com",
+  "phone": "+81301234567"
 }`)
 
 var deleteResponseJSONStr = `
@@ -93,6 +97,8 @@ func TestParseCardResponseJSON(t *testing.T) {
 	assert.Equal(t, map[string]string{}, card.Metadata)
 	assert.Equal(t, customerID, card.customerID)
 	assert.Equal(t, service, card.service)
+	assert.Equal(t, "liveaccount@example.com", *card.Email)
+	assert.Equal(t, "+81301234567", *card.Phone)
 }
 
 func TestCustomerAddCardToken(t *testing.T) {
@@ -220,14 +226,14 @@ func TestCustomerUpdateCard(t *testing.T) {
 	service := New("api-key", mock)
 
 	card, err := service.Customer.UpdateCard("cus_121673955bd7aa144de5a8f6c262", "car_f7d9fa98594dc7c2e42bfcd641ff", Card{
-		Name: "pay",
+		Name: "PAY TARO",
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards/car_f7d9fa98594dc7c2e42bfcd641ff", transport.URL)
 	assert.Equal(t, "POST", transport.Method)
 	assert.Equal(t, "Basic YXBpLWtleTo=", transport.Header.Get("Authorization"))
 	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
-	assert.Equal(t, "card[name]=pay", *transport.Body)
+	assert.Equal(t, "card[name]=PAY+TARO", *transport.Body)
 	assert.NotNil(t, card)
 	assert.Equal(t, "4242", card.Last4)
 
@@ -249,24 +255,24 @@ func TestCustomerResponseUpdateCard(t *testing.T) {
 	assert.NotNil(t, customer)
 
 	card := customer.Cards[0]
-	assert.Equal(t, "", card.Name)
+	assert.Equal(t, "PAY TARO", card.Name)
 	err = card.Update(Card{
-		Name: "pay",
+		Name: "PAY TARO",
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://api.pay.jp/v1/customers/cus_121673955bd7aa144de5a8f6c262/cards/car_f7d9fa98594dc7c2e42bfcd641ff", transport.URL)
 	assert.Equal(t, "POST", transport.Method)
 	assert.Equal(t, "Basic YXBpLWtleTo=", transport.Header.Get("Authorization"))
 	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
-	assert.Equal(t, "card[name]=pay", *transport.Body)
-	assert.Equal(t, "pay", card.Name)
+	assert.Equal(t, "card[name]=PAY+TARO", *transport.Body)
+	assert.Equal(t, "PAY TARO", card.Name)
 
 	err = card.Update(Card{
-		Name: "pay",
+		Name: "PAY TARO",
 	})
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())
-	assert.Equal(t, "pay", card.Name)
+	assert.Equal(t, "PAY TARO", card.Name)
 
 	card, err = customer.UpdateCard("car_f7d9fa98594dc7c2e42bfcd641ff", Card{
 		Name: "",
@@ -277,12 +283,12 @@ func TestCustomerResponseUpdateCard(t *testing.T) {
 	assert.Equal(t, "Basic YXBpLWtleTo=", transport.Header.Get("Authorization"))
 	assert.Equal(t, "application/x-www-form-urlencoded", transport.Header.Get("Content-Type"))
 	assert.Equal(t, "card[name]=", *transport.Body)
-	assert.Equal(t, "", card.Name)
+	assert.Equal(t, "PAY TARO", card.Name)
 
 	res, err := customer.UpdateCard("car_f7d9fa98594dc7c2e42bfcd641ff", Card{})
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())
-	assert.Equal(t, "", card.Name)
+	assert.Equal(t, "PAY TARO", card.Name)
 	assert.Equal(t, "", res.Name)
 	// assert.Nil(t, res)
 }

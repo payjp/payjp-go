@@ -14,6 +14,8 @@ type Card struct {
 	AddressCity  interface{}       // 市区町村
 	AddressLine1 interface{}       // 番地など
 	AddressLine2 interface{}       // 建物名など
+	Email        interface{}       // メールアドレス
+	Phone        interface{}       // E.164形式の電話番号
 	Metadata     map[string]string // メタデータ
 }
 
@@ -40,6 +42,8 @@ type CardResponse struct {
 	Object             string            `json:"object"`
 	Metadata           map[string]string `json:"metadata"`
 	ThreeDSecureStatus *string           `json:"three_d_secure_status"`
+	Email              *string           `json:"email"`
+	Phone              *string           `json:"phone"`
 
 	customerID string
 	service    *Service

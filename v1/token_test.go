@@ -25,8 +25,10 @@ var tokenResponseJSON = []byte(`
     "fingerprint": "e1d8225886e3a7211127df751c86787f",
     "id": "car_e3ccd4e0959f45e7c75bacc4be90",
     "last4": "4242",
-    "name": null,
-    "object": "card"
+    "name": "PAY TARO",
+    "object": "card",
+    "email": "liveaccount@example.com",
+    "phone": "+81301234567"
   },
   "created": 1442290383,
   "id": "tok_5ca06b51685e001723a2c3b4aeb4",
@@ -42,6 +44,8 @@ func TestParseTokenResponseJSON(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "tok_5ca06b51685e001723a2c3b4aeb4", token.ID)
+	assert.Equal(t, "liveaccount@example.com", *token.Card.Email)
+	assert.Equal(t, "+81301234567", *token.Card.Phone)
 }
 
 func TestTokenCreate(t *testing.T) {

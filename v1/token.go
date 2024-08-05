@@ -50,6 +50,8 @@ func (t TokenService) Create(card Token) (*TokenResponse, error) {
 	qb.Add("card[address_zip]", card.AddressZip)
 	qb.Add("card[country]", card.Country)
 	qb.Add("card[name]", card.Name)
+	qb.Add("card[email]", card.Email)
+	qb.Add("card[phone]", card.Phone)
 
 	return parseToken(
 		t.service.request("POST", "/tokens", qb.Reader(), map[string]string{
