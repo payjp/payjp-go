@@ -130,7 +130,7 @@ func TestAttemptRequestWithoutRetrySetting(t *testing.T) {
 	client, transport := newMockClient(rateLimitStatusCode, rateLimitResponseBody)
 	var buf bytes.Buffer
 	logger := &PayjpLogger{logLevel: LogLevelDebug, stdoutOverride: &buf}
-	var noRetry = []serviceConfig{
+	var noRetry = []ServiceConfig{
 		WithMaxCount(0),
 		WithInitialDelay(2),
 		WithMaxDelay(32),
