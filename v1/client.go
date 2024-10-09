@@ -19,31 +19,31 @@ const Version = "v0.2.4"
 const tagName = "form"
 const rateLimitStatusCode = 429
 
-type serviceConfig func(*Service)
+type ServiceConfig func(*Service)
 
 // WithAPIBase はAPIのエントリーポイントを変更するために使用します。
-func WithAPIBase(apiBase string) serviceConfig {
+func WithAPIBase(apiBase string) ServiceConfig {
 	return func(s *Service) {
 		s.apiBase = apiBase
 	}
 }
 
 // WithMaxCount はリクエストのリトライ回数を変更するために使用します。
-func WithMaxCount(maxCount int) serviceConfig {
+func WithMaxCount(maxCount int) ServiceConfig {
 	return func(s *Service) {
 		s.MaxCount = maxCount
 	}
 }
 
 // WithInitialDelay はリクエストリトライ時の初期遅延時間を変更するために使用します。
-func WithInitialDelay(initialDelay float64) serviceConfig {
+func WithInitialDelay(initialDelay float64) ServiceConfig {
 	return func(s *Service) {
 		s.InitialDelay = initialDelay
 	}
 }
 
 // WithMaxDelay はリクエストリトライ時の最大遅延時間を変更するために使用します。
-func WithMaxDelay(maxDelay float64) serviceConfig {
+func WithMaxDelay(maxDelay float64) ServiceConfig {
 	return func(s *Service) {
 		s.MaxDelay = maxDelay
 	}
@@ -53,7 +53,7 @@ func WithMaxDelay(maxDelay float64) serviceConfig {
 //
 // デフォルトではログは出力されません。
 // LoggerInterfaceを実装した構造体を渡すことでログ出力を変更できます。
-func WithLogger(logger LoggerInterface) serviceConfig {
+func WithLogger(logger LoggerInterface) ServiceConfig {
 	return func(s *Service) {
 		s.Logger = logger
 	}
@@ -109,7 +109,7 @@ type Service struct {
 // clientは特別な設定をしたhttp.Clientを使用する場合に渡します。nilを指定するとデフォルトのもhttp.Clientを指定します。
 //
 // configは追加の設定が必要な場合に渡します。
-func New(apiKey string, client *http.Client, configs ...serviceConfig) *Service {
+func New(apiKey string, client *http.Client, configs ...ServiceConfig) *Service {
 	if client == nil {
 		client = &http.Client{}
 	}
