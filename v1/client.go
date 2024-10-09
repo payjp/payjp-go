@@ -71,7 +71,7 @@ func RandUniform(min, max float64) float64 {
 // リクエストリトライ時に遅延させる時間を計算する
 // equal jitter に基づいて算出
 // ref: https://aws.amazon.com/jp/blogs/architecture/exponential-backoff-and-jitter/
-func (r Service) getRetryDelay(retryCount int) float64 {
+func (r *Service) getRetryDelay(retryCount int) float64 {
 	delay := math.Min(r.MaxDelay, r.InitialDelay*math.Pow(2.0, float64(retryCount)))
 	half := delay / 2.0
 	offset := RandUniform(0, half)
@@ -181,11 +181,11 @@ func Bool(v bool) *bool {
 }
 
 // APIBase はPAY.JPのエントリーポイントの基底部分のURLを返します。
-func (s Service) APIBase() string {
+func (s *Service) APIBase() string {
 	return s.apiBase
 }
 
-func (s Service) request(method, path string, body io.Reader, headerMap ...map[string]string) ([]byte, error) {
+func (s *Service) request(method, path string, body io.Reader, headerMap ...map[string]string) ([]byte, error) {
 	request, err := http.NewRequest(method, s.apiBase+path, body)
 	if err != nil {
 		return nil, err
@@ -226,7 +226,7 @@ func (s Service) request(method, path string, body io.Reader, headerMap ...map[s
 	return ioutil.ReadAll(resp.Body)
 }
 
-func (s Service) delete(path string) error {
+func (s *Service) delete(path string) error {
 	body, _ := s.request("DELETE", path, nil)
 	var res DeleteResponse
 	err := json.Unmarshal(body, &res)
@@ -244,7 +244,7 @@ type ListParams struct {
 }
 
 // 第一引数の構造体を第二引数のURLパラメータにパースします(keyはメタ情報の値、valueは再帰しつつプリミティブに変換)
-func (s Service) makeEncoder(v reflect.Value, values url.Values) {
+func (s *Service) makeEncoder(v reflect.Value, values url.Values) {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		rf := t.Field(i)
@@ -274,7 +274,7 @@ func (s Service) makeEncoder(v reflect.Value, values url.Values) {
 }
 
 // 引数の構造体からURLパラメータを生成します(メンバが全てポインタ型でメタ情報を持っている必要があります)
-func (s Service) getQuery(c interface{}) string {
+func (s *Service) getQuery(c interface{}) string {
 	rv := reflect.ValueOf(c)
 	if c != nil && rv.Kind() == reflect.Ptr && !rv.IsNil() {
 		v := rv.Elem()
