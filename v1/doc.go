@@ -6,7 +6,7 @@
 // PAY.JPは、RESTをベースに構成された決済APIです。都度の支払い、定期的な支払い、
 // 顧客情報の管理など、ビジネス運用における様々なことができます。
 //
-// - PAY.JP Getting Started Guide: https://pay.jp/docs/started
+// - PAY.JP Document: https://pay.jp/docs
 //
 // - PAY.JP API Docs: https://pay.jp/docs/api/
 //
