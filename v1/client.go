@@ -89,17 +89,18 @@ type Service struct {
 	MaxDelay     float64
 	Logger       LoggerInterface
 
-	Charge       *ChargeService
-	Customer     *CustomerService
-	Plan         *PlanService
-	Subscription *SubscriptionService
-	Token        *TokenService
-	Transfer     *TransferService
-	Statement    *StatementService
-	Term         *TermService
-	Balance      *BalanceService
-	Event        *EventService
-	Account      *AccountService
+	Charge              *ChargeService
+	Customer            *CustomerService
+	Plan                *PlanService
+	Subscription        *SubscriptionService
+	Token               *TokenService
+	Transfer            *TransferService
+	Statement           *StatementService
+	Term                *TermService
+	Balance             *BalanceService
+	Event               *EventService
+	Account             *AccountService
+	ThreeDSecureRequest *ThreeDSecureRequestService
 }
 
 // New はPAY.JPのAPIを初期化する関数です。
@@ -138,6 +139,7 @@ func New(apiKey string, client *http.Client, configs ...ServiceConfig) *Service 
 	service.Balance = newBalanceService(service)
 	service.Term = newTermService(service)
 	service.Event = newEventService(service)
+	service.ThreeDSecureRequest = newThreeDSecureRequestService(service)
 
 	return service
 }
