@@ -63,7 +63,7 @@ var tokenNewResponseJSON = []byte(`
     "object": "card",
     "email": "liveaccount@example.com",
     "phone": "+81301234567",
-	"three_d_secure_status": "verified"
+    "three_d_secure_status": "verified"
   },
   "created": 1442290383,
   "id": "tok_5ca06b51685e001723a2c3b4aeb4",
