@@ -308,7 +308,7 @@ func (c *ChargeResponse) Capture(amount ...int) error {
 	return err
 }
 
-// TdsFinish をChrgeResponseから実行します。
+// TdsFinish を ChargeResponse から実行します。
 func (c *ChargeResponse) TdsFinish() error {
 	return c.updateResponse(c.service.Charge.TdsFinish(c.ID))
 }
@@ -346,7 +346,7 @@ type ChargeResponse struct {
 	Metadata           map[string]string `json:"metadata"`
 	FeeRate            string            `json:"fee_rate"`              // 決済手数料率
 	ThreeDSecureStatus *string           `json:"three_d_secure_status"` // 3Dセキュアの実施状況
-	TermID             string            `json:"term_id"` // TermオブジェクトID
+	TermID             string            `json:"term_id"`               // TermオブジェクトID
 	Object             string            `json:"object"`
 
 	service *Service
