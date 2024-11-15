@@ -17,16 +17,14 @@ func newThreeDSecureRequestService(service *Service) *ThreeDSecureRequestService
 
 // ThreeDSecureRequest は3Dセキュアリクエストの作成時に使用する構造体です。
 type ThreeDSecureRequest struct {
-	ResourceID string // 必須: 顧客カードID。
-	TenantID   string // テナントID
+	ResourceID string  // 必須: 顧客カードID。
+	TenantID   *string // テナントID
 }
 
 func (t ThreeDSecureRequestService) Create(threeDSecureRequest ThreeDSecureRequest) (*ThreeDSecureRequestResponse, error) {
 	qb := newRequestBuilder()
 	qb.Add("resource_id", threeDSecureRequest.ResourceID)
-	if threeDSecureRequest.TenantID != "" {
-		qb.Add("tenant_id", threeDSecureRequest.TenantID)
-	}
+	qb.Add("tenant_id", threeDSecureRequest.TenantID)
 
 	body, err := t.service.request("POST", "/three_d_secure_requests", qb.Reader())
 	if err != nil {
