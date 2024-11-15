@@ -69,6 +69,13 @@ func (t TokenService) Retrieve(id string) (*TokenResponse, error) {
 	return parseToken(t.service, body, err)
 }
 
+// TdsFinish は3Dセキュア認証が終了した支払いに対し、決済を行います。
+// https://pay.jp/docs/api/#%E3%83%88%E3%83%BC%E3%82%AF%E3%83%B3%E3%81%AB%E5%AF%BE%E3%81%99%E3%82%8B3d%E3%82%BB%E3%82%AD%E3%83%A5%E3%82%A2%E3%83%95%E3%83%AD%E3%83%BC%E3%82%92%E5%AE%8C%E4%BA%86%E3%81%99%E3%82%8B
+func (t TokenService) TdsFinish(id string) (*TokenResponse, error) {
+	body, err := t.service.request("POST", "/tokens/"+id+"/tds_finish", nil)
+	return parseToken(t.service, body, err)
+}
+
 // TokenResponse はToken.Create(), Token.Retrieve()が返す構造体です。
 type TokenResponse struct {
 	CreatedAt time.Time       // このトークン作成時間
@@ -110,11 +117,4 @@ func (t *TokenResponse) updateResponse(r *TokenResponse, err error) error {
 	}
 	*t = *r
 	return nil
-}
-
-// TdsFinish は3Dセキュア認証が終了した支払いに対し、決済を行います。
-// https://pay.jp/docs/api/#%E3%83%88%E3%83%BC%E3%82%AF%E3%83%B3%E3%81%AB%E5%AF%BE%E3%81%99%E3%82%8B3d%E3%82%BB%E3%82%AD%E3%83%A5%E3%82%A2%E3%83%95%E3%83%AD%E3%83%BC%E3%82%92%E5%AE%8C%E4%BA%86%E3%81%99%E3%82%8B
-func (t TokenService) TdsFinish(id string) (*TokenResponse, error) {
-	body, err := t.service.request("POST", "/tokens/"+id+"/tds_finish", nil)
-	return parseToken(t.service, body, err)
 }
