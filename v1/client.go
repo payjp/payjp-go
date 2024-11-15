@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const Version = "v0.2.4"
+const Version = "v0.3.0"
 const tagName = "form"
 const rateLimitStatusCode = 429
 
