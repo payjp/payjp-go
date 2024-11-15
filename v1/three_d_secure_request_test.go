@@ -124,7 +124,7 @@ func TestThreeDSecureRequestCreate(t *testing.T) {
 
 	threeDSecureRequest, err = service.ThreeDSecureRequest.Create(ThreeDSecureRequest{
 		ResourceID: "car_4ec110e0700daf893160424fe03c",
-		TenantID:   "ten_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+		TenantID:   String("ten_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "resource_id=car_4ec110e0700daf893160424fe03c&tenant_id=ten_xxxxxxxxxxxxxxxxxxxxxxxxxxxx", *transport.Body)
