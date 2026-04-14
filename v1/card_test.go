@@ -68,7 +68,8 @@ var cardUpdateResponseJSON = []byte(`
   "metadata": {},
   "object": "card",
   "email": "liveaccount@example.com",
-  "phone": "+81301234567"
+  "phone": "+81301234567",
+  "is_jp": true
 }`)
 
 var deleteResponseJSONStr = `
@@ -99,6 +100,7 @@ func TestParseCardResponseJSON(t *testing.T) {
 	assert.Equal(t, service, card.service)
 	assert.Equal(t, "liveaccount@example.com", *card.Email)
 	assert.Equal(t, "+81301234567", *card.Phone)
+	assert.Equal(t, true, *card.IsJP)
 }
 
 func TestCustomerAddCardToken(t *testing.T) {
@@ -384,4 +386,85 @@ func TestCustomerListCard(t *testing.T) {
 	assert.False(t, hasMore)
 	assert.IsType(t, &Error{}, err)
 	assert.Equal(t, errorStr, err.Error())
+}
+
+func TestCardResponseIsJP(t *testing.T) {
+	boolTrue := true
+	boolFalse := false
+	tests := []struct {
+		name     string
+		json     string
+		wantIsJP *bool
+	}{
+		{
+			name: "is_jp is true for domestic card",
+			json: `{
+				"object": "card",
+				"id": "car_test",
+				"created": 1433127983,
+				"brand": "Visa",
+				"last4": "4242",
+				"exp_month": 2,
+				"exp_year": 2020,
+				"fingerprint": "e1d8225886e3a7211127df751c86787f",
+				"name": "PAY TARO",
+				"livemode": false,
+				"is_jp": true
+			}`,
+			wantIsJP: &boolTrue,
+		},
+		{
+			name: "is_jp is false for foreign card",
+			json: `{
+				"object": "card",
+				"id": "car_test",
+				"created": 1433127983,
+				"brand": "Visa",
+				"last4": "4242",
+				"exp_month": 2,
+				"exp_year": 2020,
+				"fingerprint": "e1d8225886e3a7211127df751c86787f",
+				"name": "PAY TARO",
+				"livemode": false,
+				"is_jp": false
+			}`,
+			wantIsJP: &boolFalse,
+		},
+		{
+			name: "is_jp is null for undetermined card",
+			json: `{
+				"object": "card",
+				"id": "car_test",
+				"created": 1433127983,
+				"brand": "Visa",
+				"last4": "4242",
+				"exp_month": 2,
+				"exp_year": 2020,
+				"fingerprint": "e1d8225886e3a7211127df751c86787f",
+				"name": "PAY TARO",
+				"livemode": false,
+				"is_jp": null
+			}`,
+			wantIsJP: nil,
+		},
+		{
+			name:     "is_jp is absent for backward compatibility",
+			json:     cardResponseJSONStr,
+			wantIsJP: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			card := &CardResponse{}
+			err := json.Unmarshal([]byte(tt.json), card)
+
+			assert.NoError(t, err)
+			if tt.wantIsJP != nil {
+				assert.NotNil(t, card.IsJP)
+				assert.Equal(t, *tt.wantIsJP, *card.IsJP)
+			} else {
+				assert.Nil(t, card.IsJP)
+			}
+		})
+	}
 }

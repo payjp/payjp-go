@@ -44,6 +44,7 @@ type CardResponse struct {
 	ThreeDSecureStatus *string           `json:"three_d_secure_status"`
 	Email              *string           `json:"email"`
 	Phone              *string           `json:"phone"`
+	IsJP               *bool             `json:"is_jp"`
 
 	customerID string
 	service    *Service
